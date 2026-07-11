@@ -1,0 +1,1 @@
+- [Clerk has no orgs — team model workaround](clerk-team-workaround.md) — build multi-user "team" access as custom DB tables, not a Clerk feature.
