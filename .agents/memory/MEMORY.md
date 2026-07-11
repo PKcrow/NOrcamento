@@ -1,1 +1,2 @@
 - [Clerk has no orgs — team model workaround](clerk-team-workaround.md) — build multi-user "team" access as custom DB tables, not a Clerk feature.
+- [removeChild crash from browser translation/extensions](removechild-translate-crash.md) — intermittent NotFoundError removeChild/insertBefore crashes are usually Chrome translate/extensions, not app bugs.
