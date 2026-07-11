@@ -91,6 +91,12 @@ export interface Quote {
   serviceDescription: string | null;
   /** @nullable */
   notes: string | null;
+  /**
+     * Cost of labor/mão de obra, added on top of the item totals.
+     * @minimum 0
+     */
+  laborCost: number;
+  /** Sum of all item totals plus laborCost. */
   total: number;
   items: QuoteItem[];
   createdAt: string;
@@ -188,6 +194,8 @@ export interface QuoteInput {
   status?: QuoteStatus;
   serviceDescription?: string;
   notes?: string;
+  /** @minimum 0 */
+  laborCost?: number;
   /** @minItems 1 */
   items: QuoteItemInput[];
 }
@@ -199,6 +207,8 @@ export interface QuoteUpdate {
   serviceDescription?: string | null;
   /** @nullable */
   notes?: string | null;
+  /** @minimum 0 */
+  laborCost?: number;
   items?: QuoteItemInput[];
 }
 

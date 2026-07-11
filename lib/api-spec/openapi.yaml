@@ -866,6 +866,7 @@ components:
           status,
           serviceDescription,
           notes,
+          laborCost,
           total,
           items,
           createdAt,
@@ -886,8 +887,13 @@ components:
           description: Description of the service/work to be performed, shown on the printable quote.
         notes:
           type: ["string", "null"]
+        laborCost:
+          type: number
+          minimum: 0
+          description: Cost of labor/mão de obra, added on top of the item totals.
         total:
           type: number
+          description: Sum of all item totals plus laborCost.
         items:
           type: array
           items:
@@ -914,6 +920,9 @@ components:
           type: string
         notes:
           type: string
+        laborCost:
+          type: number
+          minimum: 0
         items:
           type: array
           minItems: 1
@@ -931,6 +940,9 @@ components:
           type: ["string", "null"]
         notes:
           type: ["string", "null"]
+        laborCost:
+          type: number
+          minimum: 0
         items:
           type: array
           items:

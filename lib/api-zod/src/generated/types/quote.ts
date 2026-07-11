@@ -20,6 +20,12 @@ export interface Quote {
   serviceDescription: string | null;
   /** @nullable */
   notes: string | null;
+  /**
+     * Cost of labor/mão de obra, added on top of the item totals.
+     * @minimum 0
+     */
+  laborCost: number;
+  /** Sum of all item totals plus laborCost. */
   total: number;
   items: QuoteItem[];
   createdAt: Date;

@@ -41,7 +41,8 @@ export function quoteWithTotal(
       total: quantity * unitPrice,
     };
   });
-  const total = itemsOut.reduce((sum, item) => sum + item.total, 0);
+  const laborCost = Number(quote.laborCost);
+  const total = itemsOut.reduce((sum, item) => sum + item.total, 0) + laborCost;
 
   return {
     id: quote.id,
@@ -50,6 +51,7 @@ export function quoteWithTotal(
     status: quote.status,
     serviceDescription: quote.serviceDescription,
     notes: quote.notes,
+    laborCost,
     total,
     items: itemsOut,
     createdAt: quote.createdAt,
@@ -122,6 +124,7 @@ router.post("/quotes", requireAuth, requireTeam, async (req, res) => {
       status: body.status ?? "draft",
       serviceDescription: body.serviceDescription ?? null,
       notes: body.notes ?? null,
+      laborCost: String(body.laborCost ?? 0),
       sentAt: body.status === "sent" ? new Date() : null,
     })
     .returning();
@@ -192,6 +195,9 @@ router.patch("/quotes/:id", requireAuth, requireTeam, async (req, res) => {
         ? { serviceDescription: body.serviceDescription }
         : {}),
       ...(body.notes !== undefined ? { notes: body.notes } : {}),
+      ...(body.laborCost !== undefined
+        ? { laborCost: String(body.laborCost) }
+        : {}),
       ...(becameSent ? { sentAt: new Date() } : {}),
     })
     .where(eq(quotesTable.id, id));

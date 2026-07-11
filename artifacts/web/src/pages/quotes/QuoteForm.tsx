@@ -33,6 +33,7 @@ export function QuoteForm({ id }: QuoteFormProps) {
 
   const [clientId, setClientId] = useState<string>(initialClientId || "");
   const [notes, setNotes] = useState("");
+  const [laborCost, setLaborCost] = useState<number>(0);
   const [items, setItems] = useState<(QuoteItemInput & { localId: string })[]>([
     { localId: Math.random().toString(), description: "", quantity: 1, unitPrice: 0, productId: null }
   ]);
@@ -42,6 +43,7 @@ export function QuoteForm({ id }: QuoteFormProps) {
     if (existingQuote) {
       setClientId(existingQuote.clientId.toString());
       setNotes(existingQuote.notes || "");
+      setLaborCost(existingQuote.laborCost || 0);
       if (existingQuote.items.length > 0) {
         setItems(existingQuote.items.map(i => ({
           localId: Math.random().toString(),
@@ -54,9 +56,11 @@ export function QuoteForm({ id }: QuoteFormProps) {
     }
   }, [existingQuote]);
 
-  const total = useMemo(() => {
+  const itemsTotal = useMemo(() => {
     return items.reduce((sum, item) => sum + (item.quantity * item.unitPrice), 0);
   }, [items]);
+
+  const total = itemsTotal + laborCost;
 
   const handleAddItem = () => {
     setItems([...items, { localId: Math.random().toString(), description: "", quantity: 1, unitPrice: 0, productId: null }]);
@@ -98,6 +102,7 @@ export function QuoteForm({ id }: QuoteFormProps) {
     const payload = {
       clientId: Number(clientId),
       notes: notes || undefined,
+      laborCost,
       items: validItems.map(i => ({
         productId: i.productId,
         description: i.description,
@@ -246,6 +251,33 @@ export function QuoteForm({ id }: QuoteFormProps) {
                 )}
               </div>
             ))}
+          </CardContent>
+          <CardFooter className="flex justify-between items-center border-t p-6 bg-gray-50 rounded-b-xl">
+            <span className="text-sm font-medium text-gray-500">Subtotal dos itens</span>
+            <span className="text-lg font-semibold text-gray-900">{formatCurrency(itemsTotal)}</span>
+          </CardFooter>
+        </Card>
+
+        <Card className="shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-lg">Mão de Obra</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2 max-w-xs">
+              <Label htmlFor="laborCost">Valor da mão de obra</Label>
+              <div className="relative">
+                <span className="absolute left-3 top-2.5 text-gray-500">R$</span>
+                <Input
+                  id="laborCost"
+                  type="number" min="0" step="0.01"
+                  value={laborCost}
+                  onChange={(e) => setLaborCost(Number(e.target.value))}
+                  className="pl-8"
+                  placeholder="0,00"
+                />
+              </div>
+              <p className="text-xs text-gray-500">Adicionado ao valor total do orçamento, além dos itens.</p>
+            </div>
           </CardContent>
           <CardFooter className="flex justify-between items-center border-t p-6 bg-gray-50 rounded-b-xl">
             <span className="text-lg font-medium text-gray-600">Valor Total do Orçamento</span>

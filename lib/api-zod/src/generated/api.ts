@@ -98,6 +98,10 @@ export const JoinTeamResponse = zod.object({
 /**
  * @summary Get dashboard summary with pending quotes and upcoming tasks
  */
+export const getDashboardSummaryResponseRecentQuotesItemLaborCostMin = 0;
+
+
+
 export const GetDashboardSummaryResponse = zod.object({
   "pendingQuotesCount": zod.number(),
   "pendingQuotesTotal": zod.number(),
@@ -120,7 +124,8 @@ export const GetDashboardSummaryResponse = zod.object({
   "status": zod.enum(['draft', 'sent', 'approved', 'rejected']),
   "serviceDescription": zod.string().nullable().describe('Description of the service\/work to be performed, shown on the printable quote.'),
   "notes": zod.string().nullable(),
-  "total": zod.number(),
+  "laborCost": zod.number().min(getDashboardSummaryResponseRecentQuotesItemLaborCostMin).describe('Cost of labor\/mão de obra, added on top of the item totals.'),
+  "total": zod.number().describe('Sum of all item totals plus laborCost.'),
   "items": zod.array(zod.object({
   "id": zod.number(),
   "productId": zod.number().nullable(),
@@ -186,6 +191,10 @@ export const GetClientParams = zod.object({
   "id": zod.coerce.number()
 })
 
+export const getClientResponseTwoQuotesItemLaborCostMin = 0;
+
+
+
 export const GetClientResponse = zod.object({
   "id": zod.number(),
   "name": zod.string(),
@@ -202,7 +211,8 @@ export const GetClientResponse = zod.object({
   "status": zod.enum(['draft', 'sent', 'approved', 'rejected']),
   "serviceDescription": zod.string().nullable().describe('Description of the service\/work to be performed, shown on the printable quote.'),
   "notes": zod.string().nullable(),
-  "total": zod.number(),
+  "laborCost": zod.number().min(getClientResponseTwoQuotesItemLaborCostMin).describe('Cost of labor\/mão de obra, added on top of the item totals.'),
+  "total": zod.number().describe('Sum of all item totals plus laborCost.'),
   "items": zod.array(zod.object({
   "id": zod.number(),
   "productId": zod.number().nullable(),
@@ -354,6 +364,10 @@ export const ListQuotesQueryParams = zod.object({
   "clientId": zod.coerce.number().optional()
 })
 
+export const listQuotesResponseLaborCostMin = 0;
+
+
+
 export const ListQuotesResponseItem = zod.object({
   "id": zod.number(),
   "clientId": zod.number(),
@@ -361,7 +375,8 @@ export const ListQuotesResponseItem = zod.object({
   "status": zod.enum(['draft', 'sent', 'approved', 'rejected']),
   "serviceDescription": zod.string().nullable().describe('Description of the service\/work to be performed, shown on the printable quote.'),
   "notes": zod.string().nullable(),
-  "total": zod.number(),
+  "laborCost": zod.number().min(listQuotesResponseLaborCostMin).describe('Cost of labor\/mão de obra, added on top of the item totals.'),
+  "total": zod.number().describe('Sum of all item totals plus laborCost.'),
   "items": zod.array(zod.object({
   "id": zod.number(),
   "productId": zod.number().nullable(),
@@ -380,6 +395,8 @@ export const ListQuotesResponse = zod.array(ListQuotesResponseItem)
 /**
  * @summary Create a quote with line items
  */
+export const createQuoteBodyLaborCostMin = 0;
+
 
 export const createQuoteBodyItemsItemQuantityMin = 0;
 
@@ -393,6 +410,7 @@ export const CreateQuoteBody = zod.object({
   "status": zod.enum(['draft', 'sent', 'approved', 'rejected']).optional(),
   "serviceDescription": zod.string().optional(),
   "notes": zod.string().optional(),
+  "laborCost": zod.number().min(createQuoteBodyLaborCostMin).optional(),
   "items": zod.array(zod.object({
   "productId": zod.number().nullish(),
   "description": zod.string().min(1),
@@ -401,6 +419,10 @@ export const CreateQuoteBody = zod.object({
 })).min(1)
 })
 
+export const createQuoteResponseLaborCostMin = 0;
+
+
+
 export const CreateQuoteResponse = zod.object({
   "id": zod.number(),
   "clientId": zod.number(),
@@ -408,7 +430,8 @@ export const CreateQuoteResponse = zod.object({
   "status": zod.enum(['draft', 'sent', 'approved', 'rejected']),
   "serviceDescription": zod.string().nullable().describe('Description of the service\/work to be performed, shown on the printable quote.'),
   "notes": zod.string().nullable(),
-  "total": zod.number(),
+  "laborCost": zod.number().min(createQuoteResponseLaborCostMin).describe('Cost of labor\/mão de obra, added on top of the item totals.'),
+  "total": zod.number().describe('Sum of all item totals plus laborCost.'),
   "items": zod.array(zod.object({
   "id": zod.number(),
   "productId": zod.number().nullable(),
@@ -430,6 +453,10 @@ export const GetQuoteParams = zod.object({
   "id": zod.coerce.number()
 })
 
+export const getQuoteResponseLaborCostMin = 0;
+
+
+
 export const GetQuoteResponse = zod.object({
   "id": zod.number(),
   "clientId": zod.number(),
@@ -437,7 +464,8 @@ export const GetQuoteResponse = zod.object({
   "status": zod.enum(['draft', 'sent', 'approved', 'rejected']),
   "serviceDescription": zod.string().nullable().describe('Description of the service\/work to be performed, shown on the printable quote.'),
   "notes": zod.string().nullable(),
-  "total": zod.number(),
+  "laborCost": zod.number().min(getQuoteResponseLaborCostMin).describe('Cost of labor\/mão de obra, added on top of the item totals.'),
+  "total": zod.number().describe('Sum of all item totals plus laborCost.'),
   "items": zod.array(zod.object({
   "id": zod.number(),
   "productId": zod.number().nullable(),
@@ -459,6 +487,8 @@ export const UpdateQuoteParams = zod.object({
   "id": zod.coerce.number()
 })
 
+export const updateQuoteBodyLaborCostMin = 0;
+
 
 export const updateQuoteBodyItemsItemQuantityMin = 0;
 
@@ -471,6 +501,7 @@ export const UpdateQuoteBody = zod.object({
   "status": zod.enum(['draft', 'sent', 'approved', 'rejected']).optional(),
   "serviceDescription": zod.string().nullish(),
   "notes": zod.string().nullish(),
+  "laborCost": zod.number().min(updateQuoteBodyLaborCostMin).optional(),
   "items": zod.array(zod.object({
   "productId": zod.number().nullish(),
   "description": zod.string().min(1),
@@ -479,6 +510,10 @@ export const UpdateQuoteBody = zod.object({
 })).optional()
 })
 
+export const updateQuoteResponseLaborCostMin = 0;
+
+
+
 export const UpdateQuoteResponse = zod.object({
   "id": zod.number(),
   "clientId": zod.number(),
@@ -486,7 +521,8 @@ export const UpdateQuoteResponse = zod.object({
   "status": zod.enum(['draft', 'sent', 'approved', 'rejected']),
   "serviceDescription": zod.string().nullable().describe('Description of the service\/work to be performed, shown on the printable quote.'),
   "notes": zod.string().nullable(),
-  "total": zod.number(),
+  "laborCost": zod.number().min(updateQuoteResponseLaborCostMin).describe('Cost of labor\/mão de obra, added on top of the item totals.'),
+  "total": zod.number().describe('Sum of all item totals plus laborCost.'),
   "items": zod.array(zod.object({
   "id": zod.number(),
   "productId": zod.number().nullable(),

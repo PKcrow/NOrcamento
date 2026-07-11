@@ -13,6 +13,8 @@ export interface QuoteInput {
   status?: QuoteStatus;
   serviceDescription?: string;
   notes?: string;
+  /** @minimum 0 */
+  laborCost?: number;
   /** @minItems 1 */
   items: QuoteItemInput[];
 }

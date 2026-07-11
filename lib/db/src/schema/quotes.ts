@@ -33,6 +33,9 @@ export const quotesTable = pgTable("quotes", {
     .default("draft"),
   serviceDescription: text("service_description"),
   notes: text("notes"),
+  laborCost: numeric("labor_cost", { precision: 12, scale: 2 })
+    .notNull()
+    .default("0"),
   sentAt: timestamp("sent_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()

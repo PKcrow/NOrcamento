@@ -21,6 +21,12 @@ import {
 import { useState, useEffect } from "react";
 import { Button } from "../ui/button";
 import { Badge } from "../ui/badge";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "../ui/popover";
+import { formatDateTime } from "@/lib/format";
 
 const navItems = [
   { name: "Dashboard", path: "/", icon: LayoutDashboard },
@@ -31,11 +37,12 @@ const navItems = [
 ];
 
 export function Shell({ children }: { children: React.ReactNode }) {
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   const { signOut } = useClerk();
   const { user } = useUser();
   const { data: me } = useGetMe();
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const [isNotificationsOpen, setIsNotificationsOpen] = useState(false);
   
   // Poll notifications every minute
   const { data: notifications } = useGetNotifications({
@@ -43,6 +50,11 @@ export function Shell({ children }: { children: React.ReactNode }) {
   });
   
   const notificationCount = (notifications?.dueSoonTasks.length || 0) + (notifications?.overdueTasks.length || 0);
+
+  const notificationItems = [
+    ...(notifications?.overdueTasks || []).map((t) => ({ ...t, overdue: true })),
+    ...(notifications?.dueSoonTasks || []).map((t) => ({ ...t, overdue: false })),
+  ];
 
   // Close mobile nav on route change
   useEffect(() => {
@@ -142,12 +154,30 @@ export function Shell({ children }: { children: React.ReactNode }) {
             </button>
             <span className="font-bold text-gray-900">Gestão Autônomos</span>
           </div>
-          <div className="relative">
-            <Bell className="w-5 h-5 text-gray-500" />
-            {notificationCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white" />
-            )}
-          </div>
+          <NotificationBell
+            count={notificationCount}
+            items={notificationItems}
+            isOpen={isNotificationsOpen}
+            onOpenChange={setIsNotificationsOpen}
+            onSelectTask={() => {
+              setIsNotificationsOpen(false);
+              setLocation("/tarefas");
+            }}
+          />
+        </header>
+
+        {/* Desktop Header */}
+        <header className="h-16 bg-white border-b hidden md:flex items-center justify-end px-8 shrink-0">
+          <NotificationBell
+            count={notificationCount}
+            items={notificationItems}
+            isOpen={isNotificationsOpen}
+            onOpenChange={setIsNotificationsOpen}
+            onSelectTask={() => {
+              setIsNotificationsOpen(false);
+              setLocation("/tarefas");
+            }}
+          />
         </header>
 
         {/* Page Content */}
@@ -158,5 +188,74 @@ export function Shell({ children }: { children: React.ReactNode }) {
         </main>
       </div>
     </div>
+  );
+}
+
+interface NotificationTaskItem {
+  id: number;
+  title: string;
+  dueAt: string;
+  clientName: string | null;
+  overdue: boolean;
+}
+
+function NotificationBell({
+  count,
+  items,
+  isOpen,
+  onOpenChange,
+  onSelectTask,
+}: {
+  count: number;
+  items: NotificationTaskItem[];
+  isOpen: boolean;
+  onOpenChange: (open: boolean) => void;
+  onSelectTask: () => void;
+}) {
+  return (
+    <Popover open={isOpen} onOpenChange={onOpenChange}>
+      <PopoverTrigger asChild>
+        <button className="relative p-1" aria-label="Notificações">
+          <Bell className="w-5 h-5 text-gray-500" />
+          {count > 0 && (
+            <span className="absolute top-0 right-0 w-2.5 h-2.5 bg-red-500 rounded-full border-2 border-white" />
+          )}
+        </button>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-80 p-0">
+        <div className="px-4 py-3 border-b">
+          <p className="font-semibold text-gray-900 text-sm">Notificações</p>
+          <p className="text-xs text-gray-500">Tarefas atrasadas e com prazo próximo</p>
+        </div>
+        <div className="max-h-80 overflow-y-auto">
+          {items.length === 0 ? (
+            <p className="px-4 py-6 text-center text-sm text-gray-500">Nenhuma notificação por aqui.</p>
+          ) : (
+            items.map((task) => (
+              <button
+                key={task.id}
+                onClick={onSelectTask}
+                className="w-full text-left px-4 py-3 border-b last:border-b-0 hover:bg-gray-50 transition-colors"
+              >
+                <div className="flex items-start justify-between gap-2">
+                  <span className="text-sm font-medium text-gray-900 line-clamp-1">{task.title}</span>
+                  {task.overdue && (
+                    <Badge variant="destructive" className="shrink-0 text-[10px] h-5">Atrasada</Badge>
+                  )}
+                </div>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  {task.clientName ? `${task.clientName} · ` : ""}{formatDateTime(task.dueAt)}
+                </p>
+              </button>
+            ))
+          )}
+        </div>
+        <div className="p-2 border-t">
+          <Button variant="ghost" size="sm" className="w-full" onClick={onSelectTask}>
+            Ver todas as tarefas
+          </Button>
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }

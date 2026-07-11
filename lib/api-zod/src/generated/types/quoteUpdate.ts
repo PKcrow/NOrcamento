@@ -15,5 +15,7 @@ export interface QuoteUpdate {
   serviceDescription?: string | null;
   /** @nullable */
   notes?: string | null;
+  /** @minimum 0 */
+  laborCost?: number;
   items?: QuoteItemInput[];
 }

@@ -162,6 +162,12 @@ export function QuoteDetail() {
                     <td className="py-4 text-right font-medium text-gray-900 whitespace-nowrap">{formatCurrency(item.total)}</td>
                   </tr>
                 ))}
+                {quote.laborCost > 0 && (
+                  <tr>
+                    <td className="py-4 text-gray-900" colSpan={3}>Mão de Obra</td>
+                    <td className="py-4 text-right font-medium text-gray-900 whitespace-nowrap">{formatCurrency(quote.laborCost)}</td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
