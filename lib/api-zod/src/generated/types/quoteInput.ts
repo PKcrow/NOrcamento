@@ -11,6 +11,7 @@ import type { QuoteStatus } from './quoteStatus';
 export interface QuoteInput {
   clientId: number;
   status?: QuoteStatus;
+  serviceDescription?: string;
   notes?: string;
   /** @minItems 1 */
   items: QuoteItemInput[];

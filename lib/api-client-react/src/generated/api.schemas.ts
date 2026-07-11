@@ -84,6 +84,11 @@ export interface Quote {
   clientId: number;
   clientName: string;
   status: QuoteStatus;
+  /**
+     * Description of the service/work to be performed, shown on the printable quote.
+     * @nullable
+     */
+  serviceDescription: string | null;
   /** @nullable */
   notes: string | null;
   total: number;
@@ -181,6 +186,7 @@ export interface QuoteItemInput {
 export interface QuoteInput {
   clientId: number;
   status?: QuoteStatus;
+  serviceDescription?: string;
   notes?: string;
   /** @minItems 1 */
   items: QuoteItemInput[];
@@ -189,6 +195,8 @@ export interface QuoteInput {
 export interface QuoteUpdate {
   clientId?: number;
   status?: QuoteStatus;
+  /** @nullable */
+  serviceDescription?: string | null;
   /** @nullable */
   notes?: string | null;
   items?: QuoteItemInput[];
@@ -226,6 +234,63 @@ export interface DashboardSummary {
 export interface NotificationsResponse {
   overdueTasks: Task[];
   dueSoonTasks: Task[];
+}
+
+export interface Company {
+  id: string;
+  name: string;
+  /** @nullable */
+  logoUrl: string | null;
+  /** @nullable */
+  phone: string | null;
+  /** @nullable */
+  email: string | null;
+  /** @nullable */
+  address: string | null;
+  createdAt: string;
+}
+
+export interface CompanyUpdate {
+  /** @minLength 1 */
+  name?: string;
+  /** @nullable */
+  logoUrl?: string | null;
+  /** @nullable */
+  phone?: string | null;
+  /** @nullable */
+  email?: string | null;
+  /** @nullable */
+  address?: string | null;
+}
+
+export interface UploadUrlRequest {
+  /**
+     * Original file name.
+     * @minLength 1
+     */
+  name: string;
+  /**
+     * File size in bytes.
+     * @minimum 1
+     */
+  size: number;
+  /**
+     * MIME type of the file (e.g. `image/jpeg`).
+     * @minLength 1
+     */
+  contentType: string;
+}
+
+export interface UploadUrlResponse {
+  /** Presigned GCS URL for PUT upload. */
+  uploadURL: string;
+  /** Normalized object path (e.g. `/objects/uploads/uuid`). Store this in your database. */
+  objectPath: string;
+  metadata?: UploadUrlRequest;
+}
+
+export interface ErrorEnvelope {
+  error: string;
 }
 
 export type ListClientsParams = {

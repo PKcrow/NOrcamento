@@ -48,6 +48,7 @@ export function quoteWithTotal(
     clientId: quote.clientId,
     clientName,
     status: quote.status,
+    serviceDescription: quote.serviceDescription,
     notes: quote.notes,
     total,
     items: itemsOut,
@@ -119,6 +120,7 @@ router.post("/quotes", requireAuth, requireTeam, async (req, res) => {
       teamId,
       clientId: body.clientId,
       status: body.status ?? "draft",
+      serviceDescription: body.serviceDescription ?? null,
       notes: body.notes ?? null,
       sentAt: body.status === "sent" ? new Date() : null,
     })
@@ -186,6 +188,9 @@ router.patch("/quotes/:id", requireAuth, requireTeam, async (req, res) => {
     .set({
       ...(body.clientId !== undefined ? { clientId: body.clientId } : {}),
       ...(body.status !== undefined ? { status: body.status } : {}),
+      ...(body.serviceDescription !== undefined
+        ? { serviceDescription: body.serviceDescription }
+        : {}),
       ...(body.notes !== undefined ? { notes: body.notes } : {}),
       ...(becameSent ? { sentAt: new Date() } : {}),
     })

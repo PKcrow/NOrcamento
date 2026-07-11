@@ -8,6 +8,8 @@ import productsRouter from "./products";
 import quotesRouter from "./quotes";
 import tasksRouter from "./tasks";
 import notificationsRouter from "./notifications";
+import companyRouter from "./company";
+import storageRouter from "./storage";
 
 const router: IRouter = Router();
 
@@ -20,5 +22,7 @@ router.use(productsRouter);
 router.use(quotesRouter);
 router.use(tasksRouter);
 router.use(notificationsRouter);
+router.use(companyRouter);
+router.use(storageRouter);
 
 export default router;

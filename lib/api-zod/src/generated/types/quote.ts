@@ -13,6 +13,11 @@ export interface Quote {
   clientId: number;
   clientName: string;
   status: QuoteStatus;
+  /**
+     * Description of the service/work to be performed, shown on the printable quote.
+     * @nullable
+     */
+  serviceDescription: string | null;
   /** @nullable */
   notes: string | null;
   total: number;

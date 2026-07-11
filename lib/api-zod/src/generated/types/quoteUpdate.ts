@@ -12,6 +12,8 @@ export interface QuoteUpdate {
   clientId?: number;
   status?: QuoteStatus;
   /** @nullable */
+  serviceDescription?: string | null;
+  /** @nullable */
   notes?: string | null;
   items?: QuoteItemInput[];
 }

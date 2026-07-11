@@ -31,6 +31,7 @@ export const quotesTable = pgTable("quotes", {
   status: text("status", { enum: quoteStatusValues })
     .notNull()
     .default("draft"),
+  serviceDescription: text("service_description"),
   notes: text("notes"),
   sentAt: timestamp("sent_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true })

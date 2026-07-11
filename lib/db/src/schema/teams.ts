@@ -6,6 +6,10 @@ export const teamsTable = pgTable("teams", {
   id: uuid("id").primaryKey().defaultRandom(),
   name: text("name").notNull(),
   inviteCode: text("invite_code").notNull().unique(),
+  logoUrl: text("logo_url"),
+  phone: text("phone"),
+  email: text("email"),
+  address: text("address"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

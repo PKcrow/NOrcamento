@@ -118,6 +118,7 @@ export const GetDashboardSummaryResponse = zod.object({
   "clientId": zod.number(),
   "clientName": zod.string(),
   "status": zod.enum(['draft', 'sent', 'approved', 'rejected']),
+  "serviceDescription": zod.string().nullable().describe('Description of the service\/work to be performed, shown on the printable quote.'),
   "notes": zod.string().nullable(),
   "total": zod.number(),
   "items": zod.array(zod.object({
@@ -199,6 +200,7 @@ export const GetClientResponse = zod.object({
   "clientId": zod.number(),
   "clientName": zod.string(),
   "status": zod.enum(['draft', 'sent', 'approved', 'rejected']),
+  "serviceDescription": zod.string().nullable().describe('Description of the service\/work to be performed, shown on the printable quote.'),
   "notes": zod.string().nullable(),
   "total": zod.number(),
   "items": zod.array(zod.object({
@@ -357,6 +359,7 @@ export const ListQuotesResponseItem = zod.object({
   "clientId": zod.number(),
   "clientName": zod.string(),
   "status": zod.enum(['draft', 'sent', 'approved', 'rejected']),
+  "serviceDescription": zod.string().nullable().describe('Description of the service\/work to be performed, shown on the printable quote.'),
   "notes": zod.string().nullable(),
   "total": zod.number(),
   "items": zod.array(zod.object({
@@ -388,6 +391,7 @@ export const createQuoteBodyItemsItemUnitPriceMin = 0;
 export const CreateQuoteBody = zod.object({
   "clientId": zod.number(),
   "status": zod.enum(['draft', 'sent', 'approved', 'rejected']).optional(),
+  "serviceDescription": zod.string().optional(),
   "notes": zod.string().optional(),
   "items": zod.array(zod.object({
   "productId": zod.number().nullish(),
@@ -402,6 +406,7 @@ export const CreateQuoteResponse = zod.object({
   "clientId": zod.number(),
   "clientName": zod.string(),
   "status": zod.enum(['draft', 'sent', 'approved', 'rejected']),
+  "serviceDescription": zod.string().nullable().describe('Description of the service\/work to be performed, shown on the printable quote.'),
   "notes": zod.string().nullable(),
   "total": zod.number(),
   "items": zod.array(zod.object({
@@ -430,6 +435,7 @@ export const GetQuoteResponse = zod.object({
   "clientId": zod.number(),
   "clientName": zod.string(),
   "status": zod.enum(['draft', 'sent', 'approved', 'rejected']),
+  "serviceDescription": zod.string().nullable().describe('Description of the service\/work to be performed, shown on the printable quote.'),
   "notes": zod.string().nullable(),
   "total": zod.number(),
   "items": zod.array(zod.object({
@@ -463,6 +469,7 @@ export const updateQuoteBodyItemsItemUnitPriceMin = 0;
 export const UpdateQuoteBody = zod.object({
   "clientId": zod.number().optional(),
   "status": zod.enum(['draft', 'sent', 'approved', 'rejected']).optional(),
+  "serviceDescription": zod.string().nullish(),
   "notes": zod.string().nullish(),
   "items": zod.array(zod.object({
   "productId": zod.number().nullish(),
@@ -477,6 +484,7 @@ export const UpdateQuoteResponse = zod.object({
   "clientId": zod.number(),
   "clientName": zod.string(),
   "status": zod.enum(['draft', 'sent', 'approved', 'rejected']),
+  "serviceDescription": zod.string().nullable().describe('Description of the service\/work to be performed, shown on the printable quote.'),
   "notes": zod.string().nullable(),
   "total": zod.number(),
   "items": zod.array(zod.object({
@@ -613,5 +621,100 @@ export const GetNotificationsResponse = zod.object({
   "createdAt": zod.coerce.date()
 }))
 })
+
+
+/**
+ * @summary Get the current team's company profile
+ */
+export const GetCompanyResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "logoUrl": zod.string().nullable(),
+  "phone": zod.string().nullable(),
+  "email": zod.string().nullable(),
+  "address": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update the current team's company profile
+ */
+
+
+
+export const UpdateCompanyBody = zod.object({
+  "name": zod.string().min(1).optional(),
+  "logoUrl": zod.string().nullish(),
+  "phone": zod.string().nullish(),
+  "email": zod.string().nullish(),
+  "address": zod.string().nullish()
+})
+
+export const UpdateCompanyResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "logoUrl": zod.string().nullable(),
+  "phone": zod.string().nullable(),
+  "email": zod.string().nullable(),
+  "address": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * Returns a presigned GCS URL for direct upload. The client sends JSON
+ * metadata here, then uploads the file directly to the returned URL.
+ * @summary Request a presigned URL for file upload
+ */
+
+
+
+
+
+export const RequestUploadUrlBody = zod.object({
+  "name": zod.string().min(1).describe('Original file name.'),
+  "size": zod.number().min(1).describe('File size in bytes.'),
+  "contentType": zod.string().min(1).describe('MIME type of the file (e.g. `image\/jpeg`).')
+})
+
+
+
+
+
+
+export const RequestUploadUrlResponse = zod.object({
+  "uploadURL": zod.string().describe('Presigned GCS URL for PUT upload.'),
+  "objectPath": zod.string().describe('Normalized object path (e.g. `\/objects\/uploads\/uuid`). Store this in your database.'),
+  "metadata": zod.object({
+  "name": zod.string().min(1).describe('Original file name.'),
+  "size": zod.number().min(1).describe('File size in bytes.'),
+  "contentType": zod.string().min(1).describe('MIME type of the file (e.g. `image\/jpeg`).')
+}).optional()
+})
+
+
+/**
+ * Unconditionally public — no authentication or ACL checks.
+ * Searches PUBLIC_OBJECT_SEARCH_PATHS for the given file path.
+ * @summary Serve a public asset from PUBLIC_OBJECT_SEARCH_PATHS
+ */
+export const GetPublicObjectParams = zod.object({
+  "filePath": zod.coerce.string().describe('Relative file path within the public search paths.')
+})
+
+export const GetPublicObjectResponse = zod.unknown()
+
+
+/**
+ * Serves object entities uploaded via presigned URLs. These can optionally
+ * be protected with authentication or ACL checks based on the use case.
+ * @summary Serve an object entity from PRIVATE_OBJECT_DIR
+ */
+export const GetStorageObjectParams = zod.object({
+  "objectPath": zod.coerce.string().describe('Object path within the private object dir (e.g. `uploads\/some-uuid`).')
+})
+
+export const GetStorageObjectResponse = zod.unknown()
 
 
