@@ -20,6 +20,7 @@ import { TeamSettings } from "@/pages/team/TeamSettings";
 import { Button } from "@/components/ui/button";
 import { LogIn } from "lucide-react";
 import { Toaster } from "@/components/ui/toaster";
+import { ErrorBoundary } from "@/components/ErrorBoundary";
 
 const clerkPubKey = publishableKeyFromHost(
   window.location.hostname,
@@ -207,7 +208,7 @@ function ClerkQueryClientCacheInvalidator() {
 }
 
 function ClerkProviderWithRoutes() {
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
 
   return (
     <ClerkProvider
@@ -235,22 +236,24 @@ function ClerkProviderWithRoutes() {
     >
       <QueryClientProvider client={queryClient}>
         <ClerkQueryClientCacheInvalidator />
-        <Switch>
-          <Route path="/" component={HomeRedirect} />
-          <Route path="/sign-in/*?" component={SignInPage} />
-          <Route path="/sign-up/*?" component={SignUpPage} />
-          <ProtectedRoute path="/orcamentos" component={QuotesList} />
-          <ProtectedRoute path="/orcamentos/novo" component={QuoteForm} />
-          <ProtectedRoute path="/orcamentos/:id" component={QuoteDetail} />
-          <ProtectedRoute path="/tarefas" component={Tasks} />
-          <ProtectedRoute path="/clientes" component={ClientsList} />
-          <ProtectedRoute path="/clientes/:id" component={ClientDetail} />
-          <ProtectedRoute path="/produtos" component={ProductsList} />
-          <ProtectedRoute path="/equipe" component={TeamSettings} />
-          <Route>
-            <div className="flex h-[100dvh] items-center justify-center">Página não encontrada</div>
-          </Route>
-        </Switch>
+        <ErrorBoundary key={location}>
+          <Switch>
+            <Route path="/" component={HomeRedirect} />
+            <Route path="/sign-in/*?" component={SignInPage} />
+            <Route path="/sign-up/*?" component={SignUpPage} />
+            <ProtectedRoute path="/orcamentos" component={QuotesList} />
+            <ProtectedRoute path="/orcamentos/novo" component={QuoteForm} />
+            <ProtectedRoute path="/orcamentos/:id" component={QuoteDetail} />
+            <ProtectedRoute path="/tarefas" component={Tasks} />
+            <ProtectedRoute path="/clientes" component={ClientsList} />
+            <ProtectedRoute path="/clientes/:id" component={ClientDetail} />
+            <ProtectedRoute path="/produtos" component={ProductsList} />
+            <ProtectedRoute path="/equipe" component={TeamSettings} />
+            <Route>
+              <div className="flex h-[100dvh] items-center justify-center">Página não encontrada</div>
+            </Route>
+          </Switch>
+        </ErrorBoundary>
         <Toaster />
       </QueryClientProvider>
     </ClerkProvider>
