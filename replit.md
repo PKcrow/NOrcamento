@@ -11,6 +11,7 @@ A business management web app for independent service providers (freelancers, sm
 - `pnpm --filter @workspace/api-spec run codegen` — regenerate API hooks and Zod schemas from the OpenAPI spec (run after editing `lib/api-spec/openapi.yaml`)
 - `pnpm --filter @workspace/db run push` — push DB schema changes (dev only)
 - Required env: `DATABASE_URL`, `CLERK_SECRET_KEY`, `CLERK_PUBLISHABLE_KEY`, `VITE_CLERK_PUBLISHABLE_KEY` (all provisioned)
+- Re-imported from a zip on 2026-07-11: ran `pnpm install`, provisioned Replit-managed Clerk (`setupClerkWhitelabelAuth`), pushed the DB schema (`pnpm --filter @workspace/db run push`), and started the 3 artifact workflows (web, api-server, mockup-sandbox). No code changes were needed.
 
 ## Stack
 
