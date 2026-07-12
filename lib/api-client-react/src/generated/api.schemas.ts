@@ -113,18 +113,31 @@ export const TaskStatus = {
   done: 'done',
 } as const;
 
+export interface TaskPhoto {
+  id: number;
+  taskId: number;
+  url: string;
+  createdAt: string;
+}
+
 export interface Task {
   id: number;
   title: string;
   /** @nullable */
   description: string | null;
   dueAt: string;
+  /**
+     * Data prevista de término do serviço.
+     * @nullable
+     */
+  endAt: string | null;
   status: TaskStatus;
   /** @nullable */
   clientId: number | null;
   /** @nullable */
   clientName: string | null;
   createdAt: string;
+  photos: TaskPhoto[];
 }
 
 export type ClientDetail = Client & {
@@ -218,6 +231,8 @@ export interface TaskInput {
   description?: string;
   dueAt: string;
   /** @nullable */
+  endAt?: string | null;
+  /** @nullable */
   clientId?: number | null;
 }
 
@@ -227,9 +242,15 @@ export interface TaskUpdate {
   /** @nullable */
   description?: string | null;
   dueAt?: string;
+  /** @nullable */
+  endAt?: string | null;
   status?: TaskStatus;
   /** @nullable */
   clientId?: number | null;
+}
+
+export interface TaskPhotoInput {
+  url: string;
 }
 
 export interface DashboardSummary {

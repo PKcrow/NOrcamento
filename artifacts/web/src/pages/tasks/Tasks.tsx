@@ -1,5 +1,17 @@
-import { useState } from "react";
-import { useListTasks, useCreateTask, useUpdateTask, useDeleteTask, useListClients, getListTasksQueryKey, getGetDashboardSummaryQueryKey, getGetNotificationsQueryKey } from "@workspace/api-client-react";
+import { useRef, useState } from "react";
+import {
+  useListTasks,
+  useCreateTask,
+  useUpdateTask,
+  useDeleteTask,
+  useListClients,
+  useAddTaskPhoto,
+  useDeleteTaskPhoto,
+  getListTasksQueryKey,
+  getGetDashboardSummaryQueryKey,
+  getGetNotificationsQueryKey,
+} from "@workspace/api-client-react";
+import type { ApiError } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,19 +21,28 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { Plus, CheckCircle2, Circle, Clock, Trash2, CalendarIcon } from "lucide-react";
-import { formatDateTime, taskStatusMap } from "@/lib/format";
+import { useFileUpload, ACCEPTED_IMAGE_TYPES, MAX_UPLOAD_SIZE_BYTES } from "@/hooks/use-file-upload";
+import { Plus, CheckCircle2, Circle, Trash2, CalendarIcon, Pencil, ImagePlus, Loader2, X } from "lucide-react";
+import { formatDateTime } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
-import type { TaskStatus } from "@workspace/api-client-react";
+import type { TaskStatus, Task } from "@workspace/api-client-react";
+
+// Get current local datetime formatted for a datetime-local input
+function toLocalInputValue(date: Date): string {
+  const d = new Date(date);
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 16);
+}
 
 export function Tasks() {
   const [statusFilter, setStatusFilter] = useState<TaskStatus | "all">("all");
   const { data: tasks, isLoading } = useListTasks(statusFilter !== "all" ? { status: statusFilter } : undefined);
   const { data: clients } = useListClients();
-  
-  const [isCreateOpen, setIsCreateOpen] = useState(false);
+
+  const [isFormOpen, setIsFormOpen] = useState(false);
+  const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [clientId, setClientId] = useState<string>("none");
-  
+
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const createMutation = useCreateTask();
@@ -34,33 +55,77 @@ export function Tasks() {
     queryClient.invalidateQueries({ queryKey: getGetNotificationsQueryKey() });
   };
 
-  const handleCreate = (e: React.FormEvent<HTMLFormElement>) => {
+  const openCreate = () => {
+    setEditingTask(null);
+    setClientId("none");
+    setIsFormOpen(true);
+  };
+
+  const openEdit = (task: Task) => {
+    setEditingTask(task);
+    setClientId(task.clientId ? task.clientId.toString() : "none");
+    setIsFormOpen(true);
+  };
+
+  const showConflictOrGenericError = (error: unknown, fallbackTitle: string) => {
+    const apiError = error as ApiError;
+    if (apiError?.status === 409) {
+      toast({ title: "Conflito de agenda", description: apiError.message, variant: "destructive" });
+    } else {
+      toast({ title: fallbackTitle, description: "Tente novamente.", variant: "destructive" });
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
     const title = formData.get("title") as string;
     const description = formData.get("description") as string;
     const dueAt = formData.get("dueAt") as string;
+    const endAt = formData.get("endAt") as string;
 
     if (!title || !dueAt) return;
 
-    // Convert local datetime to ISO string for backend
     const dueAtISO = new Date(dueAt).toISOString();
+    const endAtISO = endAt ? new Date(endAt).toISOString() : null;
 
-    createMutation.mutate({ 
-      data: { 
-        title, 
-        description, 
-        dueAt: dueAtISO,
-        clientId: clientId !== "none" ? Number(clientId) : null 
-      } 
-    }, {
-      onSuccess: () => {
-        invalidateTasks();
-        setIsCreateOpen(false);
-        setClientId("none");
-        toast({ title: "Tarefa criada." });
-      }
-    });
+    if (editingTask) {
+      updateMutation.mutate({
+        id: editingTask.id,
+        data: {
+          title,
+          description,
+          dueAt: dueAtISO,
+          endAt: endAtISO,
+          clientId: clientId !== "none" ? Number(clientId) : null,
+        },
+      }, {
+        onSuccess: () => {
+          invalidateTasks();
+          setIsFormOpen(false);
+          toast({ title: "Tarefa atualizada." });
+        },
+        onError: (error) => showConflictOrGenericError(error, "Erro ao atualizar tarefa"),
+      });
+    } else {
+      createMutation.mutate({
+        data: {
+          title,
+          description,
+          dueAt: dueAtISO,
+          endAt: endAtISO,
+          clientId: clientId !== "none" ? Number(clientId) : null,
+        },
+      }, {
+        onSuccess: () => {
+          invalidateTasks();
+          setIsFormOpen(false);
+          setClientId("none");
+          toast({ title: "Tarefa agendada." });
+        },
+        onError: (error) => showConflictOrGenericError(error, "Erro ao agendar tarefa"),
+      });
+    }
   };
 
   const toggleStatus = (id: number, currentStatus: TaskStatus) => {
@@ -68,7 +133,8 @@ export function Tasks() {
     updateMutation.mutate({ id, data: { status: newStatus } }, {
       onSuccess: () => {
         invalidateTasks();
-      }
+      },
+      onError: (error) => showConflictOrGenericError(error, "Erro ao atualizar status"),
     });
   };
 
@@ -82,10 +148,7 @@ export function Tasks() {
     });
   };
 
-  // Get current local datetime formatted for the datetime-local input
-  const now = new Date();
-  now.setMinutes(now.getMinutes() - now.getTimezoneOffset());
-  const defaultDateTime = now.toISOString().slice(0, 16);
+  const defaultDateTime = toLocalInputValue(new Date());
 
   return (
     <div className="space-y-6">
@@ -94,22 +157,22 @@ export function Tasks() {
           <h1 className="text-3xl font-bold tracking-tight text-gray-900">Agenda de Tarefas</h1>
           <p className="text-gray-500 mt-1">Acompanhe seus compromissos e entregas.</p>
         </div>
-        <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+        <Dialog open={isFormOpen} onOpenChange={setIsFormOpen}>
           <DialogTrigger asChild>
-            <Button className="gap-2">
+            <Button className="gap-2" onClick={openCreate}>
               <Plus className="w-4 h-4" /> Nova Tarefa
             </Button>
           </DialogTrigger>
           <DialogContent>
             <DialogHeader>
-              <DialogTitle>Agendar Nova Tarefa</DialogTitle>
+              <DialogTitle>{editingTask ? "Editar Tarefa" : "Agendar Nova Tarefa"}</DialogTitle>
             </DialogHeader>
-            <form onSubmit={handleCreate} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4">
               <div className="space-y-2">
                 <Label htmlFor="title">Título / O que fazer?</Label>
-                <Input id="title" name="title" required placeholder="Ex: Instalação de painel solar" />
+                <Input id="title" name="title" required placeholder="Ex: Instalação de painel solar" defaultValue={editingTask?.title} />
               </div>
-              
+
               <div className="space-y-2">
                 <Label>Cliente relacionado (Opcional)</Label>
                 <Select value={clientId} onValueChange={setClientId}>
@@ -125,21 +188,45 @@ export function Tasks() {
                 </Select>
               </div>
 
-              <div className="space-y-2">
-                <Label htmlFor="dueAt">Data e Hora (Prazo)</Label>
-                <Input id="dueAt" name="dueAt" type="datetime-local" defaultValue={defaultDateTime} required />
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label htmlFor="dueAt">Data de Início</Label>
+                  <Input
+                    id="dueAt"
+                    name="dueAt"
+                    type="datetime-local"
+                    defaultValue={editingTask ? toLocalInputValue(new Date(editingTask.dueAt)) : defaultDateTime}
+                    required
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="endAt">Previsão de Término</Label>
+                  <Input
+                    id="endAt"
+                    name="endAt"
+                    type="datetime-local"
+                    defaultValue={editingTask?.endAt ? toLocalInputValue(new Date(editingTask.endAt)) : ""}
+                  />
+                </div>
               </div>
+              <p className="text-xs text-gray-500 -mt-2">
+                Não é possível agendar em um dia que já tenha um serviço marcado.
+              </p>
 
               <div className="space-y-2">
                 <Label htmlFor="description">Detalhes (Opcional)</Label>
-                <Textarea id="description" name="description" placeholder="Materiais necessários, endereço..." />
+                <Textarea id="description" name="description" placeholder="Materiais necessários, endereço..." defaultValue={editingTask?.description ?? ""} />
               </div>
+
+              {editingTask && <TaskPhotos task={editingTask} />}
 
               <DialogFooter>
                 <DialogClose asChild>
                   <Button variant="outline" type="button">Cancelar</Button>
                 </DialogClose>
-                <Button type="submit" disabled={createMutation.isPending}>Agendar</Button>
+                <Button type="submit" disabled={createMutation.isPending || updateMutation.isPending}>
+                  {editingTask ? "Salvar" : "Agendar"}
+                </Button>
               </DialogFooter>
             </form>
           </DialogContent>
@@ -214,6 +301,11 @@ export function Tasks() {
                         {task.description && (
                           <span className="text-xs text-gray-500 mt-1 line-clamp-1">{task.description}</span>
                         )}
+                        {task.photos.length > 0 && (
+                          <span className="text-xs text-gray-500 flex items-center gap-1 mt-1">
+                            <ImagePlus className="w-3 h-3" /> {task.photos.length} foto(s)
+                          </span>
+                        )}
                       </div>
                     </TableCell>
                     <TableCell className="text-right">
@@ -222,13 +314,21 @@ export function Tasks() {
                           <CalendarIcon className="w-3 h-3" />
                           {formatDateTime(task.dueAt)}
                         </Badge>
+                        {task.endAt && (
+                          <span className="text-xs text-gray-500">até {formatDateTime(task.endAt)}</span>
+                        )}
                         {isOverdue && <span className="text-xs font-semibold text-red-600">Atrasada</span>}
                       </div>
                     </TableCell>
-                    <TableCell className="w-12 text-right pr-4">
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-destructive" onClick={() => handleDelete(task.id)}>
-                        <Trash2 className="w-4 h-4" />
-                      </Button>
+                    <TableCell className="w-20 text-right pr-4">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-primary" onClick={() => openEdit(task)}>
+                          <Pencil className="w-4 h-4" />
+                        </Button>
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-destructive" onClick={() => handleDelete(task.id)}>
+                          <Trash2 className="w-4 h-4" />
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 )
@@ -237,6 +337,86 @@ export function Tasks() {
           </TableBody>
         </Table>
       </div>
+    </div>
+  );
+}
+
+function TaskPhotos({ task }: { task: Task }) {
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const { upload, isUploading } = useFileUpload();
+  const addPhotoMutation = useAddTaskPhoto();
+  const deletePhotoMutation = useDeleteTaskPhoto();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const invalidate = () => {
+    queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+
+    if (!ACCEPTED_IMAGE_TYPES.includes(file.type)) {
+      toast({ title: "Formato inválido", description: "Envie uma imagem PNG, JPG ou WEBP.", variant: "destructive" });
+      return;
+    }
+    if (file.size > MAX_UPLOAD_SIZE_BYTES) {
+      toast({ title: "Arquivo muito grande", description: "A foto deve ter no máximo 5MB.", variant: "destructive" });
+      return;
+    }
+
+    try {
+      const url = await upload(file);
+      addPhotoMutation.mutate({ id: task.id, data: { url } }, {
+        onSuccess: () => invalidate(),
+        onError: () => toast({ title: "Erro ao anexar foto", variant: "destructive" }),
+      });
+    } catch {
+      toast({ title: "Erro ao enviar a foto", description: "Tente novamente.", variant: "destructive" });
+    }
+  };
+
+  const handleRemove = (photoId: number) => {
+    deletePhotoMutation.mutate({ id: task.id, photoId }, {
+      onSuccess: () => invalidate(),
+    });
+  };
+
+  return (
+    <div className="space-y-2">
+      <Label>Fotos do Serviço</Label>
+      <div className="flex flex-wrap gap-2">
+        {task.photos.map((photo) => (
+          <div key={photo.id} className="relative h-20 w-20 rounded-lg overflow-hidden border group">
+            <img src={photo.url} alt="Foto do serviço" className="h-full w-full object-cover" />
+            <button
+              type="button"
+              onClick={() => handleRemove(photo.id)}
+              className="absolute top-0.5 right-0.5 bg-black/60 text-white rounded-full p-0.5 opacity-0 group-hover:opacity-100 transition-opacity"
+            >
+              <X className="w-3 h-3" />
+            </button>
+          </div>
+        ))}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept={ACCEPTED_IMAGE_TYPES.join(",")}
+          className="hidden"
+          onChange={handleFileChange}
+        />
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={isUploading}
+          className="h-20 w-20 rounded-lg border border-dashed border-gray-300 bg-gray-50 flex items-center justify-center text-gray-400 hover:text-primary hover:border-primary transition-colors disabled:opacity-50"
+        >
+          {isUploading ? <Loader2 className="w-5 h-5 animate-spin" /> : <ImagePlus className="w-5 h-5" />}
+        </button>
+      </div>
+      <p className="text-xs text-gray-500">PNG, JPG ou WEBP, até 5MB por foto.</p>
     </div>
   );
 }

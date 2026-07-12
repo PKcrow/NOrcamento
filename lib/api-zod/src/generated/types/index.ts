@@ -32,6 +32,8 @@ export * from './quoteStatus';
 export * from './quoteUpdate';
 export * from './task';
 export * from './taskInput';
+export * from './taskPhoto';
+export * from './taskPhotoInput';
 export * from './taskStatus';
 export * from './taskUpdate';
 export * from './teamInput';

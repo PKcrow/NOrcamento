@@ -12,5 +12,7 @@ export interface TaskInput {
   description?: string;
   dueAt: Date;
   /** @nullable */
+  endAt?: Date | null;
+  /** @nullable */
   clientId?: number | null;
 }

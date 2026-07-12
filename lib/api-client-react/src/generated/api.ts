@@ -43,6 +43,8 @@ import type {
   QuoteUpdate,
   Task,
   TaskInput,
+  TaskPhoto,
+  TaskPhotoInput,
   TaskUpdate,
   TeamInput,
   TeamJoinInput,
@@ -1873,6 +1875,151 @@ export const useDeleteTask = <TError = ErrorType<void>,
         TContext
       > => {
       return useMutation(getDeleteTaskMutationOptions(options));
+    }
+
+export const getAddTaskPhotoUrl = (id: number,) => {
+
+
+
+
+  return `/api/tasks/${id}/photos`
+}
+
+/**
+ * @summary Attach an uploaded photo to a task
+ */
+export const addTaskPhoto = async (id: number,
+    taskPhotoInput: TaskPhotoInput, options?: RequestInit): Promise<TaskPhoto> => {
+
+  return customFetch<TaskPhoto>(getAddTaskPhotoUrl(id),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(taskPhotoInput)
+  }
+);}
+
+
+
+
+
+export const getAddTaskPhotoMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addTaskPhoto>>, TError,{id: number;data: BodyType<TaskPhotoInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof addTaskPhoto>>, TError,{id: number;data: BodyType<TaskPhotoInput>}, TContext> => {
+
+const mutationKey = ['addTaskPhoto'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof addTaskPhoto>>, {id: number;data: BodyType<TaskPhotoInput>}> = (props) => {
+          const {id,data} = props ?? {};
+
+          return  addTaskPhoto(id,data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AddTaskPhotoMutationResult = NonNullable<Awaited<ReturnType<typeof addTaskPhoto>>>
+    export type AddTaskPhotoMutationBody = BodyType<TaskPhotoInput>
+    export type AddTaskPhotoMutationError = ErrorType<void>
+
+    /**
+ * @summary Attach an uploaded photo to a task
+ */
+export const useAddTaskPhoto = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof addTaskPhoto>>, TError,{id: number;data: BodyType<TaskPhotoInput>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof addTaskPhoto>>,
+        TError,
+        {id: number;data: BodyType<TaskPhotoInput>},
+        TContext
+      > => {
+      return useMutation(getAddTaskPhotoMutationOptions(options));
+    }
+
+export const getDeleteTaskPhotoUrl = (id: number,
+    photoId: number,) => {
+
+
+
+
+  return `/api/tasks/${id}/photos/${photoId}`
+}
+
+/**
+ * @summary Remove a photo from a task
+ */
+export const deleteTaskPhoto = async (id: number,
+    photoId: number, options?: RequestInit): Promise<void> => {
+
+  return customFetch<void>(getDeleteTaskPhotoUrl(id,photoId),
+  {
+    ...options,
+    method: 'DELETE'
+
+
+  }
+);}
+
+
+
+
+
+export const getDeleteTaskPhotoMutationOptions = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteTaskPhoto>>, TError,{id: number;photoId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof deleteTaskPhoto>>, TError,{id: number;photoId: number}, TContext> => {
+
+const mutationKey = ['deleteTaskPhoto'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof deleteTaskPhoto>>, {id: number;photoId: number}> = (props) => {
+          const {id,photoId} = props ?? {};
+
+          return  deleteTaskPhoto(id,photoId,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type DeleteTaskPhotoMutationResult = NonNullable<Awaited<ReturnType<typeof deleteTaskPhoto>>>
+
+    export type DeleteTaskPhotoMutationError = ErrorType<void>
+
+    /**
+ * @summary Remove a photo from a task
+ */
+export const useDeleteTaskPhoto = <TError = ErrorType<void>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof deleteTaskPhoto>>, TError,{id: number;photoId: number}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof deleteTaskPhoto>>,
+        TError,
+        {id: number;photoId: number},
+        TContext
+      > => {
+      return useMutation(getDeleteTaskPhotoMutationOptions(options));
     }
 
 export const getGetNotificationsUrl = () => {

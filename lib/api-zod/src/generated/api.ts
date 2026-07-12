@@ -112,10 +112,17 @@ export const GetDashboardSummaryResponse = zod.object({
   "title": zod.string(),
   "description": zod.string().nullable(),
   "dueAt": zod.coerce.date(),
+  "endAt": zod.coerce.date().nullable().describe('Data prevista de término do serviço.'),
   "status": zod.enum(['pending', 'done']),
   "clientId": zod.number().nullable(),
   "clientName": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "photos": zod.array(zod.object({
+  "id": zod.number(),
+  "taskId": zod.number(),
+  "url": zod.string(),
   "createdAt": zod.coerce.date()
+}))
 })),
   "recentQuotes": zod.array(zod.object({
   "id": zod.number(),
@@ -230,10 +237,17 @@ export const GetClientResponse = zod.object({
   "title": zod.string(),
   "description": zod.string().nullable(),
   "dueAt": zod.coerce.date(),
+  "endAt": zod.coerce.date().nullable().describe('Data prevista de término do serviço.'),
   "status": zod.enum(['pending', 'done']),
   "clientId": zod.number().nullable(),
   "clientName": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "photos": zod.array(zod.object({
+  "id": zod.number(),
+  "taskId": zod.number(),
+  "url": zod.string(),
   "createdAt": zod.coerce.date()
+}))
 }))
 }))
 
@@ -559,10 +573,17 @@ export const ListTasksResponseItem = zod.object({
   "title": zod.string(),
   "description": zod.string().nullable(),
   "dueAt": zod.coerce.date(),
+  "endAt": zod.coerce.date().nullable().describe('Data prevista de término do serviço.'),
   "status": zod.enum(['pending', 'done']),
   "clientId": zod.number().nullable(),
   "clientName": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "photos": zod.array(zod.object({
+  "id": zod.number(),
+  "taskId": zod.number(),
+  "url": zod.string(),
   "createdAt": zod.coerce.date()
+}))
 })
 export const ListTasksResponse = zod.array(ListTasksResponseItem)
 
@@ -577,6 +598,7 @@ export const CreateTaskBody = zod.object({
   "title": zod.string().min(1),
   "description": zod.string().optional(),
   "dueAt": zod.coerce.date(),
+  "endAt": zod.coerce.date().nullish(),
   "clientId": zod.number().nullish()
 })
 
@@ -585,10 +607,17 @@ export const CreateTaskResponse = zod.object({
   "title": zod.string(),
   "description": zod.string().nullable(),
   "dueAt": zod.coerce.date(),
+  "endAt": zod.coerce.date().nullable().describe('Data prevista de término do serviço.'),
   "status": zod.enum(['pending', 'done']),
   "clientId": zod.number().nullable(),
   "clientName": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "photos": zod.array(zod.object({
+  "id": zod.number(),
+  "taskId": zod.number(),
+  "url": zod.string(),
   "createdAt": zod.coerce.date()
+}))
 })
 
 
@@ -606,6 +635,7 @@ export const UpdateTaskBody = zod.object({
   "title": zod.string().min(1).optional(),
   "description": zod.string().nullish(),
   "dueAt": zod.coerce.date().optional(),
+  "endAt": zod.coerce.date().nullish(),
   "status": zod.enum(['pending', 'done']).optional(),
   "clientId": zod.number().nullish()
 })
@@ -615,10 +645,17 @@ export const UpdateTaskResponse = zod.object({
   "title": zod.string(),
   "description": zod.string().nullable(),
   "dueAt": zod.coerce.date(),
+  "endAt": zod.coerce.date().nullable().describe('Data prevista de término do serviço.'),
   "status": zod.enum(['pending', 'done']),
   "clientId": zod.number().nullable(),
   "clientName": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "photos": zod.array(zod.object({
+  "id": zod.number(),
+  "taskId": zod.number(),
+  "url": zod.string(),
   "createdAt": zod.coerce.date()
+}))
 })
 
 
@@ -633,6 +670,36 @@ export const DeleteTaskResponse = zod.void()
 
 
 /**
+ * @summary Attach an uploaded photo to a task
+ */
+export const AddTaskPhotoParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const AddTaskPhotoBody = zod.object({
+  "url": zod.string()
+})
+
+export const AddTaskPhotoResponse = zod.object({
+  "id": zod.number(),
+  "taskId": zod.number(),
+  "url": zod.string(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Remove a photo from a task
+ */
+export const DeleteTaskPhotoParams = zod.object({
+  "id": zod.coerce.number(),
+  "photoId": zod.coerce.number()
+})
+
+export const DeleteTaskPhotoResponse = zod.void()
+
+
+/**
  * @summary Get overdue and due-soon tasks as reminder notifications
  */
 export const GetNotificationsResponse = zod.object({
@@ -641,20 +708,34 @@ export const GetNotificationsResponse = zod.object({
   "title": zod.string(),
   "description": zod.string().nullable(),
   "dueAt": zod.coerce.date(),
+  "endAt": zod.coerce.date().nullable().describe('Data prevista de término do serviço.'),
   "status": zod.enum(['pending', 'done']),
   "clientId": zod.number().nullable(),
   "clientName": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "photos": zod.array(zod.object({
+  "id": zod.number(),
+  "taskId": zod.number(),
+  "url": zod.string(),
   "createdAt": zod.coerce.date()
+}))
 })),
   "dueSoonTasks": zod.array(zod.object({
   "id": zod.number(),
   "title": zod.string(),
   "description": zod.string().nullable(),
   "dueAt": zod.coerce.date(),
+  "endAt": zod.coerce.date().nullable().describe('Data prevista de término do serviço.'),
   "status": zod.enum(['pending', 'done']),
   "clientId": zod.number().nullable(),
   "clientName": zod.string().nullable(),
+  "createdAt": zod.coerce.date(),
+  "photos": zod.array(zod.object({
+  "id": zod.number(),
+  "taskId": zod.number(),
+  "url": zod.string(),
   "createdAt": zod.coerce.date()
+}))
 }))
 })
 

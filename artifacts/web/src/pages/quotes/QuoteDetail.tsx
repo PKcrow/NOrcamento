@@ -1,5 +1,5 @@
 import { useParams, Link, useLocation } from "wouter";
-import { useGetQuote, useUpdateQuote, useDeleteQuote, useGetMe, getGetQuoteQueryKey } from "@workspace/api-client-react";
+import { useGetQuote, useUpdateQuote, useDeleteQuote, useGetCompany, getGetQuoteQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -16,7 +16,7 @@ export function QuoteDetail() {
   const [, setLocation] = useLocation();
   
   const { data: quote, isLoading } = useGetQuote(quoteId);
-  const { data: me } = useGetMe();
+  const { data: company } = useGetCompany();
   
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -124,9 +124,17 @@ export function QuoteDetail() {
               <p className="text-gray-500 font-mono mt-1">#{quote.id.toString().padStart(4, '0')}</p>
             </div>
             <div className="text-right">
-              <h3 className="font-bold text-gray-900 text-lg">{me?.teamName || "Negócio"}</h3>
-              <p className="text-sm text-gray-500">{me?.name}</p>
-              <p className="text-sm text-gray-500">{me?.email}</p>
+              {company?.logoUrl && (
+                <img
+                  src={company.logoUrl}
+                  alt={company.name}
+                  className="h-12 w-auto object-contain ml-auto mb-2"
+                />
+              )}
+              <h3 className="font-bold text-gray-900 text-lg">{company?.name || "Negócio"}</h3>
+              {company?.address && <p className="text-sm text-gray-500">{company.address}</p>}
+              {company?.phone && <p className="text-sm text-gray-500">{company.phone}</p>}
+              {company?.email && <p className="text-sm text-gray-500">{company.email}</p>}
             </div>
           </div>
 

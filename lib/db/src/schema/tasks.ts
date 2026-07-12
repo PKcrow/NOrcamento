@@ -22,6 +22,7 @@ export const tasksTable = pgTable("tasks", {
   title: text("title").notNull(),
   description: text("description"),
   dueAt: timestamp("due_at", { withTimezone: true }).notNull(),
+  endAt: timestamp("end_at", { withTimezone: true }),
   status: text("status", { enum: taskStatusValues })
     .notNull()
     .default("pending"),

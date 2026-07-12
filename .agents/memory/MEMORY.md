@@ -1,2 +1,4 @@
 - [Clerk has no orgs — team model workaround](clerk-team-workaround.md) — build multi-user "team" access as custom DB tables, not a Clerk feature.
 - [removeChild crash from browser translation/extensions](removechild-translate-crash.md) — intermittent NotFoundError removeChild/insertBefore crashes are usually Chrome translate/extensions, not app bugs.
+- [Object storage servable URL convention](object-storage-servable-url.md) — how to turn an upload's objectPath into a browser-loadable URL in this app.
+- [Shared-lib edits need root typecheck:libs before app typecheck](composite-lib-rebuild.md) — new exports/fields in lib/* packages don't show up to app tsc until `tsc --build` runs at root.

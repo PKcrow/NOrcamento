@@ -13,6 +13,8 @@ export interface TaskUpdate {
   /** @nullable */
   description?: string | null;
   dueAt?: Date;
+  /** @nullable */
+  endAt?: Date | null;
   status?: TaskStatus;
   /** @nullable */
   clientId?: number | null;

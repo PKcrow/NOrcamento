@@ -5,6 +5,7 @@
  * API specification for a freelancer/service-provider business management app
  * OpenAPI spec version: 0.1.0
  */
+import type { TaskPhoto } from './taskPhoto';
 import type { TaskStatus } from './taskStatus';
 
 export interface Task {
@@ -13,10 +14,16 @@ export interface Task {
   /** @nullable */
   description: string | null;
   dueAt: Date;
+  /**
+     * Data prevista de término do serviço.
+     * @nullable
+     */
+  endAt: Date | null;
   status: TaskStatus;
   /** @nullable */
   clientId: number | null;
   /** @nullable */
   clientName: string | null;
   createdAt: Date;
+  photos: TaskPhoto[];
 }

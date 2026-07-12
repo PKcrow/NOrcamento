@@ -485,6 +485,55 @@ paths:
         "404":
           description: Task not found
 
+  /tasks/{id}/photos:
+    post:
+      operationId: addTaskPhoto
+      tags: [tasks]
+      summary: Attach an uploaded photo to a task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TaskPhotoInput"
+      responses:
+        "201":
+          description: Photo attached
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskPhoto"
+        "404":
+          description: Task not found
+
+  /tasks/{id}/photos/{photoId}:
+    delete:
+      operationId: deleteTaskPhoto
+      tags: [tasks]
+      summary: Remove a photo from a task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+        - name: photoId
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Photo deleted
+        "404":
+          description: Task or photo not found
+
   /notifications:
     get:
       operationId: getNotifications
@@ -960,10 +1009,12 @@ components:
           title,
           description,
           dueAt,
+          endAt,
           status,
           clientId,
           clientName,
           createdAt,
+          photos,
         ]
       properties:
         id:
@@ -975,6 +1026,10 @@ components:
         dueAt:
           type: string
           format: date-time
+        endAt:
+          type: ["string", "null"]
+          format: date-time
+          description: Data prevista de término do serviço.
         status:
           $ref: "#/components/schemas/TaskStatus"
         clientId:
@@ -984,6 +1039,10 @@ components:
         createdAt:
           type: string
           format: date-time
+        photos:
+          type: array
+          items:
+            $ref: "#/components/schemas/TaskPhoto"
 
     TaskInput:
       type: object
@@ -996,6 +1055,9 @@ components:
           type: string
         dueAt:
           type: string
+          format: date-time
+        endAt:
+          type: ["string", "null"]
           format: date-time
         clientId:
           type: ["integer", "null"]
@@ -1011,10 +1073,34 @@ components:
         dueAt:
           type: string
           format: date-time
+        endAt:
+          type: ["string", "null"]
+          format: date-time
         status:
           $ref: "#/components/schemas/TaskStatus"
         clientId:
           type: ["integer", "null"]
+
+    TaskPhoto:
+      type: object
+      required: [id, taskId, url, createdAt]
+      properties:
+        id:
+          type: integer
+        taskId:
+          type: integer
+        url:
+          type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    TaskPhotoInput:
+      type: object
+      required: [url]
+      properties:
+        url:
+          type: string
 
     DashboardSummary:
       type: object
