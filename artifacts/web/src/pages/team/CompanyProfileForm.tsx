@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
-import { useFileUpload, ACCEPTED_IMAGE_TYPES, MAX_UPLOAD_SIZE_BYTES } from "@/hooks/use-file-upload";
+import { useFileUpload, ACCEPTED_IMAGE_TYPES, MAX_ORIGINAL_SIZE_BYTES } from "@/hooks/use-file-upload";
 import { Building2, ImagePlus, Loader2, Trash2 } from "lucide-react";
 
 export function CompanyProfileForm() {
@@ -44,13 +44,15 @@ export function CompanyProfileForm() {
       toast({ title: "Formato inválido", description: "Envie uma imagem PNG, JPG ou WEBP.", variant: "destructive" });
       return;
     }
-    if (file.size > MAX_UPLOAD_SIZE_BYTES) {
-      toast({ title: "Arquivo muito grande", description: "O logo deve ter no máximo 5MB.", variant: "destructive" });
+    if (file.size > MAX_ORIGINAL_SIZE_BYTES) {
+      toast({ title: "Arquivo muito grande", description: "Essa imagem é grande demais para ser enviada.", variant: "destructive" });
       return;
     }
 
     try {
-      const url = await upload(file);
+      // Preserve transparency for logos (PNG/WEBP); resize to a smaller
+      // max dimension since logos don't need photo-level resolution.
+      const url = await upload(file, { maxDimension: 1024, preserveTransparency: true });
       setLogoUrl(url);
       updateMutation.mutate({ data: { logoUrl: url } }, {
         onSuccess: () => {

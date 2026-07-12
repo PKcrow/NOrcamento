@@ -21,7 +21,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
-import { useFileUpload, ACCEPTED_IMAGE_TYPES, MAX_UPLOAD_SIZE_BYTES } from "@/hooks/use-file-upload";
+import { useFileUpload, ACCEPTED_IMAGE_TYPES, MAX_ORIGINAL_SIZE_BYTES } from "@/hooks/use-file-upload";
 import { Plus, CheckCircle2, Circle, Trash2, CalendarIcon, Pencil, ImagePlus, Loader2, X } from "lucide-react";
 import { formatDateTime } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
@@ -362,13 +362,15 @@ function TaskPhotos({ task }: { task: Task }) {
       toast({ title: "Formato inválido", description: "Envie uma imagem PNG, JPG ou WEBP.", variant: "destructive" });
       return;
     }
-    if (file.size > MAX_UPLOAD_SIZE_BYTES) {
-      toast({ title: "Arquivo muito grande", description: "A foto deve ter no máximo 5MB.", variant: "destructive" });
+    if (file.size > MAX_ORIGINAL_SIZE_BYTES) {
+      toast({ title: "Arquivo muito grande", description: "Essa foto é grande demais para ser enviada.", variant: "destructive" });
       return;
     }
 
     try {
-      const url = await upload(file);
+      // Photos don't need transparency; compress to JPEG so phone photos
+      // (often 8-20MB) always fit within the upload limit.
+      const url = await upload(file, { maxDimension: 1920, preserveTransparency: false });
       addPhotoMutation.mutate({ id: task.id, data: { url } }, {
         onSuccess: () => invalidate(),
         onError: () => toast({ title: "Erro ao anexar foto", variant: "destructive" }),

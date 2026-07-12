@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, inArray } from "drizzle-orm";
 import {
   db,
   clientsTable,
@@ -7,6 +7,7 @@ import {
   quotesTable,
   quoteItemsTable,
   tasksTable,
+  taskPhotosTable,
 } from "@workspace/db";
 import { GetDashboardSummaryResponse } from "@workspace/api-zod";
 import { requireAuth, requireTeam } from "../middlewares/auth";
@@ -68,9 +69,24 @@ router.get("/dashboard/summary", requireAuth, requireTeam, async (req, res) => {
 
   const recentQuotes = recentQuoteRows.map(withTotal);
 
+  const taskPhotos =
+    pendingTasks.length > 0
+      ? await db
+          .select()
+          .from(taskPhotosTable)
+          .where(
+            inArray(taskPhotosTable.taskId, pendingTasks.map((t) => t.id)),
+          )
+      : [];
+  const photosByTask = new Map<number, (typeof taskPhotos)[number][]>();
+  for (const p of taskPhotos) {
+    photosByTask.set(p.taskId, [...(photosByTask.get(p.taskId) ?? []), p]);
+  }
+
   const upcomingTasks = pendingTasks.map((t) => ({
     ...t,
     clientName: t.clientId ? clientById.get(t.clientId) ?? null : null,
+    photos: photosByTask.get(t.id) ?? [],
   }));
 
   res.json(

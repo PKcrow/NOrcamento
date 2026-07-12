@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { and, asc, eq } from "drizzle-orm";
-import { db, clientsTable, tasksTable } from "@workspace/db";
+import { db, clientsTable, tasksTable, taskPhotosTable } from "@workspace/db";
 import { GetNotificationsResponse } from "@workspace/api-zod";
 import { requireAuth, requireTeam } from "../middlewares/auth";
 
@@ -25,9 +25,16 @@ router.get("/notifications", requireAuth, requireTeam, async (req, res) => {
     .where(eq(clientsTable.teamId, teamId));
   const clientById = new Map(clients.map((c) => [c.id, c.name]));
 
+  const photos = await db.select().from(taskPhotosTable);
+  const photosByTask = new Map<number, (typeof photos)[number][]>();
+  for (const p of photos) {
+    photosByTask.set(p.taskId, [...(photosByTask.get(p.taskId) ?? []), p]);
+  }
+
   const withClientName = (t: (typeof pending)[number]) => ({
     ...t,
     clientName: t.clientId ? clientById.get(t.clientId) ?? null : null,
+    photos: photosByTask.get(t.id) ?? [],
   });
 
   const overdueTasks = pending
