@@ -20,18 +20,30 @@ export function QuoteForm({ id }: QuoteFormProps) {
   const [, setLocation] = useLocation();
   const searchParams = new URLSearchParams(window.location.search);
   const initialClientId = searchParams.get('client');
+  const queryId = searchParams.get('id');
+  const parsedQueryId = queryId ? Number(queryId) : undefined;
+  const quoteId =
+    id ?? (parsedQueryId && Number.isInteger(parsedQueryId) && parsedQueryId > 0
+      ? parsedQueryId
+      : undefined);
+  const isEditing = quoteId !== undefined;
   
   const { data: clients } = useListClients();
   const { data: products } = useListProducts();
   
   // If id provided, fetch existing quote data
-  const { data: existingQuote, isLoading: isLoadingQuote } = useGetQuote(id as number, { query: { enabled: !!id, queryKey: getGetQuoteQueryKey(id as number) } });
+  const { data: existingQuote, isLoading: isLoadingQuote } = useGetQuote(quoteId ?? 0, {
+    query: {
+      enabled: isEditing,
+      queryKey: getGetQuoteQueryKey(quoteId ?? 0),
+    },
+  });
   
   const createMutation = useCreateQuote();
   const updateMutation = useUpdateQuote();
   const { toast } = useToast();
 
-  const [clientId, setClientId] = useState<string>(initialClientId || "");
+  const [clientId, setClientId] = useState<string>(isEditing ? "" : initialClientId || "");
   const [notes, setNotes] = useState("");
   const [laborCost, setLaborCost] = useState<number>(0);
   const [items, setItems] = useState<(QuoteItemInput & { localId: string })[]>([
@@ -111,11 +123,11 @@ export function QuoteForm({ id }: QuoteFormProps) {
       }))
     };
 
-    if (id) {
-      updateMutation.mutate({ id, data: payload }, {
+    if (quoteId) {
+      updateMutation.mutate({ id: quoteId, data: payload }, {
         onSuccess: () => {
           toast({ title: "Orçamento atualizado." });
-          setLocation(`/orcamentos/${id}`);
+          setLocation(`/orcamentos/${quoteId}`);
         }
       });
     } else {
@@ -128,7 +140,7 @@ export function QuoteForm({ id }: QuoteFormProps) {
     }
   };
 
-  if (id && isLoadingQuote) {
+  if (isEditing && isLoadingQuote) {
     return <div className="p-8 text-center">Carregando orçamento...</div>;
   }
 
@@ -142,7 +154,7 @@ export function QuoteForm({ id }: QuoteFormProps) {
         </Button>
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-gray-900">
-            {id ? `Editar Orçamento #${id.toString().padStart(4, '0')}` : 'Novo Orçamento'}
+            {isEditing ? `Editar Orçamento #${quoteId.toString().padStart(4, '0')}` : 'Novo Orçamento'}
           </h1>
         </div>
       </div>
