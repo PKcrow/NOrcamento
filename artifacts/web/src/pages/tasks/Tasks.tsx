@@ -5,6 +5,7 @@ import {
   useUpdateTask,
   useDeleteTask,
   useListClients,
+  useGetCompany,
   useAddTaskPhoto,
   useDeleteTaskPhoto,
   getListTasksQueryKey,
@@ -23,10 +24,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useToast } from "@/hooks/use-toast";
 import { useFileUpload, ACCEPTED_IMAGE_TYPES, MAX_ORIGINAL_SIZE_BYTES } from "@/hooks/use-file-upload";
 import { normalizeStoredObjectUrl } from "@/lib/objectUrl";
-import { Plus, CheckCircle2, Circle, Trash2, CalendarIcon, Pencil, ImagePlus, Loader2, X } from "lucide-react";
+import { Plus, CheckCircle2, Circle, Trash2, CalendarIcon, Pencil, ImagePlus, Loader2, X, Share2 } from "lucide-react";
 import { formatDateTime } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
 import type { TaskStatus, Task } from "@workspace/api-client-react";
+import { generateTaskPdf, sharePdfFile } from "@/lib/documentPdf";
 
 // Get current local datetime formatted for a datetime-local input
 function toLocalInputValue(date: Date): string {
@@ -39,10 +41,12 @@ export function Tasks() {
   const [statusFilter, setStatusFilter] = useState<TaskStatus | "all">("all");
   const { data: tasks, isLoading } = useListTasks(statusFilter !== "all" ? { status: statusFilter } : undefined);
   const { data: clients } = useListClients();
+  const { data: company } = useGetCompany();
 
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | null>(null);
   const [clientId, setClientId] = useState<string>("none");
+  const [sharingTaskId, setSharingTaskId] = useState<number | null>(null);
 
   const queryClient = useQueryClient();
   const { toast } = useToast();
@@ -147,6 +151,29 @@ export function Tasks() {
         toast({ title: "Tarefa excluída." });
       }
     });
+  };
+
+  const handleShareTask = async (task: Task) => {
+    setSharingTaskId(task.id);
+    try {
+      const file = await generateTaskPdf(task, company);
+      const result = await sharePdfFile(file);
+      if (result === "downloaded") {
+        toast({
+          title: "PDF baixado",
+          description: "Este navegador não oferece o compartilhamento nativo de arquivos.",
+        });
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      toast({
+        title: "Não foi possível compartilhar",
+        description: "Tente novamente ou baixe o PDF pelo navegador.",
+        variant: "destructive",
+      });
+    } finally {
+      setSharingTaskId(null);
+    }
   };
 
   const defaultDateTime = toLocalInputValue(new Date());
@@ -325,6 +352,20 @@ export function Tasks() {
                       <div className="flex items-center justify-end gap-1">
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-primary" onClick={() => openEdit(task)}>
                           <Pencil className="w-4 h-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-gray-400 hover:text-primary"
+                          onClick={() => handleShareTask(task)}
+                          disabled={sharingTaskId === task.id}
+                          title="Compartilhar O.S. em PDF"
+                        >
+                          {sharingTaskId === task.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Share2 className="w-4 h-4" />
+                          )}
                         </Button>
                         <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-destructive" onClick={() => handleDelete(task.id)}>
                           <Trash2 className="w-4 h-4" />

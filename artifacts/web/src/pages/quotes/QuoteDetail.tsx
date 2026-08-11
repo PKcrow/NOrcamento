@@ -1,4 +1,5 @@
 import { useParams, Link, useLocation } from "wouter";
+import { useState } from "react";
 import { useGetQuote, useUpdateQuote, useDeleteQuote, useGetCompany, getGetQuoteQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
@@ -6,10 +7,11 @@ import { Card, CardContent } from "@/components/ui/card";
 import { formatCurrency, formatDate, quoteStatusMap } from "@/lib/format";
 import { normalizeStoredObjectUrl } from "@/lib/objectUrl";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Printer, Edit2, Trash2, Send, CheckCircle, XCircle } from "lucide-react";
+import { ArrowLeft, Printer, Share2, Edit2, Trash2, Send, CheckCircle, XCircle, Loader2 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import type { QuoteStatus } from "@workspace/api-client-react";
+import { generateQuotePdf, sharePdfFile } from "@/lib/documentPdf";
 
 export function QuoteDetail() {
   const { id } = useParams<{ id: string }>();
@@ -23,12 +25,37 @@ export function QuoteDetail() {
   const { toast } = useToast();
   const updateMutation = useUpdateQuote();
   const deleteMutation = useDeleteQuote();
+  const [isSharing, setIsSharing] = useState(false);
 
   if (isLoading) return <div className="p-8 text-center animate-pulse">Carregando orçamento...</div>;
   if (!quote) return <div className="p-8 text-center">Orçamento não encontrado.</div>;
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleShare = async () => {
+    if (!quote) return;
+    setIsSharing(true);
+    try {
+      const file = await generateQuotePdf(quote, company);
+      const result = await sharePdfFile(file);
+      if (result === "downloaded") {
+        toast({
+          title: "PDF baixado",
+          description: "Este navegador não oferece o compartilhamento nativo de arquivos.",
+        });
+      }
+    } catch (error) {
+      if (error instanceof DOMException && error.name === "AbortError") return;
+      toast({
+        title: "Não foi possível compartilhar",
+        description: "Tente novamente ou use a opção Imprimir / PDF.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSharing(false);
+    }
   };
 
   const handleStatusChange = (status: QuoteStatus) => {
@@ -76,6 +103,10 @@ export function QuoteDetail() {
         <div className="flex flex-wrap gap-2 items-center">
           <Button variant="outline" onClick={handlePrint} className="gap-2">
             <Printer className="w-4 h-4" /> Imprimir / PDF
+          </Button>
+          <Button variant="outline" onClick={handleShare} disabled={isSharing} className="gap-2">
+            {isSharing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Share2 className="w-4 h-4" />}
+            Compartilhar PDF
           </Button>
 
           <DropdownMenu>

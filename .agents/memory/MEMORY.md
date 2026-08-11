@@ -4,3 +4,4 @@
 - [Shared-lib edits need root typecheck:libs before app typecheck](composite-lib-rebuild.md) — new exports/fields in lib/* packages don't show up to app tsc until `tsc --build` runs at root.
 - [Adding a field to a shared response shape](shared-response-field-fanout.md) — a field added to one entity (e.g. task.photos) must be backfilled into every route that independently re-shapes that entity, or Zod parsing 500s elsewhere.
 - [Large uploads: compress client-side, don't raise the cap](client-side-image-compression.md) — resize/re-encode phone photos in the browser before upload instead of raising the size limit.
+- [Native document sharing](native-document-sharing.md) — generate a real PDF and use Android Web Share with a file, falling back to download when unsupported.
