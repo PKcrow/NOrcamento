@@ -8,6 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useFileUpload, ACCEPTED_IMAGE_TYPES, MAX_ORIGINAL_SIZE_BYTES } from "@/hooks/use-file-upload";
+import { normalizeStoredObjectUrl } from "@/lib/objectUrl";
 import { Building2, ImagePlus, Loader2, Trash2 } from "lucide-react";
 
 export function CompanyProfileForm() {
@@ -29,7 +30,9 @@ export function CompanyProfileForm() {
 
   if (!company) return null;
 
-  const effectiveLogoUrl = logoUrl !== undefined ? logoUrl : company.logoUrl;
+  const effectiveLogoUrl = normalizeStoredObjectUrl(
+    logoUrl !== undefined ? logoUrl ?? "" : company.logoUrl ?? "",
+  );
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: getGetCompanyQueryKey() });
@@ -115,7 +118,14 @@ export function CompanyProfileForm() {
               <div className="flex items-center gap-4">
                 <div className="h-20 w-20 rounded-lg border border-dashed border-gray-300 bg-gray-50 flex items-center justify-center overflow-hidden shrink-0">
                   {effectiveLogoUrl ? (
-                    <img src={effectiveLogoUrl} alt="Logo" className="h-full w-full object-contain" />
+                    <img
+                      src={effectiveLogoUrl}
+                      alt="Logo"
+                      className="h-full w-full object-contain"
+                      onError={(event) => {
+                        event.currentTarget.style.display = "none";
+                      }}
+                    />
                   ) : (
                     <ImagePlus className="w-6 h-6 text-gray-300" />
                   )}

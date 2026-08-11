@@ -4,6 +4,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { formatCurrency, formatDate, quoteStatusMap } from "@/lib/format";
+import { normalizeStoredObjectUrl } from "@/lib/objectUrl";
 import { useToast } from "@/hooks/use-toast";
 import { ArrowLeft, Printer, Edit2, Trash2, Send, CheckCircle, XCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
@@ -117,24 +118,33 @@ export function QuoteDetail() {
         <div className="h-4 w-full bg-primary print:bg-black !bg-opacity-100" style={{ backgroundColor: 'var(--primary)' }}></div>
         
         <CardContent className="p-8 md:p-12 space-y-12">
-          {/* Header */}
-          <div className="flex justify-between items-start">
-            <div>
-              <h2 className="text-3xl font-black text-gray-900 tracking-tight uppercase">Orçamento</h2>
-              <p className="text-gray-500 font-mono mt-1">#{quote.id.toString().padStart(4, '0')}</p>
+          {/* Header: logo/company identity on the left, quote identity on the right. */}
+          <div className="flex items-start justify-between gap-8 border-b border-gray-200 pb-7">
+            <div className="flex min-w-0 items-start gap-4">
+              {company?.logoUrl ? (
+                <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-gray-100 bg-white p-2">
+                  <img
+                    src={normalizeStoredObjectUrl(company.logoUrl)}
+                    alt={company.name}
+                    className="h-full w-full object-contain"
+                    onError={(event) => {
+                      event.currentTarget.style.display = "none";
+                    }}
+                  />
+                </div>
+              ) : null}
+              <div className="min-w-0">
+                <h3 className="text-lg font-bold text-gray-900">{company?.name || "Negócio"}</h3>
+                {company?.address && <p className="mt-1 max-w-xs text-sm text-gray-500">{company.address}</p>}
+                {company?.phone && <p className="text-sm text-gray-500">{company.phone}</p>}
+                {company?.email && <p className="break-all text-sm text-gray-500">{company.email}</p>}
+              </div>
             </div>
-            <div className="text-right">
-              {company?.logoUrl && (
-                <img
-                  src={company.logoUrl}
-                  alt={company.name}
-                  className="h-12 w-auto object-contain ml-auto mb-2"
-                />
-              )}
-              <h3 className="font-bold text-gray-900 text-lg">{company?.name || "Negócio"}</h3>
-              {company?.address && <p className="text-sm text-gray-500">{company.address}</p>}
-              {company?.phone && <p className="text-sm text-gray-500">{company.phone}</p>}
-              {company?.email && <p className="text-sm text-gray-500">{company.email}</p>}
+            <div className="shrink-0 text-right">
+              <h2 className="text-3xl font-black uppercase tracking-tight text-gray-900">Orçamento</h2>
+              <p className="mt-1 font-mono text-gray-500">#{quote.id.toString().padStart(4, '0')}</p>
+              <p className="mt-4 text-xs font-bold uppercase tracking-wider text-gray-400">Data de emissão</p>
+              <p className="text-sm font-medium text-gray-900">{formatDate(quote.createdAt)}</p>
             </div>
           </div>
 
@@ -143,10 +153,6 @@ export function QuoteDetail() {
             <div>
               <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Preparado Para</p>
               <p className="font-bold text-gray-900 text-lg">{quote.clientName}</p>
-            </div>
-            <div className="text-right">
-              <p className="text-xs font-bold text-gray-400 uppercase tracking-wider mb-1">Data de Emissão</p>
-              <p className="font-medium text-gray-900">{formatDate(quote.createdAt)}</p>
             </div>
           </div>
 
@@ -210,6 +216,7 @@ export function QuoteDetail() {
           body * { visibility: hidden; }
           .print\\:max-w-none * { visibility: visible; }
           .print\\:max-w-none { position: absolute; left: 0; top: 0; width: 100%; }
+          img { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
         }
       `}</style>
     </div>

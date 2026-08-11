@@ -22,6 +22,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
 import { useFileUpload, ACCEPTED_IMAGE_TYPES, MAX_ORIGINAL_SIZE_BYTES } from "@/hooks/use-file-upload";
+import { normalizeStoredObjectUrl } from "@/lib/objectUrl";
 import { Plus, CheckCircle2, Circle, Trash2, CalendarIcon, Pencil, ImagePlus, Loader2, X } from "lucide-react";
 import { formatDateTime } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
@@ -392,7 +393,14 @@ function TaskPhotos({ task }: { task: Task }) {
       <div className="flex flex-wrap gap-2">
         {task.photos.map((photo) => (
           <div key={photo.id} className="relative h-20 w-20 rounded-lg overflow-hidden border group">
-            <img src={photo.url} alt="Foto do serviço" className="h-full w-full object-cover" />
+            <img
+              src={normalizeStoredObjectUrl(photo.url)}
+              alt="Foto do serviço"
+              className="h-full w-full object-cover"
+              onError={(event) => {
+                event.currentTarget.style.display = "none";
+              }}
+            />
             <button
               type="button"
               onClick={() => handleRemove(photo.id)}
