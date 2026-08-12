@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
 import { Plus, Trash2, ArrowLeft, Save } from "lucide-react";
@@ -46,6 +47,8 @@ export function QuoteForm({ id }: QuoteFormProps) {
   const [clientId, setClientId] = useState<string>(isEditing ? "" : initialClientId || "");
   const [notes, setNotes] = useState("");
   const [laborCost, setLaborCost] = useState<number>(0);
+  const [serviceScopeEnabled, setServiceScopeEnabled] = useState(false);
+  const [serviceDescription, setServiceDescription] = useState("");
   const [items, setItems] = useState<(QuoteItemInput & { localId: string })[]>([
     { localId: Math.random().toString(), description: "", quantity: 1, unitPrice: 0, productId: null }
   ]);
@@ -56,6 +59,8 @@ export function QuoteForm({ id }: QuoteFormProps) {
       setClientId(existingQuote.clientId.toString());
       setNotes(existingQuote.notes || "");
       setLaborCost(existingQuote.laborCost || 0);
+      setServiceScopeEnabled(existingQuote.serviceScopeEnabled);
+      setServiceDescription(existingQuote.serviceDescription || "");
       if (existingQuote.items.length > 0) {
         setItems(existingQuote.items.map(i => ({
           localId: Math.random().toString(),
@@ -115,6 +120,8 @@ export function QuoteForm({ id }: QuoteFormProps) {
       clientId: Number(clientId),
       notes: notes || undefined,
       laborCost,
+      serviceScopeEnabled,
+      serviceDescription: serviceScopeEnabled ? serviceDescription.trim() || null : null,
       items: validItems.map(i => ({
         productId: i.productId,
         description: i.description,
@@ -178,6 +185,44 @@ export function QuoteForm({ id }: QuoteFormProps) {
                 </SelectContent>
               </Select>
             </div>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-sm">
+          <CardHeader>
+            <CardTitle className="text-lg">Escopo do serviço</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="flex items-center justify-between gap-4 rounded-lg border p-4">
+              <div>
+                <Label htmlFor="serviceScopeEnabled" className="cursor-pointer text-base">
+                  Adicionar escopo do serviço
+                </Label>
+                <p className="mt-1 text-sm text-gray-500">
+                  Exiba no orçamento uma descrição do que será realizado.
+                </p>
+              </div>
+              <Switch
+                id="serviceScopeEnabled"
+                checked={serviceScopeEnabled}
+                onCheckedChange={(checked) => {
+                  setServiceScopeEnabled(checked);
+                  if (!checked) setServiceDescription("");
+                }}
+              />
+            </div>
+            {serviceScopeEnabled && (
+              <div className="space-y-2">
+                <Label htmlFor="serviceDescription">Descrição do escopo</Label>
+                <Textarea
+                  id="serviceDescription"
+                  placeholder="Descreva o serviço que será realizado, incluindo o que está incluído e os limites da execução."
+                  className="min-h-[130px]"
+                  value={serviceDescription}
+                  onChange={(event) => setServiceDescription(event.target.value)}
+                />
+              </div>
+            )}
           </CardContent>
         </Card>
 

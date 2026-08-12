@@ -913,6 +913,7 @@ components:
           clientId,
           clientName,
           status,
+           serviceScopeEnabled,
           serviceDescription,
           notes,
           laborCost,
@@ -931,6 +932,9 @@ components:
           type: string
         status:
           $ref: "#/components/schemas/QuoteStatus"
+        serviceScopeEnabled:
+          type: boolean
+          description: Whether the service scope section should appear on the quote.
         serviceDescription:
           type: ["string", "null"]
           description: Description of the service/work to be performed, shown on the printable quote.
@@ -965,8 +969,12 @@ components:
           type: integer
         status:
           $ref: "#/components/schemas/QuoteStatus"
+        serviceScopeEnabled:
+          type: boolean
+          default: false
+          description: Whether to show the service scope section on the quote.
         serviceDescription:
-          type: string
+          type: ["string", "null"]
         notes:
           type: string
         laborCost:
@@ -985,6 +993,8 @@ components:
           type: integer
         status:
           $ref: "#/components/schemas/QuoteStatus"
+        serviceScopeEnabled:
+          type: boolean
         serviceDescription:
           type: ["string", "null"]
         notes:

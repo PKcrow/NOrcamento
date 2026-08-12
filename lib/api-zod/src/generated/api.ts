@@ -129,6 +129,7 @@ export const GetDashboardSummaryResponse = zod.object({
   "clientId": zod.number(),
   "clientName": zod.string(),
   "status": zod.enum(['draft', 'sent', 'approved', 'rejected']),
+  "serviceScopeEnabled": zod.boolean().describe('Whether the service scope section should appear on the quote.'),
   "serviceDescription": zod.string().nullable().describe('Description of the service\/work to be performed, shown on the printable quote.'),
   "notes": zod.string().nullable(),
   "laborCost": zod.number().min(getDashboardSummaryResponseRecentQuotesItemLaborCostMin).describe('Cost of labor\/mão de obra, added on top of the item totals.'),
@@ -216,6 +217,7 @@ export const GetClientResponse = zod.object({
   "clientId": zod.number(),
   "clientName": zod.string(),
   "status": zod.enum(['draft', 'sent', 'approved', 'rejected']),
+  "serviceScopeEnabled": zod.boolean().describe('Whether the service scope section should appear on the quote.'),
   "serviceDescription": zod.string().nullable().describe('Description of the service\/work to be performed, shown on the printable quote.'),
   "notes": zod.string().nullable(),
   "laborCost": zod.number().min(getClientResponseTwoQuotesItemLaborCostMin).describe('Cost of labor\/mão de obra, added on top of the item totals.'),
@@ -387,6 +389,7 @@ export const ListQuotesResponseItem = zod.object({
   "clientId": zod.number(),
   "clientName": zod.string(),
   "status": zod.enum(['draft', 'sent', 'approved', 'rejected']),
+  "serviceScopeEnabled": zod.boolean().describe('Whether the service scope section should appear on the quote.'),
   "serviceDescription": zod.string().nullable().describe('Description of the service\/work to be performed, shown on the printable quote.'),
   "notes": zod.string().nullable(),
   "laborCost": zod.number().min(listQuotesResponseLaborCostMin).describe('Cost of labor\/mão de obra, added on top of the item totals.'),
@@ -409,6 +412,7 @@ export const ListQuotesResponse = zod.array(ListQuotesResponseItem)
 /**
  * @summary Create a quote with line items
  */
+export const createQuoteBodyServiceScopeEnabledDefault = false;
 export const createQuoteBodyLaborCostMin = 0;
 
 
@@ -422,7 +426,8 @@ export const createQuoteBodyItemsItemUnitPriceMin = 0;
 export const CreateQuoteBody = zod.object({
   "clientId": zod.number(),
   "status": zod.enum(['draft', 'sent', 'approved', 'rejected']).optional(),
-  "serviceDescription": zod.string().optional(),
+  "serviceScopeEnabled": zod.boolean().default(createQuoteBodyServiceScopeEnabledDefault).describe('Whether to show the service scope section on the quote.'),
+  "serviceDescription": zod.string().nullish(),
   "notes": zod.string().optional(),
   "laborCost": zod.number().min(createQuoteBodyLaborCostMin).optional(),
   "items": zod.array(zod.object({
@@ -442,6 +447,7 @@ export const CreateQuoteResponse = zod.object({
   "clientId": zod.number(),
   "clientName": zod.string(),
   "status": zod.enum(['draft', 'sent', 'approved', 'rejected']),
+  "serviceScopeEnabled": zod.boolean().describe('Whether the service scope section should appear on the quote.'),
   "serviceDescription": zod.string().nullable().describe('Description of the service\/work to be performed, shown on the printable quote.'),
   "notes": zod.string().nullable(),
   "laborCost": zod.number().min(createQuoteResponseLaborCostMin).describe('Cost of labor\/mão de obra, added on top of the item totals.'),
@@ -476,6 +482,7 @@ export const GetQuoteResponse = zod.object({
   "clientId": zod.number(),
   "clientName": zod.string(),
   "status": zod.enum(['draft', 'sent', 'approved', 'rejected']),
+  "serviceScopeEnabled": zod.boolean().describe('Whether the service scope section should appear on the quote.'),
   "serviceDescription": zod.string().nullable().describe('Description of the service\/work to be performed, shown on the printable quote.'),
   "notes": zod.string().nullable(),
   "laborCost": zod.number().min(getQuoteResponseLaborCostMin).describe('Cost of labor\/mão de obra, added on top of the item totals.'),
@@ -513,6 +520,7 @@ export const updateQuoteBodyItemsItemUnitPriceMin = 0;
 export const UpdateQuoteBody = zod.object({
   "clientId": zod.number().optional(),
   "status": zod.enum(['draft', 'sent', 'approved', 'rejected']).optional(),
+  "serviceScopeEnabled": zod.boolean().optional(),
   "serviceDescription": zod.string().nullish(),
   "notes": zod.string().nullish(),
   "laborCost": zod.number().min(updateQuoteBodyLaborCostMin).optional(),
@@ -533,6 +541,7 @@ export const UpdateQuoteResponse = zod.object({
   "clientId": zod.number(),
   "clientName": zod.string(),
   "status": zod.enum(['draft', 'sent', 'approved', 'rejected']),
+  "serviceScopeEnabled": zod.boolean().describe('Whether the service scope section should appear on the quote.'),
   "serviceDescription": zod.string().nullable().describe('Description of the service\/work to be performed, shown on the printable quote.'),
   "notes": zod.string().nullable(),
   "laborCost": zod.number().min(updateQuoteResponseLaborCostMin).describe('Cost of labor\/mão de obra, added on top of the item totals.'),

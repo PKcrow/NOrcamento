@@ -11,6 +11,7 @@ import type { QuoteStatus } from './quoteStatus';
 export interface QuoteUpdate {
   clientId?: number;
   status?: QuoteStatus;
+  serviceScopeEnabled?: boolean;
   /** @nullable */
   serviceDescription?: string | null;
   /** @nullable */

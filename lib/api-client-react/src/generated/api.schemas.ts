@@ -84,6 +84,8 @@ export interface Quote {
   clientId: number;
   clientName: string;
   status: QuoteStatus;
+  /** Whether the service scope section should appear on the quote. */
+  serviceScopeEnabled: boolean;
   /**
      * Description of the service/work to be performed, shown on the printable quote.
      * @nullable
@@ -205,7 +207,10 @@ export interface QuoteItemInput {
 export interface QuoteInput {
   clientId: number;
   status?: QuoteStatus;
-  serviceDescription?: string;
+  /** Whether to show the service scope section on the quote. */
+  serviceScopeEnabled?: boolean;
+  /** @nullable */
+  serviceDescription?: string | null;
   notes?: string;
   /** @minimum 0 */
   laborCost?: number;
@@ -216,6 +221,7 @@ export interface QuoteInput {
 export interface QuoteUpdate {
   clientId?: number;
   status?: QuoteStatus;
+  serviceScopeEnabled?: boolean;
   /** @nullable */
   serviceDescription?: string | null;
   /** @nullable */

@@ -102,6 +102,7 @@ export async function generateQuotePdf(quote: Quote, company?: PdfCompany): Prom
   pdf.setTextColor(40, 40, 40);
   pdf.text(formatDate(quote.createdAt), pageWidth - margin, 40, { align: "right" });
 
+  let tableStartY = 86;
   pdf.setFillColor(248, 249, 250);
   pdf.roundedRect(margin, 53, pageWidth - margin * 2, 22, 3, 3, "F");
   pdf.setFont("helvetica", "bold");
@@ -112,8 +113,25 @@ export async function generateQuotePdf(quote: Quote, company?: PdfCompany): Prom
   pdf.setTextColor(30, 30, 30);
   pdf.text(quote.clientName, margin + 6, 69);
 
+  if (quote.serviceScopeEnabled && quote.serviceDescription?.trim()) {
+    const scopeLines = pdf.splitTextToSize(quote.serviceDescription.trim(), pageWidth - margin * 2 - 12);
+    const scopeHeight = Math.max(22, 12 + scopeLines.length * 4.5);
+    const scopeTop = 81;
+    pdf.setFillColor(248, 249, 250);
+    pdf.roundedRect(margin, scopeTop, pageWidth - margin * 2, scopeHeight, 3, 3, "F");
+    pdf.setFont("helvetica", "bold");
+    pdf.setFontSize(8);
+    pdf.setTextColor(130, 130, 130);
+    pdf.text("ESCOPO DO SERVIÇO", margin + 6, scopeTop + 8);
+    pdf.setFont("helvetica", "normal");
+    pdf.setFontSize(9);
+    pdf.setTextColor(70, 70, 70);
+    pdf.text(scopeLines, margin + 6, scopeTop + 15);
+    tableStartY = scopeTop + scopeHeight + 10;
+  }
+
   autoTable(pdf, {
-    startY: 86,
+    startY: tableStartY,
     margin: { left: margin, right: margin },
     head: [["Descrição do Serviço/Produto", "Qtd", "Valor Unit.", "Total"]],
     body: [

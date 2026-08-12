@@ -11,7 +11,10 @@ import type { QuoteStatus } from './quoteStatus';
 export interface QuoteInput {
   clientId: number;
   status?: QuoteStatus;
-  serviceDescription?: string;
+  /** Whether to show the service scope section on the quote. */
+  serviceScopeEnabled?: boolean;
+  /** @nullable */
+  serviceDescription?: string | null;
   notes?: string;
   /** @minimum 0 */
   laborCost?: number;

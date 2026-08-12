@@ -179,6 +179,17 @@ export function QuoteDetail() {
             </div>
           </div>
 
+          {quote.serviceScopeEnabled && quote.serviceDescription?.trim() && (
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-6">
+              <p className="mb-2 text-xs font-bold uppercase tracking-wider text-gray-400">
+                Escopo do serviço
+              </p>
+              <p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-700">
+                {quote.serviceDescription}
+              </p>
+            </div>
+          )}
+
           {/* Info Block */}
           <div className="flex justify-between border-t border-b py-6 border-gray-100">
             <div>

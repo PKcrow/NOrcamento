@@ -6,6 +6,7 @@ import {
   text,
   timestamp,
   uuid,
+  boolean,
 } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
@@ -31,6 +32,7 @@ export const quotesTable = pgTable("quotes", {
   status: text("status", { enum: quoteStatusValues })
     .notNull()
     .default("draft"),
+  serviceScopeEnabled: boolean("service_scope_enabled").notNull().default(false),
   serviceDescription: text("service_description"),
   notes: text("notes"),
   laborCost: numeric("labor_cost", { precision: 12, scale: 2 })
