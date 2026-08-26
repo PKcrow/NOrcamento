@@ -67,7 +67,7 @@ export default function NovoOrcamentoScreen() {
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
   const addItem = () =>
-    setItems(prev => [...prev, { description: '', quantity: '1', unitPrice: '' }]);
+    setItems(prev => [{ description: '', quantity: '1', unitPrice: '' }, ...prev]);
 
   const updateItem = (i: number, field: keyof Item, value: string) =>
     setItems(prev => prev.map((it, idx) => (idx === i ? { ...it, [field]: value } : it)));

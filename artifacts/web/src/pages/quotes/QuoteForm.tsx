@@ -130,7 +130,10 @@ export function QuoteForm({ id }: QuoteFormProps) {
   }, [initialTemplateId, isEditing, selectedTemplateId, serviceTemplates]);
 
   const handleAddItem = () => {
-    setItems([...items, { localId: Math.random().toString(), description: "", quantity: 1, unitPrice: 0, productId: null }]);
+    setItems((previousItems) => [
+      { localId: Math.random().toString(), description: "", quantity: 1, unitPrice: 0, productId: null },
+      ...previousItems,
+    ]);
   };
 
   const handleRemoveItem = (index: number) => {

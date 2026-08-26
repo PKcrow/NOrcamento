@@ -75,7 +75,7 @@ export default function EditarOrcamentoScreen() {
   const fmt = (v: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
-  const addItem = () => setItems(prev => [...prev, { description: '', quantity: '1', unitPrice: '' }]);
+  const addItem = () => setItems(prev => [{ description: '', quantity: '1', unitPrice: '' }, ...prev]);
   const removeItem = (i: number) => setItems(prev => prev.filter((_, idx) => idx !== i));
   const updateItem = (i: number, field: keyof Item, value: string) =>
     setItems(prev => prev.map((item, idx) => idx === i ? { ...item, [field]: value } : item));
