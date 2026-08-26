@@ -9,7 +9,8 @@ import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { formatCurrency, formatDateTime, quoteStatusMap } from "@/lib/format";
 import { normalizeStoredObjectUrl } from "@/lib/objectUrl";
-import { CheckCircle2, XCircle, Loader2, AlertTriangle, Printer } from "lucide-react";
+import { downloadPdfFile, generateQuotePdf } from "@/lib/documentPdf";
+import { CheckCircle2, XCircle, Loader2, AlertTriangle, Printer, Download } from "lucide-react";
 import type { ApiError, PublicQuoteResponseInputAction } from "@workspace/api-client-react";
 
 export function PublicQuoteView() {
@@ -21,6 +22,7 @@ export function PublicQuoteView() {
   const respondMutation = useRespondPublicQuote();
   const [note, setNote] = useState("");
   const [responseLocked, setResponseLocked] = useState(false);
+  const [isPdfGenerating, setIsPdfGenerating] = useState(false);
 
   const quote = data?.quote;
   const company = data?.company;
@@ -52,6 +54,27 @@ export function PublicQuoteView() {
         },
       },
     );
+  };
+
+  const handleDownloadPdf = async () => {
+    if (!quote || isPdfGenerating) return;
+    setIsPdfGenerating(true);
+    try {
+      const file = await generateQuotePdf(quote, company ?? undefined);
+      downloadPdfFile(file);
+      toast({
+        title: "PDF gerado",
+        description: "O orçamento foi baixado para o seu dispositivo.",
+      });
+    } catch {
+      toast({
+        title: "Não foi possível gerar o PDF",
+        description: "Tente novamente em instantes.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsPdfGenerating(false);
+    }
   };
 
   if (isLoading) {
@@ -90,10 +113,10 @@ export function PublicQuoteView() {
   const isRejected = quote.status === "rejected";
 
   return (
-    <div className="min-h-screen bg-gray-50 py-8 px-4 print:bg-white print:py-0">
+    <div className="public-quote-print min-h-screen bg-gray-50 py-8 px-4 print:bg-white print:py-0">
       <div className="mx-auto max-w-3xl space-y-6">
         {/* Document card */}
-        <div className="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm print:border-none print:shadow-none">
+        <div className="public-quote-document overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm print:border-none print:shadow-none print:overflow-visible">
           <div className="h-3 w-full bg-primary" style={{ backgroundColor: "var(--primary)" }} />
           <div className="space-y-10 p-6 sm:p-10">
             {/* Header */}
@@ -194,7 +217,7 @@ export function PublicQuoteView() {
         </div>
 
         {/* Response section */}
-        <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm print:hidden">
+        <div className="public-quote-response rounded-2xl border border-gray-200 bg-white p-6 shadow-sm print:hidden">
           {canRespond ? (
             <div className="space-y-4">
               <div>
@@ -260,12 +283,65 @@ export function PublicQuoteView() {
           )}
         </div>
 
-        <div className="flex justify-center print:hidden">
+        <div className="public-quote-actions flex flex-wrap justify-center gap-3 print:hidden">
           <Button variant="ghost" className="gap-2 text-gray-500" onClick={() => window.print()}>
             <Printer className="h-4 w-4" /> Imprimir
           </Button>
+          <Button variant="outline" className="gap-2" onClick={handleDownloadPdf} disabled={isPdfGenerating}>
+            {isPdfGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
+            {isPdfGenerating ? "Gerando PDF..." : "Baixar PDF"}
+          </Button>
         </div>
       </div>
+      <style>{`
+        @media print {
+          @page {
+            size: A4;
+            margin: 12mm;
+          }
+          html,
+          body {
+            background: #fff !important;
+          }
+          body * {
+            visibility: hidden !important;
+          }
+          .public-quote-print,
+          .public-quote-print * {
+            visibility: visible !important;
+          }
+          .public-quote-print {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            padding: 0 !important;
+          }
+          .public-quote-document {
+            width: 100%;
+            max-width: none;
+            overflow: visible !important;
+            border: 0 !important;
+            box-shadow: none !important;
+          }
+          .public-quote-document .overflow-x-auto {
+            overflow: visible !important;
+          }
+          .public-quote-document table {
+            width: 100% !important;
+          }
+          .public-quote-document thead {
+            display: table-header-group;
+          }
+          .public-quote-document tr {
+            break-inside: avoid;
+          }
+          .public-quote-response,
+          .public-quote-actions {
+            display: none !important;
+          }
+        }
+      `}</style>
     </div>
   );
 }

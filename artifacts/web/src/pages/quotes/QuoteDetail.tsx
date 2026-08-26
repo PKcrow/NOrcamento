@@ -10,8 +10,9 @@ import { Input } from "@/components/ui/input";
 import { Calendar } from "@/components/ui/calendar";
 import { formatCurrency, formatDate, formatDateTime, quoteStatusMap } from "@/lib/format";
 import { normalizeStoredObjectUrl } from "@/lib/objectUrl";
+import { downloadPdfFile, generateQuotePdf } from "@/lib/documentPdf";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Printer, Edit2, Trash2, Send, CheckCircle, XCircle, Loader2, ClipboardList, Share2, Ban } from "lucide-react";
+import { ArrowLeft, Printer, Download, Edit2, Trash2, Send, CheckCircle, XCircle, Loader2, ClipboardList, Share2, Ban } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import type { QuoteStatus } from "@workspace/api-client-react";
@@ -41,6 +42,7 @@ export function QuoteDetail() {
   });
   const [pickedEndDate, setPickedEndDate] = useState("");
   const [pickedEndTime, setPickedEndTime] = useState("18:00");
+  const [isPdfGenerating, setIsPdfGenerating] = useState(false);
 
   // Map date string (YYYY-MM-DD local) → list of client names already scheduled
   const busyDaysMap = useMemo(() => {
@@ -64,6 +66,27 @@ export function QuoteDetail() {
 
   const handlePrint = () => {
     window.print();
+  };
+
+  const handleDownloadPdf = async () => {
+    if (!quote || isPdfGenerating) return;
+    setIsPdfGenerating(true);
+    try {
+      const file = await generateQuotePdf(quote, company ?? undefined);
+      downloadPdfFile(file);
+      toast({
+        title: "PDF gerado",
+        description: "O orçamento foi baixado para o seu dispositivo.",
+      });
+    } catch {
+      toast({
+        title: "Não foi possível gerar o PDF",
+        description: "Tente novamente em instantes.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsPdfGenerating(false);
+    }
   };
 
   const handleSendLink = async () => {
@@ -198,9 +221,9 @@ export function QuoteDetail() {
   );
 
   return (
-    <div className="space-y-8 max-w-4xl mx-auto print:max-w-none print:m-0 print:p-0">
+    <div className="quote-detail-print space-y-8 max-w-4xl mx-auto print:max-w-none print:m-0 print:p-0">
       {/* Non-printable action bar */}
-      <div className="flex flex-col sm:flex-row justify-between gap-4 print:hidden">
+      <div className="quote-detail-actions flex flex-col sm:flex-row justify-between gap-4 print:hidden">
         <div className="flex items-center gap-4">
           <Link href="/orcamentos">
             <Button variant="outline" size="icon" className="h-10 w-10">
@@ -256,6 +279,10 @@ export function QuoteDetail() {
 
           <Button variant="outline" onClick={handlePrint} className="gap-2">
             <Printer className="w-4 h-4" /> Imprimir / PDF
+          </Button>
+          <Button variant="outline" onClick={handleDownloadPdf} disabled={isPdfGenerating} className="gap-2">
+            {isPdfGenerating ? <Loader2 className="w-4 h-4 animate-spin" /> : <Download className="w-4 h-4" />}
+            {isPdfGenerating ? "Gerando PDF..." : "Baixar PDF"}
           </Button>
 
           {quote.status === "approved" && !quote.convertedTaskId && (
@@ -314,7 +341,7 @@ export function QuoteDetail() {
       </div>
 
       {/* Printable Document Layout */}
-      <Card className="shadow-lg border-gray-200 overflow-hidden print:shadow-none print:border-none print:w-full">
+      <Card className="quote-detail-document shadow-lg border-gray-200 overflow-hidden print:shadow-none print:border-none print:w-full print:overflow-visible">
         {/* Header Strip */}
         <div className="h-4 w-full bg-primary print:bg-black !bg-opacity-100" style={{ backgroundColor: 'var(--primary)' }}></div>
         
@@ -538,12 +565,31 @@ export function QuoteDetail() {
         </DialogContent>
       </Dialog>
 
-      {/* CSS for printing hidden in global css but explicit overrides here */}
+      {/* Keep browser printing limited to the document and allow natural multipage flow. */}
       <style>{`
         @media print {
-          body * { visibility: hidden; }
-          .print\\:max-w-none * { visibility: visible; }
-          .print\\:max-w-none { position: absolute; left: 0; top: 0; width: 100%; }
+          @page { size: A4; margin: 12mm; }
+          html, body { background: #fff !important; }
+          body * { visibility: hidden !important; }
+          .quote-detail-print, .quote-detail-print * { visibility: visible !important; }
+          .quote-detail-print {
+            position: absolute;
+            left: 0;
+            top: 0;
+            width: 100%;
+            max-width: none !important;
+            margin: 0 !important;
+            padding: 0 !important;
+          }
+          .quote-detail-document {
+            overflow: visible !important;
+            box-shadow: none !important;
+            border: 0 !important;
+          }
+          .quote-detail-document table { width: 100% !important; }
+          .quote-detail-document thead { display: table-header-group; }
+          .quote-detail-document tr { break-inside: avoid; }
+          .quote-detail-actions { display: none !important; }
           img { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
         }
       `}</style>

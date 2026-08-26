@@ -155,25 +155,38 @@ export async function generateQuotePdf(quote: Quote, company?: PdfCompany): Prom
   });
 
   const finalY = (pdf as jsPDF & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? 100;
+  const pageHeight = pdf.internal.pageSize.getHeight();
+  let totalY = finalY + 10;
+  if (totalY + 22 > pageHeight - 18) {
+    pdf.addPage();
+    totalY = 20;
+  }
+
   pdf.setFillColor(248, 249, 250);
-  pdf.roundedRect(pageWidth - margin - 72, finalY + 10, 72, 18, 3, 3, "F");
+  pdf.roundedRect(pageWidth - margin - 72, totalY, 72, 18, 3, 3, "F");
   pdf.setFont("helvetica", "bold");
   pdf.setFontSize(9);
   pdf.setTextColor(50, 50, 50);
-  pdf.text("VALOR TOTAL", pageWidth - margin - 66, finalY + 18);
+  pdf.text("VALOR TOTAL", pageWidth - margin - 66, totalY + 8);
   pdf.setFontSize(13);
   pdf.setTextColor(239, 115, 31);
-  pdf.text(formatCurrency(quote.total), pageWidth - margin - 6, finalY + 18, { align: "right" });
+  pdf.text(formatCurrency(quote.total), pageWidth - margin - 6, totalY + 8, { align: "right" });
 
   if (quote.notes) {
+    const noteLines = pdf.splitTextToSize(quote.notes, pageWidth - margin * 2);
+    let notesY = totalY + 32;
+    if (notesY + noteLines.length * 4.5 > pageHeight - 20) {
+      pdf.addPage();
+      notesY = 24;
+    }
     pdf.setFont("helvetica", "bold");
     pdf.setFontSize(8);
     pdf.setTextColor(130, 130, 130);
-    pdf.text("OBSERVAÇÕES E CONDIÇÕES", margin, finalY + 42);
+    pdf.text("OBSERVAÇÕES E CONDIÇÕES", margin, notesY);
     pdf.setFont("helvetica", "normal");
     pdf.setFontSize(9);
     pdf.setTextColor(70, 70, 70);
-    pdf.text(pdf.splitTextToSize(quote.notes, pageWidth - margin * 2), margin, finalY + 49);
+    pdf.text(noteLines, margin, notesY + 7);
   }
 
   addFooter(pdf);
@@ -286,4 +299,15 @@ export async function sharePdfFile(file: File): Promise<"shared" | "downloaded">
   link.remove();
   URL.revokeObjectURL(url);
   return "downloaded";
+}
+
+export function downloadPdfFile(file: File): void {
+  const url = URL.createObjectURL(file);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = file.name;
+  document.body.appendChild(link);
+  link.click();
+  link.remove();
+  window.setTimeout(() => URL.revokeObjectURL(url), 1000);
 }
