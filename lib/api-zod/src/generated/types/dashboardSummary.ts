@@ -5,6 +5,7 @@
  * API specification for a freelancer/service-provider business management app
  * OpenAPI spec version: 0.1.0
  */
+import type { DashboardPriority } from './dashboardPriority';
 import type { Quote } from './quote';
 import type { Task } from './task';
 
@@ -13,6 +14,15 @@ export interface DashboardSummary {
   pendingQuotesTotal: number;
   totalClients: number;
   totalProducts: number;
+  /** Sum of paidAmount for tasks paid this calendar month */
+  monthlyRevenue: number;
+  /** Percentage of quotes converted to tasks (0-100) */
+  conversionRate: number;
+  /** Tasks with status completed or paid this calendar month */
+  completedTasksCount: number;
+  /** Tasks with status paid this calendar month */
+  paidTasksCount: number;
   upcomingTasks: Task[];
   recentQuotes: Quote[];
+  priorities: DashboardPriority[];
 }

@@ -22,8 +22,17 @@ export interface Task {
   status: TaskStatus;
   /** @nullable */
   clientId: number | null;
+  /**
+     * Quote that originated this task, when it was created from an approved quote.
+     * @nullable
+     */
+  quoteId: number | null;
   /** @nullable */
   clientName: string | null;
+  /** @nullable */
+  paidAt: Date | null;
+  /** @nullable */
+  paidAmount: number | null;
   createdAt: Date;
   photos: TaskPhoto[];
 }

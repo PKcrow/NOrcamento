@@ -1,17 +1,20 @@
 import { useParams, Link, useLocation } from "wouter";
-import { useState } from "react";
-import { useGetQuote, useUpdateQuote, useDeleteQuote, useGetCompany, getGetQuoteQueryKey } from "@workspace/api-client-react";
+import { useState, useMemo } from "react";
+import { useGetQuote, useUpdateQuote, useDeleteQuote, useGetCompany, useConvertQuoteToTask, useListTasks, useShareQuote, useRevokeQuotePublicLink, useGetMe, getGetQuoteQueryKey, getListTasksQueryKey, getGetDashboardSummaryQueryKey, getGetNotificationsQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { formatCurrency, formatDate, quoteStatusMap } from "@/lib/format";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Input } from "@/components/ui/input";
+import { Calendar } from "@/components/ui/calendar";
+import { formatCurrency, formatDate, formatDateTime, quoteStatusMap } from "@/lib/format";
 import { normalizeStoredObjectUrl } from "@/lib/objectUrl";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Printer, Share2, Edit2, Trash2, Send, CheckCircle, XCircle, Loader2 } from "lucide-react";
+import { ArrowLeft, Printer, Edit2, Trash2, Send, CheckCircle, XCircle, Loader2, ClipboardList, Share2, Ban } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import type { QuoteStatus } from "@workspace/api-client-react";
-import { generateQuotePdf, sharePdfFile } from "@/lib/documentPdf";
 
 export function QuoteDetail() {
   const { id } = useParams<{ id: string }>();
@@ -20,12 +23,41 @@ export function QuoteDetail() {
   
   const { data: quote, isLoading } = useGetQuote(quoteId);
   const { data: company } = useGetCompany();
+  const { data: me } = useGetMe();
   
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const updateMutation = useUpdateQuote();
   const deleteMutation = useDeleteQuote();
-  const [isSharing, setIsSharing] = useState(false);
+  const convertQuoteMutation = useConvertQuoteToTask();
+  const shareLinkMutation = useShareQuote();
+  const revokeLinkMutation = useRevokeQuotePublicLink();
+  const { data: allTasks } = useListTasks();
+  const [isConvertOpen, setIsConvertOpen] = useState(false);
+  const [pickedDate, setPickedDate] = useState<Date | undefined>(undefined);
+  const [pickedTime, setPickedTime] = useState(() => {
+    const now = new Date();
+    return `${String(now.getHours()).padStart(2, "0")}:${String(now.getMinutes()).padStart(2, "0")}`;
+  });
+  const [pickedEndDate, setPickedEndDate] = useState("");
+  const [pickedEndTime, setPickedEndTime] = useState("18:00");
+
+  // Map date string (YYYY-MM-DD local) → list of client names already scheduled
+  const busyDaysMap = useMemo(() => {
+    const map: Record<string, string[]> = {};
+    for (const task of allTasks ?? []) {
+      const key = new Date(task.dueAt).toLocaleDateString("sv"); // "2026-08-18"
+      if (!map[key]) map[key] = [];
+      const name = task.clientName ?? "Cliente";
+      if (!map[key].includes(name)) map[key].push(name);
+    }
+    return map;
+  }, [allTasks]);
+
+  const busyDays = useMemo(
+    () => Object.keys(busyDaysMap).map((d) => new Date(d + "T12:00:00")),
+    [busyDaysMap],
+  );
 
   if (isLoading) return <div className="p-8 text-center animate-pulse">Carregando orçamento...</div>;
   if (!quote) return <div className="p-8 text-center">Orçamento não encontrado.</div>;
@@ -34,34 +66,63 @@ export function QuoteDetail() {
     window.print();
   };
 
-  const handleShare = async () => {
+  const handleSendLink = async () => {
     if (!quote) return;
-    setIsSharing(true);
+    const getToken = (): Promise<string> => {
+      if (publicLinkIsActive && quote.publicToken) return Promise.resolve(quote.publicToken);
+      return new Promise((resolve, reject) => {
+        shareLinkMutation.mutate(
+          { id: quoteId },
+          {
+            onSuccess: (updated) => {
+              queryClient.invalidateQueries({ queryKey: getGetQuoteQueryKey(quoteId) });
+              queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+              if (updated.publicToken) resolve(updated.publicToken);
+              else reject(new Error("Token não gerado"));
+            },
+            onError: reject,
+          },
+        );
+      });
+    };
     try {
-      const file = await generateQuotePdf(quote, company);
-      const result = await sharePdfFile(file);
-      if (result === "downloaded") {
-        toast({
-          title: "PDF baixado",
-          description: "Este navegador não oferece o compartilhamento nativo de arquivos.",
-        });
+      const token = await getToken();
+      const url = `${window.location.origin}${import.meta.env.BASE_URL}orcamento-publico/${token}`;
+      const title = `Orçamento #${quote.id.toString().padStart(4, "0")}`;
+      if (navigator.share) {
+        await navigator.share({ title, url });
+      } else {
+        await navigator.clipboard.writeText(url);
+        toast({ title: "Link copiado!", description: url });
       }
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
-      toast({
-        title: "Não foi possível compartilhar",
-        description: "Tente novamente ou use a opção Imprimir / PDF.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSharing(false);
+      toast({ title: "Não foi possível compartilhar o link", description: "Tente novamente.", variant: "destructive" });
     }
+  };
+
+  const handleRevokeApprovalLink = () => {
+    if (!quote || !confirm("Revogar este link? Quem o receber não poderá mais abrir ou responder o orçamento.")) return;
+    revokeLinkMutation.mutate(
+      { id: quoteId },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getGetQuoteQueryKey(quoteId) });
+          queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+          toast({ title: "Link de aprovação revogado." });
+        },
+        onError: () => {
+          toast({ title: "Não foi possível revogar o link", description: "Tente novamente.", variant: "destructive" });
+        },
+      },
+    );
   };
 
   const handleStatusChange = (status: QuoteStatus) => {
     updateMutation.mutate({ id: quoteId, data: { status } }, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getGetQuoteQueryKey(quoteId) });
+        queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
         toast({ title: `Status atualizado para ${quoteStatusMap[status].label}` });
       }
     });
@@ -71,13 +132,70 @@ export function QuoteDetail() {
     if (!confirm("Tem certeza que deseja excluir este orçamento?")) return;
     deleteMutation.mutate({ id: quoteId }, {
       onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
         toast({ title: "Orçamento excluído." });
         setLocation("/orcamentos");
       }
     });
   };
 
+  const handleConvert = () => {
+    if (!quote || !pickedDate) return;
+
+    // Combine picked date + time into a single ISO string in local TZ
+    const [hours, minutes] = pickedTime.split(":").map(Number);
+    const dt = new Date(pickedDate);
+    dt.setHours(hours, minutes, 0, 0);
+
+    if (!pickedEndDate) {
+      toast({ title: "Informe a data de término.", variant: "destructive" });
+      return;
+    }
+    const [endHours, endMinutes] = pickedEndTime.split(":").map(Number);
+    const endDt = new Date(pickedEndDate + "T12:00:00");
+    endDt.setHours(endHours, endMinutes, 0, 0);
+    if (endDt <= dt) {
+      toast({ title: "O término deve ser posterior ao início.", variant: "destructive" });
+      return;
+    }
+
+    convertQuoteMutation.mutate(
+      {
+        id: quoteId,
+        data: {
+          dueAt: dt.toISOString(),
+          endAt: endDt.toISOString(),
+        },
+      },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getGetQuoteQueryKey(quoteId) });
+          queryClient.invalidateQueries({ queryKey: getListTasksQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
+          queryClient.invalidateQueries({ queryKey: getGetNotificationsQueryKey() });
+          toast({ title: "Ordem de serviço agendada!", description: "A agenda já mostra este serviço." });
+          setIsConvertOpen(false);
+          setLocation("/agenda");
+        },
+        onError: (err: unknown) => {
+          const msg = (err as { message?: string })?.message;
+          toast({
+            title: "Erro ao criar O.S.",
+            description: msg ?? "Tente novamente.",
+            variant: "destructive",
+          });
+        },
+      },
+    );
+  };
+
   const statusInfo = quoteStatusMap[quote.status];
+  const publicLinkIsActive = Boolean(
+    quote.publicToken &&
+      quote.publicLinkExpiresAt &&
+      !quote.publicLinkRevokedAt &&
+      new Date(quote.publicLinkExpiresAt).getTime() > Date.now(),
+  );
 
   return (
     <div className="space-y-8 max-w-4xl mx-auto print:max-w-none print:m-0 print:p-0">
@@ -97,17 +215,59 @@ export function QuoteDetail() {
               <Badge className={statusInfo.color} variant="outline">{statusInfo.label}</Badge>
               <span className="text-sm text-gray-500">Atualizado em {formatDate(quote.updatedAt)}</span>
             </div>
+            {quote.publicToken && (
+              <p className="mt-2 text-xs text-gray-500">
+                {publicLinkIsActive && quote.publicLinkExpiresAt
+                  ? `Link público válido até ${formatDateTime(quote.publicLinkExpiresAt)}`
+                  : quote.publicLinkRevokedAt
+                    ? "Link público revogado"
+                    : "Link público expirado"}
+              </p>
+            )}
+            {quote.respondedAt && (
+              <div className="mt-3 max-w-md rounded-lg border border-gray-200 bg-gray-50 p-3">
+                <p className="text-xs font-bold uppercase tracking-wider text-gray-400">
+                  Resposta do cliente
+                </p>
+                <p className="mt-1 text-sm text-gray-600">
+                  {quote.status === "approved" ? "Aprovado" : quote.status === "rejected" ? "Recusado" : "Respondido"}{" "}
+                  em {formatDateTime(quote.respondedAt)}
+                </p>
+                {quote.clientResponseNote?.trim() && (
+                  <p className="mt-2 whitespace-pre-wrap text-sm text-gray-700">
+                    "{quote.clientResponseNote}"
+                  </p>
+                )}
+              </div>
+            )}
           </div>
         </div>
 
         <div className="flex flex-wrap gap-2 items-center">
+          <Button
+            variant="outline"
+            onClick={handleSendLink}
+            disabled={shareLinkMutation.isPending}
+            className="gap-2"
+          >
+            {shareLinkMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Share2 className="w-4 h-4" />}
+            Enviar link
+          </Button>
+
           <Button variant="outline" onClick={handlePrint} className="gap-2">
             <Printer className="w-4 h-4" /> Imprimir / PDF
           </Button>
-          <Button variant="outline" onClick={handleShare} disabled={isSharing} className="gap-2">
-            {isSharing ? <Loader2 className="w-4 h-4 animate-spin" /> : <Share2 className="w-4 h-4" />}
-            Compartilhar PDF
-          </Button>
+
+          {quote.status === "approved" && !quote.convertedTaskId && (
+            <Button className="gap-2" onClick={() => setIsConvertOpen(true)}>
+              <ClipboardList className="w-4 h-4" /> Agendar serviço
+            </Button>
+          )}
+          {quote.convertedTaskId && (
+            <Button variant="outline" className="gap-2" onClick={() => setLocation("/agenda")}>
+              <ClipboardList className="w-4 h-4" /> O.S. #{quote.convertedTaskId} na agenda
+            </Button>
+          )}
 
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -128,6 +288,16 @@ export function QuoteDetail() {
               <DropdownMenuItem onClick={() => handleStatusChange('rejected')} className="gap-2">
                 <XCircle className="w-4 h-4 text-red-500" /> Rejeitado
               </DropdownMenuItem>
+              {me?.role === "owner" && publicLinkIsActive && (
+                <DropdownMenuItem
+                  onClick={handleRevokeApprovalLink}
+                  disabled={revokeLinkMutation.isPending}
+                  className="gap-2 text-destructive focus:text-destructive"
+                >
+                  {revokeLinkMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Ban className="w-4 h-4" />}
+                  Revogar link público
+                </DropdownMenuItem>
+              )}
             </DropdownMenuContent>
           </DropdownMenu>
 
@@ -252,6 +422,122 @@ export function QuoteDetail() {
         </CardContent>
       </Card>
       
+      {/* Convert to O.S. dialog */}
+      <Dialog open={isConvertOpen} onOpenChange={(open) => {
+        setIsConvertOpen(open);
+        if (!open) { setPickedDate(undefined); setPickedEndDate(""); }
+      }}>
+        <DialogContent className="max-w-sm">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <ClipboardList className="w-5 h-5 text-primary" />
+              Converter em Ordem de Serviço
+            </DialogTitle>
+          </DialogHeader>
+
+          <p className="text-sm text-gray-500 -mt-1">
+            Escolha o intervalo de horário para o serviço:
+          </p>
+
+          {/* Legend */}
+          <div className="flex items-center gap-4 text-xs text-gray-500">
+            <span className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded-full bg-green-100 border border-green-400 inline-block" />
+              Tem horários disponíveis
+            </span>
+            <span className="flex items-center gap-1.5">
+              <span className="w-3 h-3 rounded-full bg-red-100 border border-red-400 inline-block" />
+              Já há atendimento
+            </span>
+          </div>
+
+          {/* Calendar */}
+          <Calendar
+            mode="single"
+            selected={pickedDate}
+            onSelect={(date) => {
+              setPickedDate(date);
+              if (date) setPickedEndDate(date.toLocaleDateString("sv"));
+            }}
+            disabled={{ before: new Date(new Date().setHours(0,0,0,0)) }}
+            modifiers={{ busy: busyDays }}
+            modifiersClassNames={{
+              busy: "!bg-red-100 !text-red-700 hover:!bg-red-200 font-semibold",
+            }}
+            classNames={{
+              day: "group/day relative aspect-square h-full w-full select-none p-0 text-center",
+              today: "!bg-green-50 !text-green-800 rounded-md font-semibold",
+            }}
+            className="rounded-md border mx-auto w-full [--cell-size:2.25rem]"
+          />
+
+          {/* Busy day warning */}
+          {pickedDate && (() => {
+            const key = pickedDate.toLocaleDateString("sv");
+            const clients = busyDaysMap[key];
+            if (!clients?.length) return null;
+            return (
+              <p className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">
+                Há atendimento neste dia: <strong>{clients.join(", ")}</strong>. Você ainda pode agendar em outro horário.
+              </p>
+            );
+          })()}
+
+          {/* Start + end time — only shown after a day is picked */}
+          {pickedDate && (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label htmlFor="pickedTime">Início</Label>
+                <Input
+                  id="pickedTime"
+                  type="time"
+                  value={pickedTime}
+                  onChange={(e) => setPickedTime(e.target.value)}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label htmlFor="pickedEndTime">Término (hora)</Label>
+                <Input
+                  id="pickedEndTime"
+                  type="time"
+                  value={pickedEndTime}
+                  onChange={(e) => setPickedEndTime(e.target.value)}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* End date — shown after a start day is picked */}
+          {pickedDate && (
+            <div className="space-y-1.5">
+              <Label htmlFor="pickedEndDate">
+                Data de término *
+              </Label>
+              <Input
+                id="pickedEndDate"
+                type="date"
+                value={pickedEndDate}
+                min={pickedDate.toLocaleDateString("sv")}
+                onChange={(e) => setPickedEndDate(e.target.value)}
+              />
+            </div>
+          )}
+
+          <DialogFooter>
+            <DialogClose asChild>
+              <Button type="button" variant="outline">Cancelar</Button>
+            </DialogClose>
+            <Button
+              onClick={handleConvert}
+              disabled={!pickedDate || !pickedEndDate || convertQuoteMutation.isPending}
+            >
+              {convertQuoteMutation.isPending ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
+              Agendar serviço
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       {/* CSS for printing hidden in global css but explicit overrides here */}
       <style>{`
         @media print {

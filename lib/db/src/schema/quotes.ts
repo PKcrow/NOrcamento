@@ -39,6 +39,15 @@ export const quotesTable = pgTable("quotes", {
     .notNull()
     .default("0"),
   sentAt: timestamp("sent_at", { withTimezone: true }),
+  publicToken: text("public_token").unique(),
+  publicLinkExpiresAt: timestamp("public_link_expires_at", {
+    withTimezone: true,
+  }),
+  publicLinkRevokedAt: timestamp("public_link_revoked_at", {
+    withTimezone: true,
+  }),
+  clientResponseNote: text("client_response_note"),
+  respondedAt: timestamp("responded_at", { withTimezone: true }),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

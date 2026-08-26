@@ -8,6 +8,7 @@
 import type { QuoteStatus } from './quoteStatus';
 
 export type ListQuotesParams = {
+search?: string;
 status?: QuoteStatus;
 clientId?: number;
 };

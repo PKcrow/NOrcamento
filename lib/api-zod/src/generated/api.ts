@@ -26,12 +26,17 @@ export const GetMeResponse = zod.object({
   "name": zod.string(),
   "teamId": zod.string().nullable(),
   "teamName": zod.string().nullable(),
-  "role": zod.string().nullable()
+  "role": zod.string().nullable(),
+  "teams": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "role": zod.string()
+}))
 })
 
 
 /**
- * @summary Get the current user's team and its members
+ * @summary Get the current user's active team and its members
  */
 export const GetTeamResponse = zod.object({
   "id": zod.string(),
@@ -45,6 +50,17 @@ export const GetTeamResponse = zod.object({
   "role": zod.string()
 }))
 })
+
+
+/**
+ * @summary List all teams the current user belongs to
+ */
+export const ListTeamsResponseItem = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "role": zod.string()
+})
+export const ListTeamsResponse = zod.array(ListTeamsResponseItem)
 
 
 /**
@@ -96,6 +112,31 @@ export const JoinTeamResponse = zod.object({
 
 
 /**
+ * @summary Switch the active team
+ */
+
+
+
+export const SwitchTeamBody = zod.object({
+  "teamId": zod.string().min(1)
+})
+
+export const SwitchTeamResponse = zod.object({
+  "id": zod.string(),
+  "email": zod.string(),
+  "name": zod.string(),
+  "teamId": zod.string().nullable(),
+  "teamName": zod.string().nullable(),
+  "role": zod.string().nullable(),
+  "teams": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "role": zod.string()
+}))
+})
+
+
+/**
  * @summary Get dashboard summary with pending quotes and upcoming tasks
  */
 export const getDashboardSummaryResponseRecentQuotesItemLaborCostMin = 0;
@@ -107,15 +148,22 @@ export const GetDashboardSummaryResponse = zod.object({
   "pendingQuotesTotal": zod.number(),
   "totalClients": zod.number(),
   "totalProducts": zod.number(),
+  "monthlyRevenue": zod.number().describe('Sum of paidAmount for tasks paid this calendar month'),
+  "conversionRate": zod.number().describe('Percentage of quotes converted to tasks (0-100)'),
+  "completedTasksCount": zod.number().describe('Tasks with status completed or paid this calendar month'),
+  "paidTasksCount": zod.number().describe('Tasks with status paid this calendar month'),
   "upcomingTasks": zod.array(zod.object({
   "id": zod.number(),
   "title": zod.string(),
   "description": zod.string().nullable(),
   "dueAt": zod.coerce.date(),
   "endAt": zod.coerce.date().nullable().describe('Data prevista de término do serviço.'),
-  "status": zod.enum(['pending', 'done']),
+  "status": zod.enum(['scheduled', 'in_progress', 'completed', 'paid']),
   "clientId": zod.number().nullable(),
+  "quoteId": zod.number().nullable().describe('Quote that originated this task, when it was created from an approved quote.'),
   "clientName": zod.string().nullable(),
+  "paidAt": zod.coerce.date().nullable(),
+  "paidAmount": zod.number().nullable(),
   "createdAt": zod.coerce.date(),
   "photos": zod.array(zod.object({
   "id": zod.number(),
@@ -144,7 +192,21 @@ export const GetDashboardSummaryResponse = zod.object({
 })),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
-  "sentAt": zod.coerce.date().nullable()
+  "sentAt": zod.coerce.date().nullable(),
+  "publicToken": zod.string().nullable().describe('Token used to build the public approval link. Null until shared.'),
+  "publicLinkExpiresAt": zod.coerce.date().nullable().describe('Timestamp at which the public link becomes invalid.'),
+  "publicLinkRevokedAt": zod.coerce.date().nullable().describe('Timestamp at which an owner revoked the public link.'),
+  "clientResponseNote": zod.string().nullable().describe('Note left by the client when approving\/rejecting via the public link.'),
+  "respondedAt": zod.coerce.date().nullable(),
+  "convertedTaskId": zod.number().nullable().describe('Task created from this quote, if any.')
+})),
+  "priorities": zod.array(zod.object({
+  "type": zod.enum(['quote_response', 'expiring_link', 'today_task', 'overdue_task', 'pending_payment']),
+  "priority": zod.number().describe('Higher values require attention sooner.'),
+  "title": zod.string(),
+  "reason": zod.string(),
+  "target": zod.enum(['quote', 'task']),
+  "targetId": zod.number()
 }))
 })
 
@@ -232,7 +294,13 @@ export const GetClientResponse = zod.object({
 })),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
-  "sentAt": zod.coerce.date().nullable()
+  "sentAt": zod.coerce.date().nullable(),
+  "publicToken": zod.string().nullable().describe('Token used to build the public approval link. Null until shared.'),
+  "publicLinkExpiresAt": zod.coerce.date().nullable().describe('Timestamp at which the public link becomes invalid.'),
+  "publicLinkRevokedAt": zod.coerce.date().nullable().describe('Timestamp at which an owner revoked the public link.'),
+  "clientResponseNote": zod.string().nullable().describe('Note left by the client when approving\/rejecting via the public link.'),
+  "respondedAt": zod.coerce.date().nullable(),
+  "convertedTaskId": zod.number().nullable().describe('Task created from this quote, if any.')
 })),
   "tasks": zod.array(zod.object({
   "id": zod.number(),
@@ -240,9 +308,12 @@ export const GetClientResponse = zod.object({
   "description": zod.string().nullable(),
   "dueAt": zod.coerce.date(),
   "endAt": zod.coerce.date().nullable().describe('Data prevista de término do serviço.'),
-  "status": zod.enum(['pending', 'done']),
+  "status": zod.enum(['scheduled', 'in_progress', 'completed', 'paid']),
   "clientId": zod.number().nullable(),
+  "quoteId": zod.number().nullable().describe('Quote that originated this task, when it was created from an approved quote.'),
   "clientName": zod.string().nullable(),
+  "paidAt": zod.coerce.date().nullable(),
+  "paidAmount": zod.number().nullable(),
   "createdAt": zod.coerce.date(),
   "photos": zod.array(zod.object({
   "id": zod.number(),
@@ -373,9 +444,184 @@ export const DeleteProductResponse = zod.void()
 
 
 /**
+ * @summary List reusable service templates for the current team
+ */
+export const listServiceTemplatesResponseLaborCostMin = 0;
+
+
+
+export const ListServiceTemplatesResponseItem = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "serviceScopeEnabled": zod.boolean(),
+  "serviceDescription": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "laborCost": zod.number().min(listServiceTemplatesResponseLaborCostMin),
+  "items": zod.array(zod.object({
+  "id": zod.number(),
+  "productId": zod.number().nullable(),
+  "description": zod.string(),
+  "quantity": zod.number(),
+  "unitPrice": zod.number()
+})),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+export const ListServiceTemplatesResponse = zod.array(ListServiceTemplatesResponseItem)
+
+
+/**
+ * @summary Create a reusable service template
+ */
+
+export const createServiceTemplateBodyServiceScopeEnabledDefault = false;
+export const createServiceTemplateBodyLaborCostMin = 0;
+
+
+export const createServiceTemplateBodyItemsItemQuantityMin = 0;
+
+export const createServiceTemplateBodyItemsItemUnitPriceMin = 0;
+
+
+
+
+export const CreateServiceTemplateBody = zod.object({
+  "name": zod.string().min(1),
+  "serviceScopeEnabled": zod.boolean().default(createServiceTemplateBodyServiceScopeEnabledDefault),
+  "serviceDescription": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "laborCost": zod.number().min(createServiceTemplateBodyLaborCostMin).optional(),
+  "items": zod.array(zod.object({
+  "productId": zod.number().nullish(),
+  "description": zod.string().min(1),
+  "quantity": zod.number().min(createServiceTemplateBodyItemsItemQuantityMin),
+  "unitPrice": zod.number().min(createServiceTemplateBodyItemsItemUnitPriceMin)
+})).min(1)
+})
+
+export const createServiceTemplateResponseLaborCostMin = 0;
+
+
+
+export const CreateServiceTemplateResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "serviceScopeEnabled": zod.boolean(),
+  "serviceDescription": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "laborCost": zod.number().min(createServiceTemplateResponseLaborCostMin),
+  "items": zod.array(zod.object({
+  "id": zod.number(),
+  "productId": zod.number().nullable(),
+  "description": zod.string(),
+  "quantity": zod.number(),
+  "unitPrice": zod.number()
+})),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Get a service template with line items
+ */
+export const GetServiceTemplateParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const getServiceTemplateResponseLaborCostMin = 0;
+
+
+
+export const GetServiceTemplateResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "serviceScopeEnabled": zod.boolean(),
+  "serviceDescription": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "laborCost": zod.number().min(getServiceTemplateResponseLaborCostMin),
+  "items": zod.array(zod.object({
+  "id": zod.number(),
+  "productId": zod.number().nullable(),
+  "description": zod.string(),
+  "quantity": zod.number(),
+  "unitPrice": zod.number()
+})),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Update a reusable service template
+ */
+export const UpdateServiceTemplateParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+
+export const updateServiceTemplateBodyLaborCostMin = 0;
+
+
+export const updateServiceTemplateBodyItemsItemQuantityMin = 0;
+
+export const updateServiceTemplateBodyItemsItemUnitPriceMin = 0;
+
+
+
+
+export const UpdateServiceTemplateBody = zod.object({
+  "name": zod.string().min(1).optional(),
+  "serviceScopeEnabled": zod.boolean().optional(),
+  "serviceDescription": zod.string().nullish(),
+  "notes": zod.string().nullish(),
+  "laborCost": zod.number().min(updateServiceTemplateBodyLaborCostMin).optional(),
+  "items": zod.array(zod.object({
+  "productId": zod.number().nullish(),
+  "description": zod.string().min(1),
+  "quantity": zod.number().min(updateServiceTemplateBodyItemsItemQuantityMin),
+  "unitPrice": zod.number().min(updateServiceTemplateBodyItemsItemUnitPriceMin)
+})).min(1).optional()
+})
+
+export const updateServiceTemplateResponseLaborCostMin = 0;
+
+
+
+export const UpdateServiceTemplateResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "serviceScopeEnabled": zod.boolean(),
+  "serviceDescription": zod.string().nullable(),
+  "notes": zod.string().nullable(),
+  "laborCost": zod.number().min(updateServiceTemplateResponseLaborCostMin),
+  "items": zod.array(zod.object({
+  "id": zod.number(),
+  "productId": zod.number().nullable(),
+  "description": zod.string(),
+  "quantity": zod.number(),
+  "unitPrice": zod.number()
+})),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Delete a reusable service template
+ */
+export const DeleteServiceTemplateParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteServiceTemplateResponse = zod.void()
+
+
+/**
  * @summary List quotes for the current team
  */
 export const ListQuotesQueryParams = zod.object({
+  "search": zod.coerce.string().optional(),
   "status": zod.enum(['draft', 'sent', 'approved', 'rejected']).optional(),
   "clientId": zod.coerce.number().optional()
 })
@@ -404,7 +650,13 @@ export const ListQuotesResponseItem = zod.object({
 })),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
-  "sentAt": zod.coerce.date().nullable()
+  "sentAt": zod.coerce.date().nullable(),
+  "publicToken": zod.string().nullable().describe('Token used to build the public approval link. Null until shared.'),
+  "publicLinkExpiresAt": zod.coerce.date().nullable().describe('Timestamp at which the public link becomes invalid.'),
+  "publicLinkRevokedAt": zod.coerce.date().nullable().describe('Timestamp at which an owner revoked the public link.'),
+  "clientResponseNote": zod.string().nullable().describe('Note left by the client when approving\/rejecting via the public link.'),
+  "respondedAt": zod.coerce.date().nullable(),
+  "convertedTaskId": zod.number().nullable().describe('Task created from this quote, if any.')
 })
 export const ListQuotesResponse = zod.array(ListQuotesResponseItem)
 
@@ -462,7 +714,13 @@ export const CreateQuoteResponse = zod.object({
 })),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
-  "sentAt": zod.coerce.date().nullable()
+  "sentAt": zod.coerce.date().nullable(),
+  "publicToken": zod.string().nullable().describe('Token used to build the public approval link. Null until shared.'),
+  "publicLinkExpiresAt": zod.coerce.date().nullable().describe('Timestamp at which the public link becomes invalid.'),
+  "publicLinkRevokedAt": zod.coerce.date().nullable().describe('Timestamp at which an owner revoked the public link.'),
+  "clientResponseNote": zod.string().nullable().describe('Note left by the client when approving\/rejecting via the public link.'),
+  "respondedAt": zod.coerce.date().nullable(),
+  "convertedTaskId": zod.number().nullable().describe('Task created from this quote, if any.')
 })
 
 
@@ -497,7 +755,13 @@ export const GetQuoteResponse = zod.object({
 })),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
-  "sentAt": zod.coerce.date().nullable()
+  "sentAt": zod.coerce.date().nullable(),
+  "publicToken": zod.string().nullable().describe('Token used to build the public approval link. Null until shared.'),
+  "publicLinkExpiresAt": zod.coerce.date().nullable().describe('Timestamp at which the public link becomes invalid.'),
+  "publicLinkRevokedAt": zod.coerce.date().nullable().describe('Timestamp at which an owner revoked the public link.'),
+  "clientResponseNote": zod.string().nullable().describe('Note left by the client when approving\/rejecting via the public link.'),
+  "respondedAt": zod.coerce.date().nullable(),
+  "convertedTaskId": zod.number().nullable().describe('Task created from this quote, if any.')
 })
 
 
@@ -556,7 +820,13 @@ export const UpdateQuoteResponse = zod.object({
 })),
   "createdAt": zod.coerce.date(),
   "updatedAt": zod.coerce.date(),
-  "sentAt": zod.coerce.date().nullable()
+  "sentAt": zod.coerce.date().nullable(),
+  "publicToken": zod.string().nullable().describe('Token used to build the public approval link. Null until shared.'),
+  "publicLinkExpiresAt": zod.coerce.date().nullable().describe('Timestamp at which the public link becomes invalid.'),
+  "publicLinkRevokedAt": zod.coerce.date().nullable().describe('Timestamp at which an owner revoked the public link.'),
+  "clientResponseNote": zod.string().nullable().describe('Note left by the client when approving\/rejecting via the public link.'),
+  "respondedAt": zod.coerce.date().nullable(),
+  "convertedTaskId": zod.number().nullable().describe('Task created from this quote, if any.')
 })
 
 
@@ -571,10 +841,312 @@ export const DeleteQuoteResponse = zod.void()
 
 
 /**
+ * @summary Generate (or reuse) a public approval token for a quote
+ */
+export const ShareQuoteParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const shareQuoteResponseLaborCostMin = 0;
+
+
+
+export const ShareQuoteResponse = zod.object({
+  "id": zod.number(),
+  "clientId": zod.number(),
+  "clientName": zod.string(),
+  "status": zod.enum(['draft', 'sent', 'approved', 'rejected']),
+  "serviceScopeEnabled": zod.boolean().describe('Whether the service scope section should appear on the quote.'),
+  "serviceDescription": zod.string().nullable().describe('Description of the service\/work to be performed, shown on the printable quote.'),
+  "notes": zod.string().nullable(),
+  "laborCost": zod.number().min(shareQuoteResponseLaborCostMin).describe('Cost of labor\/mão de obra, added on top of the item totals.'),
+  "total": zod.number().describe('Sum of all item totals plus laborCost.'),
+  "items": zod.array(zod.object({
+  "id": zod.number(),
+  "productId": zod.number().nullable(),
+  "description": zod.string(),
+  "quantity": zod.number(),
+  "unitPrice": zod.number(),
+  "total": zod.number()
+})),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "sentAt": zod.coerce.date().nullable(),
+  "publicToken": zod.string().nullable().describe('Token used to build the public approval link. Null until shared.'),
+  "publicLinkExpiresAt": zod.coerce.date().nullable().describe('Timestamp at which the public link becomes invalid.'),
+  "publicLinkRevokedAt": zod.coerce.date().nullable().describe('Timestamp at which an owner revoked the public link.'),
+  "clientResponseNote": zod.string().nullable().describe('Note left by the client when approving\/rejecting via the public link.'),
+  "respondedAt": zod.coerce.date().nullable(),
+  "convertedTaskId": zod.number().nullable().describe('Task created from this quote, if any.')
+})
+
+
+/**
+ * @summary Revoke the public approval link for a quote (owner only)
+ */
+export const RevokeQuotePublicLinkParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const revokeQuotePublicLinkResponseLaborCostMin = 0;
+
+
+
+export const RevokeQuotePublicLinkResponse = zod.object({
+  "id": zod.number(),
+  "clientId": zod.number(),
+  "clientName": zod.string(),
+  "status": zod.enum(['draft', 'sent', 'approved', 'rejected']),
+  "serviceScopeEnabled": zod.boolean().describe('Whether the service scope section should appear on the quote.'),
+  "serviceDescription": zod.string().nullable().describe('Description of the service\/work to be performed, shown on the printable quote.'),
+  "notes": zod.string().nullable(),
+  "laborCost": zod.number().min(revokeQuotePublicLinkResponseLaborCostMin).describe('Cost of labor\/mão de obra, added on top of the item totals.'),
+  "total": zod.number().describe('Sum of all item totals plus laborCost.'),
+  "items": zod.array(zod.object({
+  "id": zod.number(),
+  "productId": zod.number().nullable(),
+  "description": zod.string(),
+  "quantity": zod.number(),
+  "unitPrice": zod.number(),
+  "total": zod.number()
+})),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "sentAt": zod.coerce.date().nullable(),
+  "publicToken": zod.string().nullable().describe('Token used to build the public approval link. Null until shared.'),
+  "publicLinkExpiresAt": zod.coerce.date().nullable().describe('Timestamp at which the public link becomes invalid.'),
+  "publicLinkRevokedAt": zod.coerce.date().nullable().describe('Timestamp at which an owner revoked the public link.'),
+  "clientResponseNote": zod.string().nullable().describe('Note left by the client when approving\/rejecting via the public link.'),
+  "respondedAt": zod.coerce.date().nullable(),
+  "convertedTaskId": zod.number().nullable().describe('Task created from this quote, if any.')
+})
+
+
+/**
+ * @summary Schedule one task from an approved quote
+ */
+export const ConvertQuoteToTaskParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const ConvertQuoteToTaskBody = zod.object({
+  "dueAt": zod.coerce.date(),
+  "endAt": zod.coerce.date().nullable()
+})
+
+export const ConvertQuoteToTaskResponse = zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "description": zod.string().nullable(),
+  "dueAt": zod.coerce.date(),
+  "endAt": zod.coerce.date().nullable().describe('Data prevista de término do serviço.'),
+  "status": zod.enum(['scheduled', 'in_progress', 'completed', 'paid']),
+  "clientId": zod.number().nullable(),
+  "quoteId": zod.number().nullable().describe('Quote that originated this task, when it was created from an approved quote.'),
+  "clientName": zod.string().nullable(),
+  "paidAt": zod.coerce.date().nullable(),
+  "paidAmount": zod.number().nullable(),
+  "createdAt": zod.coerce.date(),
+  "photos": zod.array(zod.object({
+  "id": zod.number(),
+  "taskId": zod.number(),
+  "url": zod.string(),
+  "createdAt": zod.coerce.date()
+}))
+})
+
+
+/**
+ * @summary Get a quote by its public token (no authentication)
+ */
+export const GetPublicQuoteParams = zod.object({
+  "token": zod.coerce.string()
+})
+
+export const getPublicQuoteResponseQuoteLaborCostMin = 0;
+
+
+
+export const GetPublicQuoteResponse = zod.object({
+  "quote": zod.object({
+  "id": zod.number(),
+  "clientId": zod.number(),
+  "clientName": zod.string(),
+  "status": zod.enum(['draft', 'sent', 'approved', 'rejected']),
+  "serviceScopeEnabled": zod.boolean().describe('Whether the service scope section should appear on the quote.'),
+  "serviceDescription": zod.string().nullable().describe('Description of the service\/work to be performed, shown on the printable quote.'),
+  "notes": zod.string().nullable(),
+  "laborCost": zod.number().min(getPublicQuoteResponseQuoteLaborCostMin).describe('Cost of labor\/mão de obra, added on top of the item totals.'),
+  "total": zod.number().describe('Sum of all item totals plus laborCost.'),
+  "items": zod.array(zod.object({
+  "id": zod.number(),
+  "productId": zod.number().nullable(),
+  "description": zod.string(),
+  "quantity": zod.number(),
+  "unitPrice": zod.number(),
+  "total": zod.number()
+})),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "sentAt": zod.coerce.date().nullable(),
+  "publicToken": zod.string().nullable().describe('Token used to build the public approval link. Null until shared.'),
+  "publicLinkExpiresAt": zod.coerce.date().nullable().describe('Timestamp at which the public link becomes invalid.'),
+  "publicLinkRevokedAt": zod.coerce.date().nullable().describe('Timestamp at which an owner revoked the public link.'),
+  "clientResponseNote": zod.string().nullable().describe('Note left by the client when approving\/rejecting via the public link.'),
+  "respondedAt": zod.coerce.date().nullable(),
+  "convertedTaskId": zod.number().nullable().describe('Task created from this quote, if any.')
+}),
+  "company": zod.union([zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "logoUrl": zod.string().nullable(),
+  "phone": zod.string().nullable(),
+  "email": zod.string().nullable(),
+  "address": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+}),zod.null()])
+})
+
+
+/**
+ * @summary Approve or reject a quote via its public token (no authentication)
+ */
+export const RespondPublicQuoteParams = zod.object({
+  "token": zod.coerce.string()
+})
+
+export const RespondPublicQuoteBody = zod.object({
+  "action": zod.enum(['approved', 'rejected']),
+  "note": zod.string().optional()
+})
+
+export const respondPublicQuoteResponseQuoteLaborCostMin = 0;
+
+
+
+export const RespondPublicQuoteResponse = zod.object({
+  "quote": zod.object({
+  "id": zod.number(),
+  "clientId": zod.number(),
+  "clientName": zod.string(),
+  "status": zod.enum(['draft', 'sent', 'approved', 'rejected']),
+  "serviceScopeEnabled": zod.boolean().describe('Whether the service scope section should appear on the quote.'),
+  "serviceDescription": zod.string().nullable().describe('Description of the service\/work to be performed, shown on the printable quote.'),
+  "notes": zod.string().nullable(),
+  "laborCost": zod.number().min(respondPublicQuoteResponseQuoteLaborCostMin).describe('Cost of labor\/mão de obra, added on top of the item totals.'),
+  "total": zod.number().describe('Sum of all item totals plus laborCost.'),
+  "items": zod.array(zod.object({
+  "id": zod.number(),
+  "productId": zod.number().nullable(),
+  "description": zod.string(),
+  "quantity": zod.number(),
+  "unitPrice": zod.number(),
+  "total": zod.number()
+})),
+  "createdAt": zod.coerce.date(),
+  "updatedAt": zod.coerce.date(),
+  "sentAt": zod.coerce.date().nullable(),
+  "publicToken": zod.string().nullable().describe('Token used to build the public approval link. Null until shared.'),
+  "publicLinkExpiresAt": zod.coerce.date().nullable().describe('Timestamp at which the public link becomes invalid.'),
+  "publicLinkRevokedAt": zod.coerce.date().nullable().describe('Timestamp at which an owner revoked the public link.'),
+  "clientResponseNote": zod.string().nullable().describe('Note left by the client when approving\/rejecting via the public link.'),
+  "respondedAt": zod.coerce.date().nullable(),
+  "convertedTaskId": zod.number().nullable().describe('Task created from this quote, if any.')
+}),
+  "company": zod.union([zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "logoUrl": zod.string().nullable(),
+  "phone": zod.string().nullable(),
+  "email": zod.string().nullable(),
+  "address": zod.string().nullable(),
+  "createdAt": zod.coerce.date()
+}),zod.null()])
+})
+
+
+/**
+ * @summary Monthly financial report for the current team
+ */
+export const getMonthlyReportQueryMonthMax = 12;
+
+
+
+export const GetMonthlyReportQueryParams = zod.object({
+  "year": zod.coerce.number(),
+  "month": zod.coerce.number().min(1).max(getMonthlyReportQueryMonthMax)
+})
+
+export const GetMonthlyReportResponse = zod.object({
+  "year": zod.number(),
+  "month": zod.number(),
+  "revenue": zod.number().describe('Sum of paidAmount for tasks paid within the month.'),
+  "paidTasksCount": zod.number(),
+  "completedTasksCount": zod.number(),
+  "quotesSentCount": zod.number(),
+  "quotesApprovedCount": zod.number(),
+  "paidTasks": zod.array(zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "clientName": zod.string().nullable(),
+  "paidAt": zod.coerce.date(),
+  "paidAmount": zod.number().nullable()
+}))
+})
+
+
+/**
+ * @summary Change a member's role in the active team (owner only)
+ */
+export const UpdateTeamMemberRoleParams = zod.object({
+  "userId": zod.coerce.string()
+})
+
+export const UpdateTeamMemberRoleBody = zod.object({
+  "role": zod.enum(['owner', 'member'])
+})
+
+export const UpdateTeamMemberRoleResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "inviteCode": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "members": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "role": zod.string()
+}))
+})
+
+
+/**
+ * @summary Remove a member from the active team (owner only)
+ */
+export const RemoveTeamMemberParams = zod.object({
+  "userId": zod.coerce.string()
+})
+
+export const RemoveTeamMemberResponse = zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "inviteCode": zod.string(),
+  "createdAt": zod.coerce.date(),
+  "members": zod.array(zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "email": zod.string(),
+  "role": zod.string()
+}))
+})
+
+
+/**
  * @summary List tasks for the current team
  */
 export const ListTasksQueryParams = zod.object({
-  "status": zod.enum(['pending', 'done']).optional()
+  "status": zod.enum(['scheduled', 'in_progress', 'completed', 'paid']).optional(),
+  "search": zod.coerce.string().optional()
 })
 
 export const ListTasksResponseItem = zod.object({
@@ -583,9 +1155,12 @@ export const ListTasksResponseItem = zod.object({
   "description": zod.string().nullable(),
   "dueAt": zod.coerce.date(),
   "endAt": zod.coerce.date().nullable().describe('Data prevista de término do serviço.'),
-  "status": zod.enum(['pending', 'done']),
+  "status": zod.enum(['scheduled', 'in_progress', 'completed', 'paid']),
   "clientId": zod.number().nullable(),
+  "quoteId": zod.number().nullable().describe('Quote that originated this task, when it was created from an approved quote.'),
   "clientName": zod.string().nullable(),
+  "paidAt": zod.coerce.date().nullable(),
+  "paidAmount": zod.number().nullable(),
   "createdAt": zod.coerce.date(),
   "photos": zod.array(zod.object({
   "id": zod.number(),
@@ -607,7 +1182,7 @@ export const CreateTaskBody = zod.object({
   "title": zod.string().min(1),
   "description": zod.string().optional(),
   "dueAt": zod.coerce.date(),
-  "endAt": zod.coerce.date().nullish(),
+  "endAt": zod.coerce.date().nullable(),
   "clientId": zod.number().nullish()
 })
 
@@ -617,9 +1192,12 @@ export const CreateTaskResponse = zod.object({
   "description": zod.string().nullable(),
   "dueAt": zod.coerce.date(),
   "endAt": zod.coerce.date().nullable().describe('Data prevista de término do serviço.'),
-  "status": zod.enum(['pending', 'done']),
+  "status": zod.enum(['scheduled', 'in_progress', 'completed', 'paid']),
   "clientId": zod.number().nullable(),
+  "quoteId": zod.number().nullable().describe('Quote that originated this task, when it was created from an approved quote.'),
   "clientName": zod.string().nullable(),
+  "paidAt": zod.coerce.date().nullable(),
+  "paidAmount": zod.number().nullable(),
   "createdAt": zod.coerce.date(),
   "photos": zod.array(zod.object({
   "id": zod.number(),
@@ -645,8 +1223,10 @@ export const UpdateTaskBody = zod.object({
   "description": zod.string().nullish(),
   "dueAt": zod.coerce.date().optional(),
   "endAt": zod.coerce.date().nullish(),
-  "status": zod.enum(['pending', 'done']).optional(),
-  "clientId": zod.number().nullish()
+  "status": zod.enum(['scheduled', 'in_progress', 'completed', 'paid']).optional(),
+  "clientId": zod.number().nullish(),
+  "paidAt": zod.coerce.date().nullish(),
+  "paidAmount": zod.number().nullish()
 })
 
 export const UpdateTaskResponse = zod.object({
@@ -655,9 +1235,12 @@ export const UpdateTaskResponse = zod.object({
   "description": zod.string().nullable(),
   "dueAt": zod.coerce.date(),
   "endAt": zod.coerce.date().nullable().describe('Data prevista de término do serviço.'),
-  "status": zod.enum(['pending', 'done']),
+  "status": zod.enum(['scheduled', 'in_progress', 'completed', 'paid']),
   "clientId": zod.number().nullable(),
+  "quoteId": zod.number().nullable().describe('Quote that originated this task, when it was created from an approved quote.'),
   "clientName": zod.string().nullable(),
+  "paidAt": zod.coerce.date().nullable(),
+  "paidAmount": zod.number().nullable(),
   "createdAt": zod.coerce.date(),
   "photos": zod.array(zod.object({
   "id": zod.number(),
@@ -709,7 +1292,7 @@ export const DeleteTaskPhotoResponse = zod.void()
 
 
 /**
- * @summary Get overdue and due-soon tasks as reminder notifications
+ * @summary Get task reminders and recent quote responses as notifications
  */
 export const GetNotificationsResponse = zod.object({
   "overdueTasks": zod.array(zod.object({
@@ -718,9 +1301,12 @@ export const GetNotificationsResponse = zod.object({
   "description": zod.string().nullable(),
   "dueAt": zod.coerce.date(),
   "endAt": zod.coerce.date().nullable().describe('Data prevista de término do serviço.'),
-  "status": zod.enum(['pending', 'done']),
+  "status": zod.enum(['scheduled', 'in_progress', 'completed', 'paid']),
   "clientId": zod.number().nullable(),
+  "quoteId": zod.number().nullable().describe('Quote that originated this task, when it was created from an approved quote.'),
   "clientName": zod.string().nullable(),
+  "paidAt": zod.coerce.date().nullable(),
+  "paidAmount": zod.number().nullable(),
   "createdAt": zod.coerce.date(),
   "photos": zod.array(zod.object({
   "id": zod.number(),
@@ -735,9 +1321,12 @@ export const GetNotificationsResponse = zod.object({
   "description": zod.string().nullable(),
   "dueAt": zod.coerce.date(),
   "endAt": zod.coerce.date().nullable().describe('Data prevista de término do serviço.'),
-  "status": zod.enum(['pending', 'done']),
+  "status": zod.enum(['scheduled', 'in_progress', 'completed', 'paid']),
   "clientId": zod.number().nullable(),
+  "quoteId": zod.number().nullable().describe('Quote that originated this task, when it was created from an approved quote.'),
   "clientName": zod.string().nullable(),
+  "paidAt": zod.coerce.date().nullable(),
+  "paidAmount": zod.number().nullable(),
   "createdAt": zod.coerce.date(),
   "photos": zod.array(zod.object({
   "id": zod.number(),
@@ -745,8 +1334,41 @@ export const GetNotificationsResponse = zod.object({
   "url": zod.string(),
   "createdAt": zod.coerce.date()
 }))
+})),
+  "quoteResponses": zod.array(zod.object({
+  "id": zod.number().describe('Quote identifier.'),
+  "status": zod.enum(['approved', 'rejected']),
+  "clientName": zod.string(),
+  "respondedAt": zod.coerce.date()
 }))
 })
+
+
+/**
+ * @summary Register an Expo push token for the current user
+ */
+
+
+
+export const RegisterPushTokenBody = zod.object({
+  "token": zod.string().min(1),
+  "platform": zod.enum(['android', 'ios'])
+})
+
+export const RegisterPushTokenResponse = zod.void()
+
+
+/**
+ * @summary Remove an Expo push token for the current user
+ */
+
+
+
+export const UnregisterPushTokenBody = zod.object({
+  "token": zod.string().min(1)
+})
+
+export const UnregisterPushTokenResponse = zod.void()
 
 
 /**

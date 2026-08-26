@@ -5,9 +5,11 @@
  * API specification for a freelancer/service-provider business management app
  * OpenAPI spec version: 0.1.0
  */
+import type { QuoteResponseNotification } from './quoteResponseNotification';
 import type { Task } from './task';
 
 export interface NotificationsResponse {
   overdueTasks: Task[];
   dueSoonTasks: Task[];
+  quoteResponses: QuoteResponseNotification[];
 }

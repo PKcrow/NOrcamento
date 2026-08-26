@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useListQuotes, getListQuotesQueryKey } from "@workspace/api-client-react";
+import { useState, useEffect } from "react";
+import { useListQuotes } from "@workspace/api-client-react";
 import { Link } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,10 +12,23 @@ import type { QuoteStatus } from "@workspace/api-client-react";
 
 export function QuotesList() {
   const [statusFilter, setStatusFilter] = useState<QuoteStatus | "all">("all");
-  
+  const [search, setSearch] = useState("");
+  const [debouncedSearch, setDebouncedSearch] = useState("");
+
+  useEffect(() => {
+    const handle = setTimeout(() => setDebouncedSearch(search.trim()), 300);
+    return () => clearTimeout(handle);
+  }, [search]);
+
+  const params: { search?: string; status?: QuoteStatus } = {};
+  if (debouncedSearch) params.search = debouncedSearch;
+  if (statusFilter !== "all") params.status = statusFilter;
+
   const { data: quotes, isLoading } = useListQuotes(
-    statusFilter !== "all" ? { status: statusFilter } : undefined
+    Object.keys(params).length > 0 ? params : undefined,
   );
+
+  const filtered = quotes ?? [];
 
   return (
     <div className="space-y-6">
@@ -31,12 +44,20 @@ export function QuotesList() {
         </Link>
       </div>
 
-      <div className="flex items-center gap-4 bg-white p-4 border rounded-xl shadow-sm">
-        <div className="w-full max-w-xs">
-          <p className="text-xs font-semibold text-gray-500 mb-1 uppercase tracking-wider">Filtrar por Status</p>
-          <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as any)}>
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3 bg-white p-4 border rounded-xl shadow-sm">
+        <div className="relative flex-1 w-full">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <Input
+            placeholder="Buscar por cliente ou nº do orçamento..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="pl-9"
+          />
+        </div>
+        <div className="w-full sm:w-56">
+          <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as QuoteStatus | "all")}>
             <SelectTrigger>
-              <SelectValue placeholder="Todos os orçamentos" />
+              <SelectValue placeholder="Todos os status" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Todos os status</SelectItem>
@@ -65,44 +86,45 @@ export function QuotesList() {
               <TableRow>
                 <TableCell colSpan={6} className="h-24 text-center">Carregando...</TableCell>
               </TableRow>
-            ) : quotes?.length === 0 ? (
+            ) : filtered.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="h-48 text-center text-gray-500">
-                  <FileText className="w-12 h-12 mx-auto text-gray-300 mb-4" />
-                  <p className="text-lg font-medium text-gray-900">Nenhum orçamento encontrado.</p>
-                  <p className="mb-4">Comece criando sua primeira proposta.</p>
-                  <Link href="/orcamentos/novo">
-                    <Button variant="outline">Criar Orçamento</Button>
-                  </Link>
+                <TableCell colSpan={6} className="h-24 text-center">
+                  <div className="flex flex-col items-center gap-2 text-gray-500">
+                    <FileText className="w-8 h-8 text-gray-300" />
+                    <p>{search ? "Nenhum orçamento encontrado para essa busca." : "Nenhum orçamento ainda."}</p>
+                    {!search && (
+                      <Link href="/orcamentos/novo">
+                        <Button variant="link" className="text-primary">Criar o primeiro</Button>
+                      </Link>
+                    )}
+                  </div>
                 </TableCell>
               </TableRow>
             ) : (
-              quotes?.map((quote) => {
+              filtered.map((quote) => {
                 const status = quoteStatusMap[quote.status];
                 return (
-                  <TableRow key={quote.id}>
-                    <TableCell className="font-medium text-gray-500">
-                      <Link href={`/orcamentos/${quote.id}`} className="hover:text-primary">
-                        #{quote.id.toString().padStart(4, '0')}
-                      </Link>
+                  <TableRow key={quote.id} className="hover:bg-gray-50/50 cursor-pointer">
+                    <TableCell className="font-mono text-sm text-gray-500">
+                      #{quote.id.toString().padStart(4, "0")}
                     </TableCell>
-                    <TableCell className="font-semibold text-gray-900">{quote.clientName}</TableCell>
-                    <TableCell className="text-gray-600">{formatDate(quote.createdAt)}</TableCell>
+                    <TableCell className="font-medium">{quote.clientName}</TableCell>
+                    <TableCell className="text-gray-500">{formatDate(quote.createdAt)}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className={status.color}>{status.label}</Badge>
                     </TableCell>
-                    <TableCell className="text-right font-bold text-gray-900">
+                    <TableCell className="text-right font-semibold">
                       {formatCurrency(quote.total)}
                     </TableCell>
-                    <TableCell>
+                    <TableCell className="text-right pr-4">
                       <Link href={`/orcamentos/${quote.id}`}>
-                        <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-primary">
+                        <Button variant="ghost" size="icon" className="h-8 w-8">
                           <ArrowRight className="w-4 h-4" />
                         </Button>
                       </Link>
                     </TableCell>
                   </TableRow>
-                )
+                );
               })
             )}
           </TableBody>

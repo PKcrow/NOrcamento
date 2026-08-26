@@ -16,6 +16,8 @@ tags:
     description: Client registry
   - name: products
     description: Product/service catalog
+  - name: service-templates
+    description: Reusable quote service templates
   - name: quotes
     description: Quote (orçamento) generation
   - name: tasks
@@ -58,7 +60,7 @@ paths:
     get:
       operationId: getTeam
       tags: [account]
-      summary: Get the current user's team and its members
+      summary: Get the current user's active team and its members
       responses:
         "200":
           description: Team with members
@@ -68,6 +70,21 @@ paths:
                 $ref: "#/components/schemas/TeamWithMembers"
         "404":
           description: User has no team yet
+
+  /team/list:
+    get:
+      operationId: listTeams
+      tags: [account]
+      summary: List all teams the current user belongs to
+      responses:
+        "200":
+          description: List of teams
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/TeamSummary"
 
   /team/create:
     post:
@@ -106,8 +123,31 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/TeamWithMembers"
-        "404":
+        "400":
           description: Invite code not found
+        "409":
+          description: Already a member of this team
+
+  /team/switch:
+    post:
+      operationId: switchTeam
+      tags: [account]
+      summary: Switch the active team
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TeamSwitchInput"
+      responses:
+        "200":
+          description: Active team switched
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Me"
+        "403":
+          description: Not a member of this team
 
   /dashboard/summary:
     get:
@@ -301,12 +341,110 @@ paths:
         "404":
           description: Product not found
 
+  /service-templates:
+    get:
+      operationId: listServiceTemplates
+      tags: [service-templates]
+      summary: List reusable service templates for the current team
+      responses:
+        "200":
+          description: Service templates
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/ServiceTemplate"
+    post:
+      operationId: createServiceTemplate
+      tags: [service-templates]
+      summary: Create a reusable service template
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ServiceTemplateInput"
+      responses:
+        "201":
+          description: Service template created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServiceTemplate"
+
+  /service-templates/{id}:
+    get:
+      operationId: getServiceTemplate
+      tags: [service-templates]
+      summary: Get a service template with line items
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Service template
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServiceTemplate"
+        "404":
+          description: Service template not found
+    patch:
+      operationId: updateServiceTemplate
+      tags: [service-templates]
+      summary: Update a reusable service template
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ServiceTemplateUpdate"
+      responses:
+        "200":
+          description: Service template updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ServiceTemplate"
+        "404":
+          description: Service template not found
+    delete:
+      operationId: deleteServiceTemplate
+      tags: [service-templates]
+      summary: Delete a reusable service template
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Service template deleted
+        "404":
+          description: Service template not found
+
   /quotes:
     get:
       operationId: listQuotes
       tags: [quotes]
       summary: List quotes for the current team
       parameters:
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
         - name: status
           in: query
           required: false
@@ -405,6 +543,213 @@ paths:
         "404":
           description: Quote not found
 
+  /quotes/{id}/share:
+    post:
+      operationId: shareQuote
+      tags: [quotes]
+      summary: Generate (or reuse) a public approval token for a quote
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Quote with public token
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Quote"
+        "404":
+          description: Quote not found
+
+  /quotes/{id}/revoke-link:
+    post:
+      operationId: revokeQuotePublicLink
+      tags: [quotes]
+      summary: Revoke the public approval link for a quote (owner only)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Quote with revoked public link
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Quote"
+        "403":
+          description: Owner access required
+        "404":
+          description: Quote not found
+
+  /quotes/{id}/convert-to-task:
+    post:
+      operationId: convertQuoteToTask
+      tags: [quotes]
+      summary: Schedule one task from an approved quote
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/QuoteTaskScheduleInput"
+      responses:
+        "200":
+          description: Task already linked to this quote
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "201":
+          description: Task created and linked to the quote
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Task"
+        "404":
+          description: Quote not found
+        "409":
+          description: Quote is not approved or the schedule conflicts
+
+  /public/quotes/{token}:
+    get:
+      operationId: getPublicQuote
+      tags: [quotes]
+      summary: Get a quote by its public token (no authentication)
+      security: []
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Public quote view
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicQuote"
+        "404":
+          description: Quote not found
+
+  /public/quotes/{token}/respond:
+    post:
+      operationId: respondPublicQuote
+      tags: [quotes]
+      summary: Approve or reject a quote via its public token (no authentication)
+      security: []
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PublicQuoteResponseInput"
+      responses:
+        "200":
+          description: Response recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicQuote"
+        "404":
+          description: Quote not found
+        "409":
+          description: Quote already answered
+
+  /reports/monthly:
+    get:
+      operationId: getMonthlyReport
+      tags: [dashboard]
+      summary: Monthly financial report for the current team
+      parameters:
+        - name: year
+          in: query
+          required: true
+          schema:
+            type: integer
+        - name: month
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 12
+      responses:
+        "200":
+          description: Monthly report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/MonthlyReport"
+
+  /team/members/{userId}:
+    patch:
+      operationId: updateTeamMemberRole
+      tags: [account]
+      summary: Change a member's role in the active team (owner only)
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/TeamMemberRoleInput"
+      responses:
+        "200":
+          description: Updated team
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeamWithMembers"
+        "403":
+          description: Not allowed
+        "404":
+          description: Member not found
+    delete:
+      operationId: removeTeamMember
+      tags: [account]
+      summary: Remove a member from the active team (owner only)
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Updated team
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TeamWithMembers"
+        "403":
+          description: Not allowed
+        "404":
+          description: Member not found
+
   /tasks:
     get:
       operationId: listTasks
@@ -416,6 +761,11 @@ paths:
           required: false
           schema:
             $ref: "#/components/schemas/TaskStatus"
+        - name: search
+          in: query
+          required: false
+          schema:
+            type: string
       responses:
         "200":
           description: List of tasks
@@ -538,7 +888,7 @@ paths:
     get:
       operationId: getNotifications
       tags: [tasks]
-      summary: Get overdue and due-soon tasks as reminder notifications
+      summary: Get task reminders and recent quote responses as notifications
       responses:
         "200":
           description: Notification buckets
@@ -546,6 +896,33 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/NotificationsResponse"
+  /push-tokens:
+    post:
+      operationId: registerPushToken
+      tags: [tasks]
+      summary: Register an Expo push token for the current user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PushTokenRegistration"
+      responses:
+        "204":
+          description: Push token registered
+    delete:
+      operationId: unregisterPushToken
+      tags: [tasks]
+      summary: Remove an Expo push token for the current user
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PushTokenUnregister"
+      responses:
+        "204":
+          description: Push token removed
 
   /company:
     get:
@@ -699,7 +1076,7 @@ components:
 
     Me:
       type: object
-      required: [id, email, name, teamId, teamName, role]
+      required: [id, email, name, teamId, teamName, role, teams]
       properties:
         id:
           type: string
@@ -713,6 +1090,29 @@ components:
           type: ["string", "null"]
         role:
           type: ["string", "null"]
+        teams:
+          type: array
+          items:
+            $ref: "#/components/schemas/TeamSummary"
+
+    TeamSummary:
+      type: object
+      required: [id, name, role]
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        role:
+          type: string
+
+    TeamSwitchInput:
+      type: object
+      required: [teamId]
+      properties:
+        teamId:
+          type: string
+          minLength: 1
 
     TeamMember:
       type: object
@@ -868,6 +1268,110 @@ components:
           type: number
           minimum: 0
 
+    ServiceTemplateItem:
+      type: object
+      required: [id, productId, description, quantity, unitPrice]
+      properties:
+        id:
+          type: integer
+        productId:
+          type: ["integer", "null"]
+        description:
+          type: string
+        quantity:
+          type: number
+        unitPrice:
+          type: number
+
+    ServiceTemplateItemInput:
+      type: object
+      required: [description, quantity, unitPrice]
+      properties:
+        productId:
+          type: ["integer", "null"]
+        description:
+          type: string
+          minLength: 1
+        quantity:
+          type: number
+          minimum: 0
+        unitPrice:
+          type: number
+          minimum: 0
+
+    ServiceTemplate:
+      type: object
+      required:
+        [id, name, serviceScopeEnabled, serviceDescription, notes, laborCost, items, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        serviceScopeEnabled:
+          type: boolean
+        serviceDescription:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+        laborCost:
+          type: number
+          minimum: 0
+        items:
+          type: array
+          items:
+            $ref: "#/components/schemas/ServiceTemplateItem"
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    ServiceTemplateInput:
+      type: object
+      required: [name, items]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        serviceScopeEnabled:
+          type: boolean
+          default: false
+        serviceDescription:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+        laborCost:
+          type: number
+          minimum: 0
+        items:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/ServiceTemplateItemInput"
+
+    ServiceTemplateUpdate:
+      type: object
+      properties:
+        name:
+          type: string
+          minLength: 1
+        serviceScopeEnabled:
+          type: boolean
+        serviceDescription:
+          type: ["string", "null"]
+        notes:
+          type: ["string", "null"]
+        laborCost:
+          type: number
+          minimum: 0
+        items:
+          type: array
+          minItems: 1
+          items:
+            $ref: "#/components/schemas/ServiceTemplateItemInput"
+
     QuoteStatus:
       type: string
       enum: [draft, sent, approved, rejected]
@@ -922,6 +1426,12 @@ components:
           createdAt,
           updatedAt,
           sentAt,
+          publicToken,
+          publicLinkExpiresAt,
+          publicLinkRevokedAt,
+          clientResponseNote,
+          respondedAt,
+          convertedTaskId,
         ]
       properties:
         id:
@@ -960,6 +1470,105 @@ components:
         sentAt:
           type: ["string", "null"]
           format: date-time
+        publicToken:
+          type: ["string", "null"]
+          description: Token used to build the public approval link. Null until shared.
+        publicLinkExpiresAt:
+          type: ["string", "null"]
+          format: date-time
+          description: Timestamp at which the public link becomes invalid.
+        publicLinkRevokedAt:
+          type: ["string", "null"]
+          format: date-time
+          description: Timestamp at which an owner revoked the public link.
+        clientResponseNote:
+          type: ["string", "null"]
+          description: Note left by the client when approving/rejecting via the public link.
+        respondedAt:
+          type: ["string", "null"]
+          format: date-time
+        convertedTaskId:
+          type: ["integer", "null"]
+          description: Task created from this quote, if any.
+
+    PublicQuote:
+      type: object
+      required: [quote, company]
+      properties:
+        quote:
+          $ref: "#/components/schemas/Quote"
+        company:
+          oneOf:
+            - $ref: "#/components/schemas/Company"
+            - type: "null"
+
+    PublicQuoteResponseInput:
+      type: object
+      required: [action]
+      properties:
+        action:
+          type: string
+          enum: [approved, rejected]
+        note:
+          type: string
+
+    TeamMemberRoleInput:
+      type: object
+      required: [role]
+      properties:
+        role:
+          type: string
+          enum: [owner, member]
+
+    MonthlyReportPaidTask:
+      type: object
+      required: [id, title, clientName, paidAt, paidAmount]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        clientName:
+          type: ["string", "null"]
+        paidAt:
+          type: string
+          format: date-time
+        paidAmount:
+          type: ["number", "null"]
+
+    MonthlyReport:
+      type: object
+      required:
+        [
+          year,
+          month,
+          revenue,
+          paidTasksCount,
+          completedTasksCount,
+          quotesSentCount,
+          quotesApprovedCount,
+          paidTasks,
+        ]
+      properties:
+        year:
+          type: integer
+        month:
+          type: integer
+        revenue:
+          type: number
+          description: Sum of paidAmount for tasks paid within the month.
+        paidTasksCount:
+          type: integer
+        completedTasksCount:
+          type: integer
+        quotesSentCount:
+          type: integer
+        quotesApprovedCount:
+          type: integer
+        paidTasks:
+          type: array
+          items:
+            $ref: "#/components/schemas/MonthlyReportPaidTask"
 
     QuoteInput:
       type: object
@@ -1009,7 +1618,7 @@ components:
 
     TaskStatus:
       type: string
-      enum: [pending, done]
+      enum: [scheduled, in_progress, completed, paid]
 
     Task:
       type: object
@@ -1024,7 +1633,10 @@ components:
           clientId,
           clientName,
           createdAt,
+          paidAt,
+          paidAmount,
           photos,
+          quoteId,
         ]
       properties:
         id:
@@ -1044,8 +1656,16 @@ components:
           $ref: "#/components/schemas/TaskStatus"
         clientId:
           type: ["integer", "null"]
+        quoteId:
+          type: ["integer", "null"]
+          description: Quote that originated this task, when it was created from an approved quote.
         clientName:
           type: ["string", "null"]
+        paidAt:
+          type: ["string", "null"]
+          format: date-time
+        paidAmount:
+          type: ["number", "null"]
         createdAt:
           type: string
           format: date-time
@@ -1056,7 +1676,7 @@ components:
 
     TaskInput:
       type: object
-      required: [title, dueAt]
+      required: [title, dueAt, endAt]
       properties:
         title:
           type: string
@@ -1071,6 +1691,17 @@ components:
           format: date-time
         clientId:
           type: ["integer", "null"]
+
+    QuoteTaskScheduleInput:
+      type: object
+      required: [dueAt, endAt]
+      properties:
+        dueAt:
+          type: string
+          format: date-time
+        endAt:
+          type: ["string", "null"]
+          format: date-time
 
     TaskUpdate:
       type: object
@@ -1090,6 +1721,11 @@ components:
           $ref: "#/components/schemas/TaskStatus"
         clientId:
           type: ["integer", "null"]
+        paidAt:
+          type: ["string", "null"]
+          format: date-time
+        paidAmount:
+          type: ["number", "null"]
 
     TaskPhoto:
       type: object
@@ -1120,8 +1756,13 @@ components:
           pendingQuotesTotal,
           totalClients,
           totalProducts,
+          monthlyRevenue,
+          conversionRate,
+          completedTasksCount,
+          paidTasksCount,
           upcomingTasks,
           recentQuotes,
+           priorities,
         ]
       properties:
         pendingQuotesCount:
@@ -1132,6 +1773,18 @@ components:
           type: integer
         totalProducts:
           type: integer
+        monthlyRevenue:
+          type: number
+          description: Sum of paidAmount for tasks paid this calendar month
+        conversionRate:
+          type: number
+          description: Percentage of quotes converted to tasks (0-100)
+        completedTasksCount:
+          type: integer
+          description: Tasks with status completed or paid this calendar month
+        paidTasksCount:
+          type: integer
+          description: Tasks with status paid this calendar month
         upcomingTasks:
           type: array
           items:
@@ -1140,10 +1793,34 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Quote"
+        priorities:
+          type: array
+          items:
+            $ref: "#/components/schemas/DashboardPriority"
+
+    DashboardPriority:
+      type: object
+      required: [type, priority, title, reason, target, targetId]
+      properties:
+        type:
+          type: string
+          enum: [quote_response, expiring_link, today_task, overdue_task, pending_payment]
+        priority:
+          type: integer
+          description: Higher values require attention sooner.
+        title:
+          type: string
+        reason:
+          type: string
+        target:
+          type: string
+          enum: [quote, task]
+        targetId:
+          type: integer
 
     NotificationsResponse:
       type: object
-      required: [overdueTasks, dueSoonTasks]
+      required: [overdueTasks, dueSoonTasks, quoteResponses]
       properties:
         overdueTasks:
           type: array
@@ -1153,6 +1830,45 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/Task"
+        quoteResponses:
+          type: array
+          items:
+            $ref: "#/components/schemas/QuoteResponseNotification"
+
+    QuoteResponseNotification:
+      type: object
+      required: [id, status, clientName, respondedAt]
+      properties:
+        id:
+          type: integer
+          description: Quote identifier.
+        status:
+          type: string
+          enum: [approved, rejected]
+        clientName:
+          type: string
+        respondedAt:
+          type: string
+          format: date-time
+
+    PushTokenRegistration:
+      type: object
+      required: [token, platform]
+      properties:
+        token:
+          type: string
+          minLength: 1
+        platform:
+          type: string
+          enum: [android, ios]
+
+    PushTokenUnregister:
+      type: object
+      required: [token]
+      properties:
+        token:
+          type: string
+          minLength: 1
 
     Company:
       type: object

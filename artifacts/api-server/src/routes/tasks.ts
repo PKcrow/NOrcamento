@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, asc, eq, ne } from "drizzle-orm";
+import { and, asc, eq, ilike, or } from "drizzle-orm";
 import { db, clientsTable, tasksTable, taskPhotosTable } from "@workspace/db";
 import {
   ListTasksQueryParams,
@@ -16,6 +16,11 @@ import {
   DeleteTaskPhotoParams,
 } from "@workspace/api-zod";
 import { requireAuth, requireTeam } from "../middlewares/auth";
+import {
+  findSchedulingConflict,
+  getScheduleRangeError,
+  withTeamScheduleLock,
+} from "../lib/scheduling";
 
 const router: IRouter = Router();
 
@@ -25,69 +30,52 @@ async function withClientName(task: typeof tasksTable.$inferSelect) {
     .from(taskPhotosTable)
     .where(eq(taskPhotosTable.taskId, task.id));
 
-  if (!task.clientId) return { ...task, clientName: null, photos };
+  if (!task.clientId) {
+    return {
+      ...task,
+      paidAmount: task.paidAmount ? Number(task.paidAmount) : null,
+      clientName: null,
+      photos,
+    };
+  }
   const [client] = await db
     .select()
     .from(clientsTable)
     .where(eq(clientsTable.id, task.clientId));
-  return { ...task, clientName: client?.name ?? null, photos };
-}
-
-function dayOnly(date: Date): number {
-  return new Date(date.getFullYear(), date.getMonth(), date.getDate()).getTime();
-}
-
-/**
- * Returns a conflict message if another pending task in the team already
- * occupies any day within [dueAt, endAt ?? dueAt], excluding `excludeTaskId`.
- */
-async function findSchedulingConflict(
-  teamId: string,
-  dueAt: Date,
-  endAt: Date | null,
-  excludeTaskId?: number,
-): Promise<string | null> {
-  const newStart = dayOnly(dueAt);
-  const newEnd = dayOnly(endAt ?? dueAt);
-
-  const conditions = [
-    eq(tasksTable.teamId, teamId),
-    eq(tasksTable.status, "pending"),
-  ];
-  if (excludeTaskId !== undefined) {
-    conditions.push(ne(tasksTable.id, excludeTaskId));
-  }
-
-  const existingTasks = await db
-    .select()
-    .from(tasksTable)
-    .where(and(...conditions));
-
-  for (const existing of existingTasks) {
-    const existingStart = dayOnly(existing.dueAt);
-    const existingEnd = dayOnly(existing.endAt ?? existing.dueAt);
-    if (newStart <= existingEnd && existingStart <= newEnd) {
-      return `Já existe um serviço agendado para essa data (${existing.title}). Escolha outro dia.`;
-    }
-  }
-
-  return null;
+  return {
+    ...task,
+    paidAmount: task.paidAmount ? Number(task.paidAmount) : null,
+    clientName: client?.name ?? null,
+    photos,
+  };
 }
 
 router.get("/tasks", requireAuth, requireTeam, async (req, res) => {
-  const { status } = ListTasksQueryParams.parse(req.query);
+  const { status, search } = ListTasksQueryParams.parse(req.query);
   const teamId = req.localUser!.teamId!;
 
   const conditions = [eq(tasksTable.teamId, teamId)];
   if (status) conditions.push(eq(tasksTable.status, status));
 
-  const tasks = await db
+  let tasks = await db
     .select()
     .from(tasksTable)
     .where(and(...conditions))
     .orderBy(asc(tasksTable.dueAt));
 
-  const results = await Promise.all(tasks.map(withClientName));
+  // Client-side search filtering (join clientName after fetch)
+  let results = await Promise.all(tasks.map(withClientName));
+
+  if (search) {
+    const term = search.toLowerCase();
+    results = results.filter(
+      (t) =>
+        t.title.toLowerCase().includes(term) ||
+        (t.clientName?.toLowerCase().includes(term) ?? false) ||
+        (t.description?.toLowerCase().includes(term) ?? false),
+    );
+  }
+
   res.json(ListTasksResponse.parse(results));
 });
 
@@ -108,27 +96,40 @@ router.post("/tasks", requireAuth, requireTeam, async (req, res) => {
     }
   }
 
-  const conflict = await findSchedulingConflict(
-    teamId,
-    new Date(body.dueAt),
-    body.endAt ? new Date(body.endAt) : null,
-  );
-  if (conflict) {
-    res.status(409).json({ error: conflict });
+  const dueAt = new Date(body.dueAt);
+  const endAt = body.endAt ? new Date(body.endAt) : null;
+  const rangeError = getScheduleRangeError(dueAt, endAt);
+  if (rangeError) {
+    res.status(400).json({ error: rangeError });
     return;
   }
+  if (!endAt) return;
 
-  const [task] = await db
-    .insert(tasksTable)
-    .values({
-      teamId,
-      title: body.title,
-      description: body.description ?? null,
-      dueAt: body.dueAt,
-      endAt: body.endAt ?? null,
-      clientId: body.clientId ?? null,
-    })
-    .returning();
+  let task: typeof tasksTable.$inferSelect;
+  try {
+    task = await withTeamScheduleLock(teamId, async (tx) => {
+      const conflict = await findSchedulingConflict(teamId, dueAt, endAt, undefined, tx);
+      if (conflict) throw new Error(conflict);
+
+      const [created] = await tx
+        .insert(tasksTable)
+        .values({
+          teamId,
+          title: body.title,
+          description: body.description ?? null,
+          dueAt,
+          endAt,
+          clientId: body.clientId ?? null,
+        })
+        .returning();
+      return created;
+    });
+  } catch (error) {
+    res.status(409).json({
+      error: error instanceof Error ? error.message : "Conflito de agenda.",
+    });
+    return;
+  }
 
   res.status(201).json(CreateTaskResponse.parse(await withClientName(task)));
 });
@@ -169,36 +170,79 @@ router.patch("/tasks/:id", requireAuth, requireTeam, async (req, res) => {
         : null
       : existing.endAt;
 
-  if (
-    effectiveStatus === "pending" &&
-    (body.dueAt !== undefined || body.endAt !== undefined || body.status !== undefined)
-  ) {
-    const conflict = await findSchedulingConflict(
-      teamId,
-      effectiveDueAt,
-      effectiveEndAt,
-      id,
-    );
-    if (conflict) {
-      res.status(409).json({ error: conflict });
+  const needsScheduleValidation =
+    (effectiveStatus === "scheduled" || effectiveStatus === "in_progress") &&
+    (body.dueAt !== undefined || body.endAt !== undefined || body.status !== undefined);
+  if (needsScheduleValidation) {
+    const rangeError = getScheduleRangeError(effectiveDueAt, effectiveEndAt);
+    if (rangeError) {
+      res.status(400).json({ error: rangeError });
       return;
     }
+    if (!effectiveEndAt) return;
   }
 
-  const [updated] = await db
-    .update(tasksTable)
-    .set({
-      ...(body.title !== undefined ? { title: body.title } : {}),
-      ...(body.description !== undefined
-        ? { description: body.description }
-        : {}),
-      ...(body.dueAt !== undefined ? { dueAt: body.dueAt } : {}),
-      ...(body.endAt !== undefined ? { endAt: body.endAt } : {}),
-      ...(body.status !== undefined ? { status: body.status } : {}),
-      ...(body.clientId !== undefined ? { clientId: body.clientId } : {}),
-    })
-    .where(eq(tasksTable.id, id))
-    .returning();
+  // Auto-set paidAt when marking as paid; clear payment info when un-paying
+  const unpaying =
+    body.status !== undefined &&
+    body.status !== "paid" &&
+    existing.status === "paid";
+  const paidAt =
+    body.paidAt !== undefined
+      ? body.paidAt
+      : body.status === "paid" && !existing.paidAt
+        ? new Date().toISOString()
+        : unpaying
+          ? null
+          : undefined;
+  const paidAmount =
+    body.paidAmount !== undefined ? body.paidAmount : unpaying ? null : undefined;
+
+  const updateValues = {
+    ...(body.title !== undefined ? { title: body.title } : {}),
+    ...(body.description !== undefined ? { description: body.description } : {}),
+    ...(body.dueAt !== undefined ? { dueAt: body.dueAt } : {}),
+    ...(body.endAt !== undefined ? { endAt: body.endAt } : {}),
+    ...(body.status !== undefined ? { status: body.status } : {}),
+    ...(body.clientId !== undefined ? { clientId: body.clientId } : {}),
+    ...(paidAt !== undefined ? { paidAt: paidAt ? new Date(paidAt) : null } : {}),
+    ...(paidAmount !== undefined
+      ? { paidAmount: paidAmount !== null ? String(paidAmount) : null }
+      : {}),
+  };
+
+  let updated: typeof tasksTable.$inferSelect;
+  if (needsScheduleValidation) {
+    try {
+      updated = await withTeamScheduleLock(teamId, async (tx) => {
+        const conflict = await findSchedulingConflict(
+          teamId,
+          effectiveDueAt,
+          effectiveEndAt!,
+          id,
+          tx,
+        );
+        if (conflict) throw new Error(conflict);
+        const [saved] = await tx
+          .update(tasksTable)
+          .set(updateValues)
+          .where(eq(tasksTable.id, id))
+          .returning();
+        return saved;
+      });
+    } catch (error) {
+      res.status(409).json({
+        error: error instanceof Error ? error.message : "Conflito de agenda.",
+      });
+      return;
+    }
+  } else {
+    [updated] = await db
+      .update(tasksTable)
+      .set(updateValues)
+      .where(eq(tasksTable.id, id))
+      .returning();
+  }
 
   res.json(UpdateTaskResponse.parse(await withClientName(updated)));
 });

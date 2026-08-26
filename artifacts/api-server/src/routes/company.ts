@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { eq } from "drizzle-orm";
-import { db, teamsTable } from "@workspace/db";
+import { and, eq } from "drizzle-orm";
+import { db, teamsTable, teamMembershipsTable } from "@workspace/db";
 import { GetCompanyResponse, UpdateCompanyBody, UpdateCompanyResponse } from "@workspace/api-zod";
 import { requireAuth, requireTeam } from "../middlewares/auth";
 
@@ -33,6 +33,24 @@ router.get("/company", requireAuth, requireTeam, async (req, res) => {
 
 router.patch("/company", requireAuth, requireTeam, async (req, res) => {
   const teamId = req.localUser!.teamId!;
+  const userId = req.localUser!.id;
+
+  const [membership] = await db
+    .select()
+    .from(teamMembershipsTable)
+    .where(
+      and(
+        eq(teamMembershipsTable.userId, userId),
+        eq(teamMembershipsTable.teamId, teamId),
+      ),
+    );
+  if (membership?.role !== "owner") {
+    res
+      .status(403)
+      .json({ error: "Apenas o dono da equipe pode editar os dados da empresa" });
+    return;
+  }
+
   const body = UpdateCompanyBody.parse(req.body);
 
   const [existing] = await db

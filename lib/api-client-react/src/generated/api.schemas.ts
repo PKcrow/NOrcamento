@@ -9,6 +9,12 @@ export interface HealthStatus {
   status: string;
 }
 
+export interface TeamSummary {
+  id: string;
+  name: string;
+  role: string;
+}
+
 export interface Me {
   id: string;
   email: string;
@@ -19,6 +25,12 @@ export interface Me {
   teamName: string | null;
   /** @nullable */
   role: string | null;
+  teams: TeamSummary[];
+}
+
+export interface TeamSwitchInput {
+  /** @minLength 1 */
+  teamId: string;
 }
 
 export interface TeamMember {
@@ -105,14 +117,43 @@ export interface Quote {
   updatedAt: string;
   /** @nullable */
   sentAt: string | null;
+  /**
+     * Token used to build the public approval link. Null until shared.
+     * @nullable
+     */
+  publicToken: string | null;
+  /**
+     * Timestamp at which the public link becomes invalid.
+     * @nullable
+     */
+  publicLinkExpiresAt: string | null;
+  /**
+     * Timestamp at which an owner revoked the public link.
+     * @nullable
+     */
+  publicLinkRevokedAt: string | null;
+  /**
+     * Note left by the client when approving/rejecting via the public link.
+     * @nullable
+     */
+  clientResponseNote: string | null;
+  /** @nullable */
+  respondedAt: string | null;
+  /**
+     * Task created from this quote, if any.
+     * @nullable
+     */
+  convertedTaskId: number | null;
 }
 
 export type TaskStatus = typeof TaskStatus[keyof typeof TaskStatus];
 
 
 export const TaskStatus = {
-  pending: 'pending',
-  done: 'done',
+  scheduled: 'scheduled',
+  in_progress: 'in_progress',
+  completed: 'completed',
+  paid: 'paid',
 } as const;
 
 export interface TaskPhoto {
@@ -136,8 +177,17 @@ export interface Task {
   status: TaskStatus;
   /** @nullable */
   clientId: number | null;
+  /**
+     * Quote that originated this task, when it was created from an approved quote.
+     * @nullable
+     */
+  quoteId: number | null;
   /** @nullable */
   clientName: string | null;
+  /** @nullable */
+  paidAt: string | null;
+  /** @nullable */
+  paidAmount: number | null;
   createdAt: string;
   photos: TaskPhoto[];
 }
@@ -193,6 +243,69 @@ export interface ProductUpdate {
   price?: number;
 }
 
+export interface ServiceTemplateItem {
+  id: number;
+  /** @nullable */
+  productId: number | null;
+  description: string;
+  quantity: number;
+  unitPrice: number;
+}
+
+export interface ServiceTemplateItemInput {
+  /** @nullable */
+  productId?: number | null;
+  /** @minLength 1 */
+  description: string;
+  /** @minimum 0 */
+  quantity: number;
+  /** @minimum 0 */
+  unitPrice: number;
+}
+
+export interface ServiceTemplate {
+  id: number;
+  name: string;
+  serviceScopeEnabled: boolean;
+  /** @nullable */
+  serviceDescription: string | null;
+  /** @nullable */
+  notes: string | null;
+  /** @minimum 0 */
+  laborCost: number;
+  items: ServiceTemplateItem[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface ServiceTemplateInput {
+  /** @minLength 1 */
+  name: string;
+  serviceScopeEnabled?: boolean;
+  /** @nullable */
+  serviceDescription?: string | null;
+  /** @nullable */
+  notes?: string | null;
+  /** @minimum 0 */
+  laborCost?: number;
+  /** @minItems 1 */
+  items: ServiceTemplateItemInput[];
+}
+
+export interface ServiceTemplateUpdate {
+  /** @minLength 1 */
+  name?: string;
+  serviceScopeEnabled?: boolean;
+  /** @nullable */
+  serviceDescription?: string | null;
+  /** @nullable */
+  notes?: string | null;
+  /** @minimum 0 */
+  laborCost?: number;
+  /** @minItems 1 */
+  items?: ServiceTemplateItemInput[];
+}
+
 export interface QuoteItemInput {
   /** @nullable */
   productId?: number | null;
@@ -202,6 +315,72 @@ export interface QuoteItemInput {
   quantity: number;
   /** @minimum 0 */
   unitPrice: number;
+}
+
+export interface Company {
+  id: string;
+  name: string;
+  /** @nullable */
+  logoUrl: string | null;
+  /** @nullable */
+  phone: string | null;
+  /** @nullable */
+  email: string | null;
+  /** @nullable */
+  address: string | null;
+  createdAt: string;
+}
+
+export interface PublicQuote {
+  quote: Quote;
+  company: Company | null;
+}
+
+export type PublicQuoteResponseInputAction = typeof PublicQuoteResponseInputAction[keyof typeof PublicQuoteResponseInputAction];
+
+
+export const PublicQuoteResponseInputAction = {
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
+export interface PublicQuoteResponseInput {
+  action: PublicQuoteResponseInputAction;
+  note?: string;
+}
+
+export type TeamMemberRoleInputRole = typeof TeamMemberRoleInputRole[keyof typeof TeamMemberRoleInputRole];
+
+
+export const TeamMemberRoleInputRole = {
+  owner: 'owner',
+  member: 'member',
+} as const;
+
+export interface TeamMemberRoleInput {
+  role: TeamMemberRoleInputRole;
+}
+
+export interface MonthlyReportPaidTask {
+  id: number;
+  title: string;
+  /** @nullable */
+  clientName: string | null;
+  paidAt: string;
+  /** @nullable */
+  paidAmount: number | null;
+}
+
+export interface MonthlyReport {
+  year: number;
+  month: number;
+  /** Sum of paidAmount for tasks paid within the month. */
+  revenue: number;
+  paidTasksCount: number;
+  completedTasksCount: number;
+  quotesSentCount: number;
+  quotesApprovedCount: number;
+  paidTasks: MonthlyReportPaidTask[];
 }
 
 export interface QuoteInput {
@@ -237,9 +416,15 @@ export interface TaskInput {
   description?: string;
   dueAt: string;
   /** @nullable */
-  endAt?: string | null;
+  endAt: string | null;
   /** @nullable */
   clientId?: number | null;
+}
+
+export interface QuoteTaskScheduleInput {
+  dueAt: string;
+  /** @nullable */
+  endAt: string | null;
 }
 
 export interface TaskUpdate {
@@ -253,10 +438,43 @@ export interface TaskUpdate {
   status?: TaskStatus;
   /** @nullable */
   clientId?: number | null;
+  /** @nullable */
+  paidAt?: string | null;
+  /** @nullable */
+  paidAmount?: number | null;
 }
 
 export interface TaskPhotoInput {
   url: string;
+}
+
+export type DashboardPriorityType = typeof DashboardPriorityType[keyof typeof DashboardPriorityType];
+
+
+export const DashboardPriorityType = {
+  quote_response: 'quote_response',
+  expiring_link: 'expiring_link',
+  today_task: 'today_task',
+  overdue_task: 'overdue_task',
+  pending_payment: 'pending_payment',
+} as const;
+
+export type DashboardPriorityTarget = typeof DashboardPriorityTarget[keyof typeof DashboardPriorityTarget];
+
+
+export const DashboardPriorityTarget = {
+  quote: 'quote',
+  task: 'task',
+} as const;
+
+export interface DashboardPriority {
+  type: DashboardPriorityType;
+  /** Higher values require attention sooner. */
+  priority: number;
+  title: string;
+  reason: string;
+  target: DashboardPriorityTarget;
+  targetId: number;
 }
 
 export interface DashboardSummary {
@@ -264,27 +482,58 @@ export interface DashboardSummary {
   pendingQuotesTotal: number;
   totalClients: number;
   totalProducts: number;
+  /** Sum of paidAmount for tasks paid this calendar month */
+  monthlyRevenue: number;
+  /** Percentage of quotes converted to tasks (0-100) */
+  conversionRate: number;
+  /** Tasks with status completed or paid this calendar month */
+  completedTasksCount: number;
+  /** Tasks with status paid this calendar month */
+  paidTasksCount: number;
   upcomingTasks: Task[];
   recentQuotes: Quote[];
+  priorities: DashboardPriority[];
+}
+
+export type QuoteResponseNotificationStatus = typeof QuoteResponseNotificationStatus[keyof typeof QuoteResponseNotificationStatus];
+
+
+export const QuoteResponseNotificationStatus = {
+  approved: 'approved',
+  rejected: 'rejected',
+} as const;
+
+export interface QuoteResponseNotification {
+  /** Quote identifier. */
+  id: number;
+  status: QuoteResponseNotificationStatus;
+  clientName: string;
+  respondedAt: string;
 }
 
 export interface NotificationsResponse {
   overdueTasks: Task[];
   dueSoonTasks: Task[];
+  quoteResponses: QuoteResponseNotification[];
 }
 
-export interface Company {
-  id: string;
-  name: string;
-  /** @nullable */
-  logoUrl: string | null;
-  /** @nullable */
-  phone: string | null;
-  /** @nullable */
-  email: string | null;
-  /** @nullable */
-  address: string | null;
-  createdAt: string;
+export type PushTokenRegistrationPlatform = typeof PushTokenRegistrationPlatform[keyof typeof PushTokenRegistrationPlatform];
+
+
+export const PushTokenRegistrationPlatform = {
+  android: 'android',
+  ios: 'ios',
+} as const;
+
+export interface PushTokenRegistration {
+  /** @minLength 1 */
+  token: string;
+  platform: PushTokenRegistrationPlatform;
+}
+
+export interface PushTokenUnregister {
+  /** @minLength 1 */
+  token: string;
 }
 
 export interface CompanyUpdate {
@@ -339,11 +588,22 @@ search?: string;
 };
 
 export type ListQuotesParams = {
+search?: string;
 status?: QuoteStatus;
 clientId?: number;
 };
 
+export type GetMonthlyReportParams = {
+year: number;
+/**
+ * @minimum 1
+ * @maximum 12
+ */
+month: number;
+};
+
 export type ListTasksParams = {
 status?: TaskStatus;
+search?: string;
 };
 

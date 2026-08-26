@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { eq } from "drizzle-orm";
-import { db, teamsTable } from "@workspace/db";
+import { db, teamsTable, teamMembershipsTable } from "@workspace/db";
 import { GetMeResponse } from "@workspace/api-zod";
 import { requireAuth } from "../middlewares/auth";
 
@@ -8,6 +8,7 @@ const router: IRouter = Router();
 
 router.get("/me", requireAuth, async (req, res) => {
   const user = req.localUser!;
+
   let teamName: string | null = null;
   if (user.teamId) {
     const [team] = await db
@@ -17,6 +18,17 @@ router.get("/me", requireAuth, async (req, res) => {
     teamName = team?.name ?? null;
   }
 
+  // All teams this user belongs to
+  const allMemberships = await db
+    .select({
+      id: teamsTable.id,
+      name: teamsTable.name,
+      role: teamMembershipsTable.role,
+    })
+    .from(teamMembershipsTable)
+    .innerJoin(teamsTable, eq(teamMembershipsTable.teamId, teamsTable.id))
+    .where(eq(teamMembershipsTable.userId, user.id));
+
   const data = GetMeResponse.parse({
     id: user.id,
     email: user.email,
@@ -24,6 +36,7 @@ router.get("/me", requireAuth, async (req, res) => {
     teamId: user.teamId,
     teamName,
     role: user.role,
+    teams: allMemberships,
   });
   res.json(data);
 });

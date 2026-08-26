@@ -13,10 +13,16 @@ import { QuotesList } from "@/pages/quotes/QuotesList";
 import { QuoteForm } from "@/pages/quotes/QuoteForm";
 import { QuoteDetail } from "@/pages/quotes/QuoteDetail";
 import { Tasks } from "@/pages/tasks/Tasks";
+import { Agenda } from "@/pages/agenda/Agenda";
+import { Reports } from "@/pages/reports/Reports";
+import { PublicQuoteView } from "@/pages/quotes/PublicQuoteView";
+import { PrivacyPolicy } from "@/pages/legal/PrivacyPolicy";
 import { ClientsList } from "@/pages/clients/ClientsList";
 import { ClientDetail } from "@/pages/clients/ClientDetail";
 import { ProductsList } from "@/pages/products/ProductsList";
+import { ServiceTemplatesPage } from "@/pages/templates/ServiceTemplatesPage";
 import { TeamSettings } from "@/pages/team/TeamSettings";
+import { EquipesPage } from "@/pages/team/EquipesPage";
 import { Button } from "@/components/ui/button";
 import { LogIn } from "lucide-react";
 import { Toaster } from "@/components/ui/toaster";
@@ -244,11 +250,17 @@ function ClerkProviderWithRoutes() {
             <ProtectedRoute path="/orcamentos" component={QuotesList} />
             <ProtectedRoute path="/orcamentos/novo" component={QuoteForm} />
             <ProtectedRoute path="/orcamentos/:id" component={QuoteDetail} />
+            <Route path="/orcamento-publico/:token" component={PublicQuoteView} />
+            <Route path="/politica-de-privacidade" component={PrivacyPolicy} />
             <ProtectedRoute path="/tarefas" component={Tasks} />
+            <ProtectedRoute path="/agenda" component={Agenda} />
+            <ProtectedRoute path="/relatorios" component={Reports} />
             <ProtectedRoute path="/clientes" component={ClientsList} />
             <ProtectedRoute path="/clientes/:id" component={ClientDetail} />
             <ProtectedRoute path="/produtos" component={ProductsList} />
+            <ProtectedRoute path="/modelos" component={ServiceTemplatesPage} />
             <ProtectedRoute path="/equipe" component={TeamSettings} />
+          <ProtectedRoute path="/equipes" component={EquipesPage} />
             <Route>
               <div className="flex h-[100dvh] items-center justify-center">Página não encontrada</div>
             </Route>

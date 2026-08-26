@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Plus, Search, Edit2, Trash2 } from "lucide-react";
+import { Link } from "wouter";
 import type { Product } from "@workspace/api-client-react";
 
 export function ProductsList() {
@@ -79,12 +80,16 @@ export function ProductsList() {
           <h1 className="text-3xl font-bold tracking-tight text-gray-900">Produtos e Serviços</h1>
           <p className="text-gray-500 mt-1">Catálogo base para gerar orçamentos mais rápido.</p>
         </div>
-        <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
-          <DialogTrigger asChild>
-            <Button className="gap-2">
-              <Plus className="w-4 h-4" /> Adicionar Produto
-            </Button>
-          </DialogTrigger>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="outline" asChild>
+            <Link href="/modelos">Modelos de orçamento</Link>
+          </Button>
+          <Dialog open={isCreateOpen} onOpenChange={setIsCreateOpen}>
+            <DialogTrigger asChild>
+              <Button className="gap-2">
+                <Plus className="w-4 h-4" /> Adicionar Produto
+              </Button>
+            </DialogTrigger>
           <DialogContent>
             <DialogHeader>
               <DialogTitle>Novo Produto/Serviço</DialogTitle>
@@ -110,7 +115,8 @@ export function ProductsList() {
               </DialogFooter>
             </form>
           </DialogContent>
-        </Dialog>
+          </Dialog>
+        </div>
       </div>
 
       <div className="flex items-center gap-2 max-w-md">

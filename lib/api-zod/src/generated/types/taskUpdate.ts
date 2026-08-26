@@ -18,4 +18,8 @@ export interface TaskUpdate {
   status?: TaskStatus;
   /** @nullable */
   clientId?: number | null;
+  /** @nullable */
+  paidAt?: Date | null;
+  /** @nullable */
+  paidAmount?: number | null;
 }

@@ -34,4 +34,31 @@ export interface Quote {
   updatedAt: Date;
   /** @nullable */
   sentAt: Date | null;
+  /**
+     * Token used to build the public approval link. Null until shared.
+     * @nullable
+     */
+  publicToken: string | null;
+  /**
+     * Timestamp at which the public link becomes invalid.
+     * @nullable
+     */
+  publicLinkExpiresAt: Date | null;
+  /**
+     * Timestamp at which an owner revoked the public link.
+     * @nullable
+     */
+  publicLinkRevokedAt: Date | null;
+  /**
+     * Note left by the client when approving/rejecting via the public link.
+     * @nullable
+     */
+  clientResponseNote: string | null;
+  /** @nullable */
+  respondedAt: Date | null;
+  /**
+     * Task created from this quote, if any.
+     * @nullable
+     */
+  convertedTaskId: number | null;
 }

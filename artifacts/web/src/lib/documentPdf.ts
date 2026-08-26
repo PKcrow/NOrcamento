@@ -208,7 +208,7 @@ export async function generateTaskPdf(task: Task, company?: PdfCompany): Promise
       ["CLIENTE", task.clientName ?? "Não informado"],
       ["INÍCIO", formatDateTime(task.dueAt)],
       ["TÉRMINO PREVISTO", task.endAt ? formatDateTime(task.endAt) : "Não informado"],
-      ["STATUS", task.status === "done" ? "Concluído" : "Pendente"],
+      ["STATUS", task.status === "paid" ? "Pago" : task.status === "completed" ? "Concluído" : task.status === "in_progress" ? "Em andamento" : "Agendado"],
     ],
     theme: "plain",
     styles: { fontSize: 9, cellPadding: 4, textColor: [45, 45, 45] },

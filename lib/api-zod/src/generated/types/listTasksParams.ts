@@ -9,4 +9,5 @@ import type { TaskStatus } from './taskStatus';
 
 export type ListTasksParams = {
 status?: TaskStatus;
+search?: string;
 };

@@ -1,5 +1,6 @@
 import { useState, useMemo, useEffect } from "react";
-import { useListClients, useListProducts, useCreateQuote, useGetQuote, useUpdateQuote, getGetQuoteQueryKey } from "@workspace/api-client-react";
+import { useListClients, useListProducts, useListServiceTemplates, useCreateQuote, useGetQuote, useUpdateQuote, useCreateClient, getGetQuoteQueryKey, getGetDashboardSummaryQueryKey, getListClientsQueryKey } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -8,7 +9,11 @@ import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
-import { Plus, Trash2, ArrowLeft, Save } from "lucide-react";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { Command, CommandInput, CommandList, CommandEmpty, CommandGroup, CommandItem } from "@/components/ui/command";
+import { Plus, Trash2, ArrowLeft, Save, ChevronsUpDown, Check, UserPlus, Loader2 } from "lucide-react";
+import { cn } from "@/lib/utils";
 import { formatCurrency } from "@/lib/format";
 import { useToast } from "@/hooks/use-toast";
 import type { QuoteItemInput } from "@workspace/api-client-react";
@@ -21,6 +26,7 @@ export function QuoteForm({ id }: QuoteFormProps) {
   const [, setLocation] = useLocation();
   const searchParams = new URLSearchParams(window.location.search);
   const initialClientId = searchParams.get('client');
+  const initialTemplateId = searchParams.get('modelo');
   const queryId = searchParams.get('id');
   const parsedQueryId = queryId ? Number(queryId) : undefined;
   const quoteId =
@@ -31,6 +37,7 @@ export function QuoteForm({ id }: QuoteFormProps) {
   
   const { data: clients } = useListClients();
   const { data: products } = useListProducts();
+  const { data: serviceTemplates } = useListServiceTemplates();
   
   // If id provided, fetch existing quote data
   const { data: existingQuote, isLoading: isLoadingQuote } = useGetQuote(quoteId ?? 0, {
@@ -42,13 +49,19 @@ export function QuoteForm({ id }: QuoteFormProps) {
   
   const createMutation = useCreateQuote();
   const updateMutation = useUpdateQuote();
+  const createClientMutation = useCreateClient();
+  const queryClient = useQueryClient();
   const { toast } = useToast();
+
+  const [clientOpen, setClientOpen] = useState(false);
+  const [isQuickCreateOpen, setIsQuickCreateOpen] = useState(false);
 
   const [clientId, setClientId] = useState<string>(isEditing ? "" : initialClientId || "");
   const [notes, setNotes] = useState("");
   const [laborCost, setLaborCost] = useState<number>(0);
   const [serviceScopeEnabled, setServiceScopeEnabled] = useState(false);
   const [serviceDescription, setServiceDescription] = useState("");
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
   const [items, setItems] = useState<(QuoteItemInput & { localId: string })[]>([
     { localId: Math.random().toString(), description: "", quantity: 1, unitPrice: 0, productId: null }
   ]);
@@ -79,6 +92,43 @@ export function QuoteForm({ id }: QuoteFormProps) {
 
   const total = itemsTotal + laborCost;
 
+  const applyTemplate = (templateId: string) => {
+    setSelectedTemplateId(templateId);
+    const template = serviceTemplates?.find(
+      (entry) => entry.id === Number(templateId),
+    );
+    if (!template) return;
+
+    setItems(
+      template.items.map((item) => ({
+        localId: Math.random().toString(),
+        productId: item.productId,
+        description: item.description,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+      })),
+    );
+    setLaborCost(template.laborCost);
+    setServiceScopeEnabled(template.serviceScopeEnabled);
+    setServiceDescription(template.serviceDescription ?? "");
+    setNotes(template.notes ?? "");
+    toast({
+      title: `Modelo "${template.name}" aplicado.`,
+      description: "Revise e ajuste os campos antes de salvar o orçamento.",
+    });
+  };
+
+  useEffect(() => {
+    if (
+      !isEditing &&
+      initialTemplateId &&
+      serviceTemplates &&
+      !selectedTemplateId
+    ) {
+      applyTemplate(initialTemplateId);
+    }
+  }, [initialTemplateId, isEditing, selectedTemplateId, serviceTemplates]);
+
   const handleAddItem = () => {
     setItems([...items, { localId: Math.random().toString(), description: "", quantity: 1, unitPrice: 0, productId: null }]);
   };
@@ -101,6 +151,29 @@ export function QuoteForm({ id }: QuoteFormProps) {
     }
     
     setItems(newItems);
+  };
+
+  const handleQuickCreate = (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    const fd = new FormData(e.currentTarget);
+    const name = (fd.get("name") as string).trim();
+    const email = (fd.get("email") as string).trim();
+    const phone = (fd.get("phone") as string).trim();
+    if (!name) return;
+    createClientMutation.mutate(
+      { data: { name, email: email || undefined, phone: phone || undefined } },
+      {
+        onSuccess: (newClient) => {
+          queryClient.invalidateQueries({ queryKey: getListClientsQueryKey() });
+          setClientId(newClient.id.toString());
+          setIsQuickCreateOpen(false);
+          toast({ title: `Cliente "${newClient.name}" criado e selecionado.` });
+        },
+        onError: () => {
+          toast({ title: "Erro ao criar cliente.", variant: "destructive" });
+        },
+      },
+    );
   };
 
   const handleSave = () => {
@@ -133,6 +206,7 @@ export function QuoteForm({ id }: QuoteFormProps) {
     if (quoteId) {
       updateMutation.mutate({ id: quoteId, data: payload }, {
         onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
           toast({ title: "Orçamento atualizado." });
           setLocation(`/orcamentos/${quoteId}`);
         }
@@ -140,6 +214,7 @@ export function QuoteForm({ id }: QuoteFormProps) {
     } else {
       createMutation.mutate({ data: payload }, {
         onSuccess: (data) => {
+          queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
           toast({ title: "Orçamento criado com sucesso!" });
           setLocation(`/orcamentos/${data.id}`);
         }
@@ -174,19 +249,133 @@ export function QuoteForm({ id }: QuoteFormProps) {
           <CardContent>
             <div className="space-y-2">
               <Label>Selecione o Cliente *</Label>
-              <Select value={clientId} onValueChange={setClientId}>
-                <SelectTrigger className="w-full max-w-md">
-                  <SelectValue placeholder="Escolha da sua lista" />
-                </SelectTrigger>
-                <SelectContent>
-                  {clients?.map(c => (
-                    <SelectItem key={c.id} value={c.id.toString()}>{c.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Popover open={clientOpen} onOpenChange={setClientOpen}>
+                <PopoverTrigger asChild>
+                  <Button
+                    variant="outline"
+                    role="combobox"
+                    aria-expanded={clientOpen}
+                    className="w-full max-w-md justify-between font-normal"
+                  >
+                    {clientId && clients
+                      ? (clients.find(c => c.id.toString() === clientId)?.name ?? "Escolha da sua lista")
+                      : "Escolha da sua lista"}
+                    <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+                  <Command>
+                    <CommandInput placeholder="Buscar cliente..." />
+                    <CommandList>
+                      <CommandEmpty>Nenhum cliente encontrado.</CommandEmpty>
+                      <CommandGroup>
+                        {/* Criar novo — sempre primeiro */}
+                        <CommandItem
+                          value="__new__"
+                          onSelect={() => {
+                            setClientOpen(false);
+                            setIsQuickCreateOpen(true);
+                          }}
+                          className="text-primary font-medium gap-2"
+                        >
+                          <UserPlus className="h-4 w-4" />
+                          Criar novo cliente
+                        </CommandItem>
+                        {/* Lista de clientes existentes */}
+                        {clients?.map(c => (
+                          <CommandItem
+                            key={c.id}
+                            value={c.name}
+                            onSelect={() => {
+                              setClientId(c.id.toString());
+                              setClientOpen(false);
+                            }}
+                            className="gap-2"
+                          >
+                            <Check
+                              className={cn("h-4 w-4", clientId === c.id.toString() ? "opacity-100" : "opacity-0")}
+                            />
+                            {c.name}
+                          </CommandItem>
+                        ))}
+                      </CommandGroup>
+                    </CommandList>
+                  </Command>
+                </PopoverContent>
+              </Popover>
+
+              {/* Dialog de cadastro rápido */}
+              <Dialog open={isQuickCreateOpen} onOpenChange={setIsQuickCreateOpen}>
+                <DialogContent className="max-w-sm">
+                  <DialogHeader>
+                    <DialogTitle className="flex items-center gap-2">
+                      <UserPlus className="w-5 h-5 text-primary" />
+                      Novo cliente
+                    </DialogTitle>
+                  </DialogHeader>
+                  <form onSubmit={handleQuickCreate} className="space-y-4 pt-1">
+                    <div className="space-y-1.5">
+                      <Label htmlFor="qc-name">Nome *</Label>
+                      <Input id="qc-name" name="name" required placeholder="Nome completo ou empresa" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="qc-phone">Telefone</Label>
+                      <Input id="qc-phone" name="phone" placeholder="(11) 99999-9999" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label htmlFor="qc-email">E-mail</Label>
+                      <Input id="qc-email" name="email" type="email" placeholder="cliente@email.com" />
+                    </div>
+                    <DialogFooter>
+                      <DialogClose asChild>
+                        <Button type="button" variant="outline">Cancelar</Button>
+                      </DialogClose>
+                      <Button type="submit" disabled={createClientMutation.isPending}>
+                        {createClientMutation.isPending && <Loader2 className="w-4 h-4 mr-2 animate-spin" />}
+                        Criar e selecionar
+                      </Button>
+                    </DialogFooter>
+                  </form>
+                </DialogContent>
+              </Dialog>
             </div>
           </CardContent>
         </Card>
+
+        {!isEditing && (
+          <Card className="border-primary/20 bg-primary/[0.02] shadow-sm">
+            <CardHeader>
+              <CardTitle className="text-lg">Começar com um modelo</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="max-w-md space-y-2">
+                <Label htmlFor="service-template">Modelo de serviço (opcional)</Label>
+                <Select
+                  value={selectedTemplateId || "none"}
+                  onValueChange={(value) => {
+                    if (value !== "none") applyTemplate(value);
+                    else setSelectedTemplateId("");
+                  }}
+                >
+                  <SelectTrigger id="service-template" className="bg-white">
+                    <SelectValue placeholder="Preencher manualmente" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Preencher manualmente</SelectItem>
+                    {serviceTemplates?.map((template) => (
+                        <SelectItem key={template.id} value={template.id.toString()}>
+                        {template.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-sm text-muted-foreground">
+                  Itens, valores, escopo e condições serão copiados para este orçamento.
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         <Card className="shadow-sm">
           <CardHeader>

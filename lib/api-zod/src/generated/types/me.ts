@@ -5,6 +5,7 @@
  * API specification for a freelancer/service-provider business management app
  * OpenAPI spec version: 0.1.0
  */
+import type { TeamSummary } from './teamSummary';
 
 export interface Me {
   id: string;
@@ -16,4 +17,5 @@ export interface Me {
   teamName: string | null;
   /** @nullable */
   role: string | null;
+  teams: TeamSummary[];
 }
