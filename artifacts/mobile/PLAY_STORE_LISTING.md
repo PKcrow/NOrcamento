@@ -4,9 +4,9 @@
 
 - **Nome do app:** Gestão de Autônomos
 - **Pacote Android:** `com.gestaoautonomos`
-- **Versão inicial:** 1.0.0
+- **Próxima versão:** 1.0.13 (versionCode 13)
 - **E-mail de suporte:** giancarlo.macedo.espindola@gmail.com
-- **Política de privacidade:** https://gestaoautonomos.replit.app/politica-de-privacidade
+- **Política de privacidade:** https://Gestaodeautonomos.replit.app/politica-de-privacidade
 
 ## Descrição curta
 
@@ -42,6 +42,6 @@ Revise estas informações na Play Console antes de enviar:
 1. Entre na conta Expo/EAS que será dona do aplicativo.
 2. Vincule ou crie o projeto EAS para este repositório.
 3. Cadastre `EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY` no ambiente de produção do EAS.
-4. Gere o AAB pelo perfil `production`.
-5. Crie o app `com.gestaodeautonomos` na Google Play Console.
+4. Gere o próximo AAB pelo perfil `production` (versionCode 13).
+5. Crie o app `com.gestaoautonomos` na Google Play Console.
 6. Envie ícone, capturas de tela, descrição, política de privacidade, classificação de conteúdo e declaração de segurança dos dados.
