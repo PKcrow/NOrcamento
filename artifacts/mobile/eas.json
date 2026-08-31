@@ -1,7 +1,7 @@
 {
   "cli": {
     "version": ">= 16.0.0",
-    "appVersionSource": "remote"
+    "appVersionSource": "local"
   },
   "build": {
     "preview": {
@@ -12,12 +12,12 @@
     },
     "production": {
       "distribution": "store",
-      "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_DOMAIN": "gestaoautonomos.replit.app"
+        "EXPO_PUBLIC_DOMAIN": "Gestaodeautonomos.replit.app"
       },
       "android": {
-        "buildType": "app-bundle"
+        "buildType": "app-bundle",
+        "image": "latest"
       }
     }
   },
