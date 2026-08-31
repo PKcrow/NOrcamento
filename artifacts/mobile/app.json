@@ -2,7 +2,7 @@
   "expo": {
     "name": "Gestão de Autônomos",
     "slug": "gestao-de-autonomos",
-    "version": "1.0.0",
+    "version": "1.0.12",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "gestaoautonomos",
@@ -18,7 +18,7 @@
     },
     "android": {
       "package": "com.gestaoautonomos",
-      "versionCode": 1,
+      "versionCode": 12,
       "adaptiveIcon": {
         "foregroundImage": "./assets/images/icon.png",
         "backgroundColor": "#1e293b"
