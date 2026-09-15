@@ -308,7 +308,7 @@ router.patch("/team/members/:userId", requireAuth, async (req, res) => {
   res.json(UpdateTeamMemberRoleResponse.parse(result));
 });
 
-// DELETE /team/members/:userId — remove a member from the team (owner only)
+// DELETE /team/members/:userId — remove a member, or let the current user leave
 router.delete("/team/members/:userId", requireAuth, async (req, res) => {
   const user = req.localUser!;
   if (!user.teamId) {
@@ -317,8 +317,9 @@ router.delete("/team/members/:userId", requireAuth, async (req, res) => {
   }
   const { userId } = RemoveTeamMemberParams.parse(req.params);
   const teamId = user.teamId;
+  const removingSelf = userId === user.id;
 
-  if (!(await requireOwner(user.id, teamId))) {
+  if (!removingSelf && !(await requireOwner(user.id, teamId))) {
     res
       .status(403)
       .json({ error: "Apenas o dono da equipe pode remover membros" });

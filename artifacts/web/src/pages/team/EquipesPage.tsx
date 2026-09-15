@@ -398,7 +398,7 @@ export function EquipesPage() {
                     <TableHead className={isOwner ? "" : "text-right"}>
                       Papel
                     </TableHead>
-                    {isOwner && (
+                    {(isOwner || Boolean(me?.id)) && (
                       <TableHead className="text-right w-16">Ações</TableHead>
                     )}
                   </TableRow>
@@ -429,7 +429,7 @@ export function EquipesPage() {
                             {member.role === "owner" ? "Dono" : "Membro"}
                           </Badge>
                         </TableCell>
-                        {isOwner && (
+                        {(isOwner || isSelf) && (
                           <TableCell className="text-right">
                             <DropdownMenu>
                               <DropdownMenuTrigger asChild>
@@ -447,26 +447,30 @@ export function EquipesPage() {
                                 </Button>
                               </DropdownMenuTrigger>
                               <DropdownMenuContent align="end">
-                                <DropdownMenuLabel>Papel</DropdownMenuLabel>
-                                <DropdownMenuItem
-                                  disabled={member.role === "owner"}
-                                  onSelect={() =>
-                                    handleChangeRole(member, "owner")
-                                  }
-                                >
-                                  <Shield className="w-4 h-4" />
-                                  Tornar Dono
-                                </DropdownMenuItem>
-                                <DropdownMenuItem
-                                  disabled={member.role === "member"}
-                                  onSelect={() =>
-                                    handleChangeRole(member, "member")
-                                  }
-                                >
-                                  <UserIcon className="w-4 h-4" />
-                                  Tornar Membro
-                                </DropdownMenuItem>
-                                <DropdownMenuSeparator />
+                                {isOwner && (
+                                  <>
+                                    <DropdownMenuLabel>Papel</DropdownMenuLabel>
+                                    <DropdownMenuItem
+                                      disabled={member.role === "owner"}
+                                      onSelect={() =>
+                                        handleChangeRole(member, "owner")
+                                      }
+                                    >
+                                      <Shield className="w-4 h-4" />
+                                      Tornar Dono
+                                    </DropdownMenuItem>
+                                    <DropdownMenuItem
+                                      disabled={member.role === "member"}
+                                      onSelect={() =>
+                                        handleChangeRole(member, "member")
+                                      }
+                                    >
+                                      <UserIcon className="w-4 h-4" />
+                                      Tornar Membro
+                                    </DropdownMenuItem>
+                                    <DropdownMenuSeparator />
+                                  </>
+                                )}
                                 <DropdownMenuItem
                                   className="text-red-600 focus:text-red-600"
                                   onSelect={() => setMemberToRemove(member)}

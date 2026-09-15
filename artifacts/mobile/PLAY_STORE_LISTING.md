@@ -6,7 +6,7 @@
 - **Pacote Android:** `com.gestaoautonomos`
 - **Próxima versão:** 1.0.15 (versionCode 15)
 - **E-mail de suporte:** giancarlo.macedo.espindola@gmail.com
-- **Política de privacidade:** https://Gestaodeautonomos.replit.app/politica-de-privacidade
+- **Política de privacidade:** https://n-orcamento.replit.app/politica-de-privacidade
 
 ## Descrição curta
 

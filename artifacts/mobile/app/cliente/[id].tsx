@@ -7,12 +7,19 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Linking,
+  Alert,
 } from 'react-native';
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
-import { useGetClient, useListQuotes, useListTasks } from '@workspace/api-client-react';
+import {
+  useDeleteClient,
+  useGetClient,
+  useListQuotes,
+  useListTasks,
+} from '@workspace/api-client-react';
 import Colors from '@/constants/colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import { useQueryClient } from '@tanstack/react-query';
 
 const fmt = (v: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
@@ -40,28 +47,65 @@ export default function ClienteDetailScreen() {
   const navigation = useNavigation();
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme];
+  const queryClient = useQueryClient();
 
   const { data: client, isLoading } = useGetClient(clientId);
   const { data: quotes } = useListQuotes({ clientId });
   const { data: allTasks } = useListTasks({});
+  const { mutate: deleteClient, isPending: isDeleting } = useDeleteClient();
 
   const clientTasks = allTasks?.filter(t => t.clientId === clientId) ?? [];
-  const recentQuotes = (quotes ?? []).slice(0, 5);
-  const recentTasks = clientTasks.slice(0, 5);
 
-  // Edit button in header
+  const handleDelete = () => {
+    if (!client || isDeleting) return;
+    Alert.alert(
+      'Excluir cliente',
+      `Excluir "${client.name}" também apagará o histórico relacionado. Esta ação não pode ser desfeita.`,
+      [
+        { text: 'Cancelar', style: 'cancel' },
+        {
+          text: 'Excluir',
+          style: 'destructive',
+          onPress: () =>
+            deleteClient(
+              { id: clientId },
+              {
+                onSuccess: () => {
+                  queryClient.invalidateQueries();
+                  router.replace('/clientes');
+                },
+                onError: () => Alert.alert('Erro', 'Não foi possível excluir o cliente.'),
+              },
+            ),
+        },
+      ],
+    );
+  };
+
+  // Edit and delete actions in header
   useEffect(() => {
     navigation.setOptions({
       headerRight: () => (
-        <TouchableOpacity
-          onPress={() => router.push(`/cliente/editar/${clientId}`)}
-          style={{ paddingHorizontal: 16 }}
-        >
-          <Ionicons name="pencil-outline" size={20} color={theme.primary} />
-        </TouchableOpacity>
+        <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+          <TouchableOpacity
+            onPress={() => router.push(`/cliente/editar/${clientId}`)}
+            style={{ paddingHorizontal: 10 }}
+            accessibilityLabel="Editar cliente"
+          >
+            <Ionicons name="pencil-outline" size={20} color={theme.primary} />
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handleDelete}
+            style={{ paddingHorizontal: 12 }}
+            disabled={isDeleting}
+            accessibilityLabel="Excluir cliente"
+          >
+            <Ionicons name="trash-outline" size={20} color={theme.destructive} />
+          </TouchableOpacity>
+        </View>
       ),
     });
-  }, [clientId, navigation, theme.primary]);
+  }, [clientId, navigation, theme.primary, theme.destructive, isDeleting, client?.name]);
 
   if (isLoading) {
     return (
@@ -148,10 +192,10 @@ export default function ClienteDetailScreen() {
       )}
 
       {/* Recent quotes */}
-      {recentQuotes.length > 0 && (
+      {(quotes ?? []).length > 0 && (
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: theme.mutedForeground }]}>ORÇAMENTOS</Text>
-          {recentQuotes.map(q => (
+          {(quotes ?? []).map(q => (
             <TouchableOpacity
               key={q.id}
               style={[styles.listRow, { backgroundColor: theme.card, borderColor: theme.border }]}
@@ -177,10 +221,10 @@ export default function ClienteDetailScreen() {
       )}
 
       {/* Recent tasks */}
-      {recentTasks.length > 0 && (
+      {clientTasks.length > 0 && (
         <View style={styles.section}>
           <Text style={[styles.sectionTitle, { color: theme.mutedForeground }]}>ORDENS DE SERVIÇO</Text>
-          {recentTasks.map(t => (
+          {clientTasks.map(t => (
             <TouchableOpacity
               key={t.id}
               style={[styles.listRow, { backgroundColor: theme.card, borderColor: theme.border }]}

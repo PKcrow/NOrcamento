@@ -35,4 +35,19 @@ export interface Task {
   paidAmount: number | null;
   createdAt: Date;
   photos: TaskPhoto[];
+  /**
+     * Active public feedback token, if one has been created.
+     * @nullable
+     */
+  feedbackToken: string | null;
+  /** @nullable */
+  feedbackSubmittedAt: Date | null;
+  /**
+     * @minimum 1
+     * @maximum 5
+     * @nullable
+     */
+  feedbackRating: number | null;
+  /** @nullable */
+  feedbackComment: string | null;
 }

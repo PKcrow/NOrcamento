@@ -113,11 +113,19 @@ export function QuoteDetail() {
       const url = `${window.location.origin}${import.meta.env.BASE_URL}orcamento-publico/${token}`;
       const title = `Orçamento #${quote.id.toString().padStart(4, "0")}`;
       if (navigator.share) {
-        await navigator.share({ title, url });
-      } else {
-        await navigator.clipboard.writeText(url);
-        toast({ title: "Link copiado!", description: url });
+        try {
+          await navigator.share({ title, url });
+          return;
+        } catch (error) {
+          // Closing the native share sheet is an intentional cancellation.
+          if (error instanceof DOMException && error.name === "AbortError") return;
+          // Some browsers expose navigator.share but reject it in the preview
+          // or when the page lost its user activation. Fall through to copy.
+        }
       }
+
+      await navigator.clipboard.writeText(url);
+      toast({ title: "Link copiado!", description: url });
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
       toast({ title: "Não foi possível compartilhar o link", description: "Tente novamente.", variant: "destructive" });
@@ -152,7 +160,11 @@ export function QuoteDetail() {
   };
 
   const handleDelete = () => {
-    if (!confirm("Tem certeza que deseja excluir este orçamento?")) return;
+    const linkedTaskCount = quote?.convertedTaskId ? 1 : 0;
+    const linkedTaskWarning = linkedTaskCount > 0
+      ? ` Existe ${linkedTaskCount} O.S. vinculada e ela também será apagada.`
+      : "";
+    if (!confirm(`Tem certeza que deseja excluir este orçamento?${linkedTaskWarning} Essa ação não pode ser desfeita.`)) return;
     deleteMutation.mutate({ id: quoteId }, {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
@@ -215,9 +227,11 @@ export function QuoteDetail() {
   const statusInfo = quoteStatusMap[quote.status];
   const publicLinkIsActive = Boolean(
     quote.publicToken &&
-      quote.publicLinkExpiresAt &&
       !quote.publicLinkRevokedAt &&
-      new Date(quote.publicLinkExpiresAt).getTime() > Date.now(),
+      (quote.status === "approved" ||
+        quote.status === "rejected" ||
+        (quote.publicLinkExpiresAt &&
+          new Date(quote.publicLinkExpiresAt).getTime() > Date.now())),
   );
 
   return (
@@ -363,9 +377,12 @@ export function QuoteDetail() {
               ) : null}
               <div className="min-w-0">
                 <h3 className="text-lg font-bold text-gray-900">{company?.name || "Negócio"}</h3>
-                {company?.address && <p className="mt-1 max-w-xs text-sm text-gray-500">{company.address}</p>}
-                {company?.phone && <p className="text-sm text-gray-500">{company.phone}</p>}
-                {company?.email && <p className="break-all text-sm text-gray-500">{company.email}</p>}
+                {company?.showLegalNameOnQuotes && company.legalName && <p className="mt-1 text-sm text-gray-500">{company.legalName}</p>}
+                {company?.showTaxIdOnQuotes && company.taxId && <p className="text-sm text-gray-500">CPF/CNPJ: {company.taxId}</p>}
+                {company?.showAddressOnQuotes && company.address && <p className="max-w-xs text-sm text-gray-500">{company.address}</p>}
+                {company?.showPhoneOnQuotes && company.phone && <p className="text-sm text-gray-500">{company.phone}</p>}
+                {company?.showEmailOnQuotes && company.email && <p className="break-all text-sm text-gray-500">{company.email}</p>}
+                {company?.showWebsiteOnQuotes && company.website && <p className="break-all text-sm text-gray-500">{company.website}</p>}
               </div>
             </div>
             <div className="shrink-0 text-right">
@@ -442,9 +459,28 @@ export function QuoteDetail() {
               <p className="text-sm text-gray-600 whitespace-pre-wrap leading-relaxed">{quote.notes}</p>
             </div>
           )}
+
+          {(company?.showPixKeyOnQuotes && company.pixKey ||
+            company?.showBankDetailsOnQuotes && company.bankDetails ||
+            company?.showPaymentInstructionsOnQuotes && company.paymentInstructions) && (
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-6">
+              <p className="mb-3 text-xs font-bold uppercase tracking-wider text-gray-400">Dados para pagamento</p>
+              {company.showPixKeyOnQuotes && company.pixKey && <p className="text-sm text-gray-700"><strong>Chave Pix:</strong> {company.pixKey}</p>}
+              {company.showBankDetailsOnQuotes && company.bankDetails && <p className="whitespace-pre-wrap text-sm text-gray-700"><strong>Dados bancários:</strong> {company.bankDetails}</p>}
+              {company.showPaymentInstructionsOnQuotes && company.paymentInstructions && <p className="whitespace-pre-wrap text-sm text-gray-700"><strong>Condições:</strong> {company.paymentInstructions}</p>}
+            </div>
+          )}
+          {company?.showAdditionalInfoOnQuotes && company.additionalInfo && (
+            <div className="rounded-xl border border-gray-200 p-6">
+              <p className="mb-2 text-xs font-bold uppercase tracking-wider text-gray-400">Informações adicionais</p>
+              <p className="whitespace-pre-wrap text-sm text-gray-700">{company.additionalInfo}</p>
+            </div>
+          )}
           
           <div className="pt-12 text-center text-xs text-gray-400 print:block">
-            Este é um documento comercial válido por 15 dias a partir da data de emissão.
+            {quote.publicLinkExpiresAt
+              ? `Link de aprovação válido até ${formatDateTime(quote.publicLinkExpiresAt)}.`
+              : "O link de aprovação será gerado ao enviar este orçamento."}
           </div>
         </CardContent>
       </Card>

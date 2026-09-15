@@ -5,7 +5,7 @@
  * API specification for a freelancer/service-provider business management app
  * OpenAPI spec version: 0.1.0
  */
-import * as zod from 'zod';
+import * as zod from 'zod/v4';
 
 
 /**
@@ -139,6 +139,8 @@ export const SwitchTeamResponse = zod.object({
 /**
  * @summary Get dashboard summary with pending quotes and upcoming tasks
  */
+export const getDashboardSummaryResponseUpcomingTasksItemFeedbackRatingMax = 5;
+
 export const getDashboardSummaryResponseRecentQuotesItemLaborCostMin = 0;
 
 
@@ -170,7 +172,11 @@ export const GetDashboardSummaryResponse = zod.object({
   "taskId": zod.number(),
   "url": zod.string(),
   "createdAt": zod.coerce.date()
-}))
+})),
+  "feedbackToken": zod.string().nullable().describe('Active public feedback token, if one has been created.'),
+  "feedbackSubmittedAt": zod.coerce.date().nullable(),
+  "feedbackRating": zod.number().min(1).max(getDashboardSummaryResponseUpcomingTasksItemFeedbackRatingMax).nullable(),
+  "feedbackComment": zod.string().nullable()
 })),
   "recentQuotes": zod.array(zod.object({
   "id": zod.number(),
@@ -263,6 +269,8 @@ export const GetClientParams = zod.object({
 
 export const getClientResponseTwoQuotesItemLaborCostMin = 0;
 
+export const getClientResponseTwoTasksItemFeedbackRatingMax = 5;
+
 
 
 export const GetClientResponse = zod.object({
@@ -320,7 +328,11 @@ export const GetClientResponse = zod.object({
   "taskId": zod.number(),
   "url": zod.string(),
   "createdAt": zod.coerce.date()
-}))
+})),
+  "feedbackToken": zod.string().nullable().describe('Active public feedback token, if one has been created.'),
+  "feedbackSubmittedAt": zod.coerce.date().nullable(),
+  "feedbackRating": zod.number().min(1).max(getClientResponseTwoTasksItemFeedbackRatingMax).nullable(),
+  "feedbackComment": zod.string().nullable()
 }))
 }))
 
@@ -934,6 +946,10 @@ export const ConvertQuoteToTaskBody = zod.object({
   "endAt": zod.coerce.date().nullable()
 })
 
+export const convertQuoteToTaskResponseFeedbackRatingMax = 5;
+
+
+
 export const ConvertQuoteToTaskResponse = zod.object({
   "id": zod.number(),
   "title": zod.string(),
@@ -952,7 +968,11 @@ export const ConvertQuoteToTaskResponse = zod.object({
   "taskId": zod.number(),
   "url": zod.string(),
   "createdAt": zod.coerce.date()
-}))
+})),
+  "feedbackToken": zod.string().nullable().describe('Active public feedback token, if one has been created.'),
+  "feedbackSubmittedAt": zod.coerce.date().nullable(),
+  "feedbackRating": zod.number().min(1).max(convertQuoteToTaskResponseFeedbackRatingMax).nullable(),
+  "feedbackComment": zod.string().nullable()
 })
 
 
@@ -1003,6 +1023,23 @@ export const GetPublicQuoteResponse = zod.object({
   "phone": zod.string().nullable(),
   "email": zod.string().nullable(),
   "address": zod.string().nullable(),
+  "legalName": zod.string().nullable(),
+  "taxId": zod.string().nullable(),
+  "website": zod.string().nullable(),
+  "pixKey": zod.string().nullable(),
+  "bankDetails": zod.string().nullable(),
+  "paymentInstructions": zod.string().nullable(),
+  "additionalInfo": zod.string().nullable(),
+  "showPhoneOnQuotes": zod.boolean(),
+  "showEmailOnQuotes": zod.boolean(),
+  "showAddressOnQuotes": zod.boolean(),
+  "showLegalNameOnQuotes": zod.boolean(),
+  "showTaxIdOnQuotes": zod.boolean(),
+  "showWebsiteOnQuotes": zod.boolean(),
+  "showPixKeyOnQuotes": zod.boolean(),
+  "showBankDetailsOnQuotes": zod.boolean(),
+  "showPaymentInstructionsOnQuotes": zod.boolean(),
+  "showAdditionalInfoOnQuotes": zod.boolean(),
   "createdAt": zod.coerce.date()
 }),zod.null()])
 })
@@ -1060,6 +1097,23 @@ export const RespondPublicQuoteResponse = zod.object({
   "phone": zod.string().nullable(),
   "email": zod.string().nullable(),
   "address": zod.string().nullable(),
+  "legalName": zod.string().nullable(),
+  "taxId": zod.string().nullable(),
+  "website": zod.string().nullable(),
+  "pixKey": zod.string().nullable(),
+  "bankDetails": zod.string().nullable(),
+  "paymentInstructions": zod.string().nullable(),
+  "additionalInfo": zod.string().nullable(),
+  "showPhoneOnQuotes": zod.boolean(),
+  "showEmailOnQuotes": zod.boolean(),
+  "showAddressOnQuotes": zod.boolean(),
+  "showLegalNameOnQuotes": zod.boolean(),
+  "showTaxIdOnQuotes": zod.boolean(),
+  "showWebsiteOnQuotes": zod.boolean(),
+  "showPixKeyOnQuotes": zod.boolean(),
+  "showBankDetailsOnQuotes": zod.boolean(),
+  "showPaymentInstructionsOnQuotes": zod.boolean(),
+  "showAdditionalInfoOnQuotes": zod.boolean(),
   "createdAt": zod.coerce.date()
 }),zod.null()])
 })
@@ -1149,6 +1203,10 @@ export const ListTasksQueryParams = zod.object({
   "search": zod.coerce.string().optional()
 })
 
+export const listTasksResponseFeedbackRatingMax = 5;
+
+
+
 export const ListTasksResponseItem = zod.object({
   "id": zod.number(),
   "title": zod.string(),
@@ -1167,7 +1225,11 @@ export const ListTasksResponseItem = zod.object({
   "taskId": zod.number(),
   "url": zod.string(),
   "createdAt": zod.coerce.date()
-}))
+})),
+  "feedbackToken": zod.string().nullable().describe('Active public feedback token, if one has been created.'),
+  "feedbackSubmittedAt": zod.coerce.date().nullable(),
+  "feedbackRating": zod.number().min(1).max(listTasksResponseFeedbackRatingMax).nullable(),
+  "feedbackComment": zod.string().nullable()
 })
 export const ListTasksResponse = zod.array(ListTasksResponseItem)
 
@@ -1185,6 +1247,10 @@ export const CreateTaskBody = zod.object({
   "endAt": zod.coerce.date().nullable(),
   "clientId": zod.number().nullish()
 })
+
+export const createTaskResponseFeedbackRatingMax = 5;
+
+
 
 export const CreateTaskResponse = zod.object({
   "id": zod.number(),
@@ -1204,7 +1270,11 @@ export const CreateTaskResponse = zod.object({
   "taskId": zod.number(),
   "url": zod.string(),
   "createdAt": zod.coerce.date()
-}))
+})),
+  "feedbackToken": zod.string().nullable().describe('Active public feedback token, if one has been created.'),
+  "feedbackSubmittedAt": zod.coerce.date().nullable(),
+  "feedbackRating": zod.number().min(1).max(createTaskResponseFeedbackRatingMax).nullable(),
+  "feedbackComment": zod.string().nullable()
 })
 
 
@@ -1229,6 +1299,10 @@ export const UpdateTaskBody = zod.object({
   "paidAmount": zod.number().nullish()
 })
 
+export const updateTaskResponseFeedbackRatingMax = 5;
+
+
+
 export const UpdateTaskResponse = zod.object({
   "id": zod.number(),
   "title": zod.string(),
@@ -1247,7 +1321,11 @@ export const UpdateTaskResponse = zod.object({
   "taskId": zod.number(),
   "url": zod.string(),
   "createdAt": zod.coerce.date()
-}))
+})),
+  "feedbackToken": zod.string().nullable().describe('Active public feedback token, if one has been created.'),
+  "feedbackSubmittedAt": zod.coerce.date().nullable(),
+  "feedbackRating": zod.number().min(1).max(updateTaskResponseFeedbackRatingMax).nullable(),
+  "feedbackComment": zod.string().nullable()
 })
 
 
@@ -1259,6 +1337,26 @@ export const DeleteTaskParams = zod.object({
 })
 
 export const DeleteTaskResponse = zod.void()
+
+
+/**
+ * @summary Create or reopen the feedback link for a completed task
+ */
+export const CreateTaskFeedbackLinkParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const createTaskFeedbackLinkResponseFeedbackRatingMax = 5;
+
+
+
+export const CreateTaskFeedbackLinkResponse = zod.object({
+  "taskId": zod.number(),
+  "feedbackToken": zod.string(),
+  "feedbackSubmittedAt": zod.coerce.date().nullable(),
+  "feedbackRating": zod.number().min(1).max(createTaskFeedbackLinkResponseFeedbackRatingMax).nullable(),
+  "feedbackComment": zod.string().nullable()
+})
 
 
 /**
@@ -1294,6 +1392,12 @@ export const DeleteTaskPhotoResponse = zod.void()
 /**
  * @summary Get task reminders and recent quote responses as notifications
  */
+export const getNotificationsResponseOverdueTasksItemFeedbackRatingMax = 5;
+
+export const getNotificationsResponseDueSoonTasksItemFeedbackRatingMax = 5;
+
+
+
 export const GetNotificationsResponse = zod.object({
   "overdueTasks": zod.array(zod.object({
   "id": zod.number(),
@@ -1313,7 +1417,11 @@ export const GetNotificationsResponse = zod.object({
   "taskId": zod.number(),
   "url": zod.string(),
   "createdAt": zod.coerce.date()
-}))
+})),
+  "feedbackToken": zod.string().nullable().describe('Active public feedback token, if one has been created.'),
+  "feedbackSubmittedAt": zod.coerce.date().nullable(),
+  "feedbackRating": zod.number().min(1).max(getNotificationsResponseOverdueTasksItemFeedbackRatingMax).nullable(),
+  "feedbackComment": zod.string().nullable()
 })),
   "dueSoonTasks": zod.array(zod.object({
   "id": zod.number(),
@@ -1333,7 +1441,11 @@ export const GetNotificationsResponse = zod.object({
   "taskId": zod.number(),
   "url": zod.string(),
   "createdAt": zod.coerce.date()
-}))
+})),
+  "feedbackToken": zod.string().nullable().describe('Active public feedback token, if one has been created.'),
+  "feedbackSubmittedAt": zod.coerce.date().nullable(),
+  "feedbackRating": zod.number().min(1).max(getNotificationsResponseDueSoonTasksItemFeedbackRatingMax).nullable(),
+  "feedbackComment": zod.string().nullable()
 })),
   "quoteResponses": zod.array(zod.object({
   "id": zod.number().describe('Quote identifier.'),
@@ -1381,6 +1493,23 @@ export const GetCompanyResponse = zod.object({
   "phone": zod.string().nullable(),
   "email": zod.string().nullable(),
   "address": zod.string().nullable(),
+  "legalName": zod.string().nullable(),
+  "taxId": zod.string().nullable(),
+  "website": zod.string().nullable(),
+  "pixKey": zod.string().nullable(),
+  "bankDetails": zod.string().nullable(),
+  "paymentInstructions": zod.string().nullable(),
+  "additionalInfo": zod.string().nullable(),
+  "showPhoneOnQuotes": zod.boolean(),
+  "showEmailOnQuotes": zod.boolean(),
+  "showAddressOnQuotes": zod.boolean(),
+  "showLegalNameOnQuotes": zod.boolean(),
+  "showTaxIdOnQuotes": zod.boolean(),
+  "showWebsiteOnQuotes": zod.boolean(),
+  "showPixKeyOnQuotes": zod.boolean(),
+  "showBankDetailsOnQuotes": zod.boolean(),
+  "showPaymentInstructionsOnQuotes": zod.boolean(),
+  "showAdditionalInfoOnQuotes": zod.boolean(),
   "createdAt": zod.coerce.date()
 })
 
@@ -1396,7 +1525,24 @@ export const UpdateCompanyBody = zod.object({
   "logoUrl": zod.string().nullish(),
   "phone": zod.string().nullish(),
   "email": zod.string().nullish(),
-  "address": zod.string().nullish()
+  "address": zod.string().nullish(),
+  "legalName": zod.string().nullish(),
+  "taxId": zod.string().nullish(),
+  "website": zod.string().nullish(),
+  "pixKey": zod.string().nullish(),
+  "bankDetails": zod.string().nullish(),
+  "paymentInstructions": zod.string().nullish(),
+  "additionalInfo": zod.string().nullish(),
+  "showPhoneOnQuotes": zod.boolean().optional(),
+  "showEmailOnQuotes": zod.boolean().optional(),
+  "showAddressOnQuotes": zod.boolean().optional(),
+  "showLegalNameOnQuotes": zod.boolean().optional(),
+  "showTaxIdOnQuotes": zod.boolean().optional(),
+  "showWebsiteOnQuotes": zod.boolean().optional(),
+  "showPixKeyOnQuotes": zod.boolean().optional(),
+  "showBankDetailsOnQuotes": zod.boolean().optional(),
+  "showPaymentInstructionsOnQuotes": zod.boolean().optional(),
+  "showAdditionalInfoOnQuotes": zod.boolean().optional()
 })
 
 export const UpdateCompanyResponse = zod.object({
@@ -1406,7 +1552,155 @@ export const UpdateCompanyResponse = zod.object({
   "phone": zod.string().nullable(),
   "email": zod.string().nullable(),
   "address": zod.string().nullable(),
+  "legalName": zod.string().nullable(),
+  "taxId": zod.string().nullable(),
+  "website": zod.string().nullable(),
+  "pixKey": zod.string().nullable(),
+  "bankDetails": zod.string().nullable(),
+  "paymentInstructions": zod.string().nullable(),
+  "additionalInfo": zod.string().nullable(),
+  "showPhoneOnQuotes": zod.boolean(),
+  "showEmailOnQuotes": zod.boolean(),
+  "showAddressOnQuotes": zod.boolean(),
+  "showLegalNameOnQuotes": zod.boolean(),
+  "showTaxIdOnQuotes": zod.boolean(),
+  "showWebsiteOnQuotes": zod.boolean(),
+  "showPixKeyOnQuotes": zod.boolean(),
+  "showBankDetailsOnQuotes": zod.boolean(),
+  "showPaymentInstructionsOnQuotes": zod.boolean(),
+  "showAdditionalInfoOnQuotes": zod.boolean(),
   "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary List documents saved for the current company
+ */
+export const ListCompanyDocumentsResponseItem = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "documentType": zod.string(),
+  "fileName": zod.string(),
+  "objectPath": zod.string(),
+  "contentType": zod.string(),
+  "size": zod.number(),
+  "createdAt": zod.coerce.date()
+})
+export const ListCompanyDocumentsResponse = zod.array(ListCompanyDocumentsResponseItem)
+
+
+/**
+ * @summary Save metadata for an uploaded company document
+ */
+
+
+
+
+
+
+
+
+export const CreateCompanyDocumentBody = zod.object({
+  "name": zod.string().min(1),
+  "documentType": zod.string().min(1),
+  "fileName": zod.string().min(1),
+  "objectPath": zod.string().min(1),
+  "contentType": zod.string().min(1),
+  "size": zod.number().min(1)
+})
+
+export const CreateCompanyDocumentResponse = zod.object({
+  "id": zod.number(),
+  "name": zod.string(),
+  "documentType": zod.string(),
+  "fileName": zod.string(),
+  "objectPath": zod.string(),
+  "contentType": zod.string(),
+  "size": zod.number(),
+  "createdAt": zod.coerce.date()
+})
+
+
+/**
+ * @summary Remove a saved company document
+ */
+export const DeleteCompanyDocumentParams = zod.object({
+  "id": zod.coerce.number()
+})
+
+export const DeleteCompanyDocumentResponse = zod.void()
+
+
+/**
+ * @summary Get a public feedback form for a completed task
+ */
+export const GetPublicTaskFeedbackParams = zod.object({
+  "token": zod.coerce.string()
+})
+
+export const GetPublicTaskFeedbackResponse = zod.object({
+  "task": zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "clientName": zod.string().nullable(),
+  "status": zod.enum(['scheduled', 'in_progress', 'completed', 'paid'])
+}),
+  "company": zod.union([zod.object({
+  "id": zod.string(),
+  "name": zod.string(),
+  "logoUrl": zod.string().nullable(),
+  "phone": zod.string().nullable(),
+  "email": zod.string().nullable(),
+  "address": zod.string().nullable(),
+  "legalName": zod.string().nullable(),
+  "taxId": zod.string().nullable(),
+  "website": zod.string().nullable(),
+  "pixKey": zod.string().nullable(),
+  "bankDetails": zod.string().nullable(),
+  "paymentInstructions": zod.string().nullable(),
+  "additionalInfo": zod.string().nullable(),
+  "showPhoneOnQuotes": zod.boolean(),
+  "showEmailOnQuotes": zod.boolean(),
+  "showAddressOnQuotes": zod.boolean(),
+  "showLegalNameOnQuotes": zod.boolean(),
+  "showTaxIdOnQuotes": zod.boolean(),
+  "showWebsiteOnQuotes": zod.boolean(),
+  "showPixKeyOnQuotes": zod.boolean(),
+  "showBankDetailsOnQuotes": zod.boolean(),
+  "showPaymentInstructionsOnQuotes": zod.boolean(),
+  "showAdditionalInfoOnQuotes": zod.boolean(),
+  "createdAt": zod.coerce.date()
+}),zod.null()])
+})
+
+
+/**
+ * @summary Submit a public rating and comment for a completed task
+ */
+export const RespondPublicTaskFeedbackParams = zod.object({
+  "token": zod.coerce.string()
+})
+
+export const respondPublicTaskFeedbackBodyRatingMax = 5;
+
+export const respondPublicTaskFeedbackBodyCommentMax = 2000;
+
+
+
+export const RespondPublicTaskFeedbackBody = zod.object({
+  "rating": zod.number().min(1).max(respondPublicTaskFeedbackBodyRatingMax),
+  "comment": zod.string().max(respondPublicTaskFeedbackBodyCommentMax).optional()
+})
+
+export const respondPublicTaskFeedbackResponseRatingMax = 5;
+
+
+
+export const RespondPublicTaskFeedbackResponse = zod.object({
+  "taskId": zod.number(),
+  "rating": zod.number().min(1).max(respondPublicTaskFeedbackResponseRatingMax),
+  "comment": zod.string().nullable(),
+  "submittedAt": zod.coerce.date()
 })
 
 

@@ -551,10 +551,28 @@ describe("public response requires sent status", () => {
       .send({ status: "draft" });
 
     as(null);
+    const publicView = await request(app).get(
+      `/api/public/quotes/${token}`,
+    );
+    expect(publicView.status).toBe(404);
+
     const res = await request(app)
       .post(`/api/public/quotes/${token}/respond`)
       .send({ action: "approved" });
-    expect(res.status).toBe(409);
+    expect(res.status).toBe(404);
+
+    as(OWNER_ID);
+    const resent = await request(app).post(
+      `/api/quotes/${created.body.id}/share`,
+    );
+    expect(resent.status).toBe(200);
+    expect(resent.body.status).toBe("sent");
+
+    as(null);
+    const resentView = await request(app).get(
+      `/api/public/quotes/${resent.body.publicToken}`,
+    );
+    expect(resentView.status).toBe(200);
   });
 });
 
@@ -663,6 +681,32 @@ describe("approved quote scheduling", () => {
         endAt: new Date("2031-04-10T12:00:00Z").toISOString(),
       });
     expect(outsider.status).toBe(404);
+  });
+
+  it("deletes a linked task together with its quote", async () => {
+    as(OWNER_ID);
+    const quote = await request(app)
+      .post("/api/quotes")
+      .send({
+        clientId: clientAId,
+        status: "approved",
+        items: [{ description: "Exclusão conjunta", quantity: 1, unitPrice: 25 }],
+      });
+    const task = await request(app)
+      .post(`/api/quotes/${quote.body.id}/convert-to-task`)
+      .send({
+        dueAt: new Date("2031-04-20T09:00:00Z").toISOString(),
+        endAt: new Date("2031-04-20T10:00:00Z").toISOString(),
+      });
+    expect(task.status).toBe(201);
+
+    const deleted = await request(app).delete(`/api/quotes/${quote.body.id}`);
+    expect(deleted.status).toBe(204);
+
+    const quoteAfterDelete = await request(app).get(`/api/quotes/${quote.body.id}`);
+    expect(quoteAfterDelete.status).toBe(404);
+    const tasksAfterDelete = await request(app).get("/api/tasks");
+    expect(tasksAfterDelete.body.some((item: { id: number }) => item.id === task.body.id)).toBe(false);
   });
 
   it("rejects a schedule that conflicts with another service", async () => {

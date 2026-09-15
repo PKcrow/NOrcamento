@@ -10,13 +10,17 @@ import {
 } from 'react-native';
 import { useAuth } from '@clerk/clerk-expo';
 import { Ionicons } from '@expo/vector-icons';
-import { useGetMe, useUnregisterPushToken } from '@workspace/api-client-react';
+import {
+  useGetMe,
+  useUnregisterPushToken,
+} from '@workspace/api-client-react';
 import Colors from '@/constants/colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'expo-router';
 import {
   clearSavedNativePushToken,
+  clearLocalTaskNotifications,
   getSavedNativePushToken,
 } from '@/lib/pushNotifications';
 
@@ -46,6 +50,10 @@ const SECTIONS: { title: string; rows: SettingsRow[] }[] = [
     title: 'FINANÇAS',
     rows: [{ icon: 'bar-chart', label: 'Relatório mensal', href: '/relatorios' }],
   },
+    {
+    title: 'LEGAL',
+    rows: [{ icon: 'shield-checkmark-outline', label: 'Política de privacidade', href: '/politica-de-privacidade' }],
+  },
 ];
 
 export default function MaisScreen() {
@@ -57,7 +65,6 @@ export default function MaisScreen() {
   const { mutateAsync: unregisterPushToken } = useUnregisterPushToken();
 
   const { data: me, isLoading } = useGetMe();
-
   const handleSignOut = () => {
     Alert.alert('Sair', 'Deseja realmente sair da conta?', [
       { text: 'Cancelar', style: 'cancel' },
@@ -73,6 +80,7 @@ export default function MaisScreen() {
               // A failed cleanup must never prevent the user from signing out.
             }
             await clearSavedNativePushToken();
+            await clearLocalTaskNotifications();
           }
           await signOut();
           queryClient.clear();
@@ -213,6 +221,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   rowLabel: { flex: 1, fontSize: 15, fontFamily: 'PlusJakartaSans_500Medium' },
+  notificationBadge: {
+    minWidth: 22,
+    height: 22,
+    paddingHorizontal: 5,
+    borderRadius: 11,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  notificationBadgeText: { color: '#fff', fontSize: 11, fontFamily: 'PlusJakartaSans_700Bold' },
   signOutBtn: {
     flexDirection: 'row',
     alignItems: 'center',

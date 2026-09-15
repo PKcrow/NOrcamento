@@ -138,9 +138,14 @@ async function startMetro(expoPublicDomain, expoPublicReplId) {
 
   console.log('Starting Metro...');
   console.log(`Setting EXPO_PUBLIC_DOMAIN=${expoPublicDomain}`);
+  const webDomain = process.env.EXPO_PUBLIC_WEB_DOMAIN
+    ? stripProtocol(process.env.EXPO_PUBLIC_WEB_DOMAIN)
+    : 'n-orcamento.replit.app';
+  console.log(`Setting EXPO_PUBLIC_WEB_DOMAIN=${webDomain}`);
   const env = {
     ...process.env,
     EXPO_PUBLIC_DOMAIN: expoPublicDomain,
+    EXPO_PUBLIC_WEB_DOMAIN: webDomain,
     EXPO_PUBLIC_REPL_ID: expoPublicReplId,
   };
 

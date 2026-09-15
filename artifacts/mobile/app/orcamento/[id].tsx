@@ -20,10 +20,13 @@ import {
   useUpdateQuote,
   useRevokeQuotePublicLink,
   useConvertQuoteToTask,
+  useDeleteQuote,
+  useGetCompany,
 } from '@workspace/api-client-react';
 import Colors from '@/constants/colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useQueryClient } from '@tanstack/react-query';
+import { quotePdfHtml, sharePdfDocument } from '@/lib/nativePdf';
 
 type QuoteStatus = 'draft' | 'sent' | 'approved' | 'rejected';
 
@@ -56,12 +59,17 @@ export default function OrcamentoDetailScreen() {
   const router = useRouter();
 
   const [sharing, setSharing] = useState(false);
+  const [sharingPdf, setSharingPdf] = useState(false);
+  const [isDeleteOpen, setIsDeleteOpen] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
 
   const { data: quote, isLoading, refetch, isRefetching } = useGetQuote(quoteId);
+  const { data: company } = useGetCompany();
   const { mutate: shareQuote } = useShareQuote();
   const { mutate: updateQuote, isPending: isUpdating } = useUpdateQuote();
   const { mutate: revokeLink, isPending: isRevoking } = useRevokeQuotePublicLink();
   const { mutate: convertQuoteToTask, isPending: isConverting } = useConvertQuoteToTask();
+  const { mutate: deleteQuote, isPending: isDeleting } = useDeleteQuote();
   const [isScheduleOpen, setIsScheduleOpen] = useState(false);
   const [scheduledDate, setScheduledDate] = useState('');
   const [scheduledTime, setScheduledTime] = useState('08:00');
@@ -93,19 +101,62 @@ export default function OrcamentoDetailScreen() {
             Alert.alert('Erro', 'Não foi possível gerar o link de aprovação.');
             return;
           }
-          const link = `https://${process.env.EXPO_PUBLIC_DOMAIN}/orcamento-publico/${token}`;
+          const webDomain = process.env.EXPO_PUBLIC_WEB_DOMAIN ?? process.env.EXPO_PUBLIC_DOMAIN;
+          if (!webDomain) {
+            Alert.alert('Erro', 'O domínio público do web não está configurado.');
+            return;
+          }
+          const link = `https://${webDomain}/orcamento-publico/${token}`;
           try {
             await Share.share({
               message: `Segue o orçamento para aprovação:\n${link}`,
               url: link,
               title: `Orçamento — ${quote?.clientName}`,
             });
-          } catch {}
+           } catch {
+             Alert.alert(
+               'Link gerado',
+               `Não foi possível abrir o compartilhamento. Envie este link manualmente:\n\n${link}`,
+             );
+           }
           queryClient.invalidateQueries();
         },
         onError: () => Alert.alert('Erro', 'Não foi possível gerar o link de aprovação.'),
         onSettled: () => setSharing(false),
       }
+    );
+  };
+
+  const handleSharePdf = async () => {
+    if (!quote || sharingPdf) return;
+    setSharingPdf(true);
+    try {
+      await sharePdfDocument(`Orçamento #${quote.id}`, quotePdfHtml(quote, company));
+    } catch {
+      Alert.alert('Erro', 'Não foi possível gerar ou compartilhar o PDF do orçamento.');
+    } finally {
+      setSharingPdf(false);
+    }
+  };
+
+  const handleDelete = () => {
+    setDeleteError(null);
+    setIsDeleteOpen(true);
+  };
+
+  const confirmDelete = () => {
+    setDeleteError(null);
+    deleteQuote(
+      { id: quoteId },
+      {
+        onSuccess: () => {
+          setIsDeleteOpen(false);
+          queryClient.invalidateQueries();
+          router.replace('/(tabs)/orcamentos');
+        },
+        onError: () =>
+          setDeleteError('Não foi possível excluir o orçamento e a O.S. vinculada. Tente novamente.'),
+      },
     );
   };
 
@@ -295,6 +346,18 @@ export default function OrcamentoDetailScreen() {
         </View>
       </View>
 
+      {/* Service scope */}
+      {quote.serviceScopeEnabled && quote.serviceDescription?.trim() && (
+        <View style={styles.section}>
+          <Text style={[styles.sectionTitle, { color: theme.mutedForeground }]}>ESCOPO DO SERVIÇO</Text>
+          <View style={[styles.notesCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <Text style={[styles.notesText, { color: theme.foreground }]}>
+              {quote.serviceDescription.trim()}
+            </Text>
+          </View>
+        </View>
+      )}
+
       {/* Notes */}
       {quote.notes && (
         <View style={styles.section}>
@@ -332,6 +395,21 @@ export default function OrcamentoDetailScreen() {
 
       {/* Actions */}
       <View style={styles.actions}>
+        <TouchableOpacity
+          style={[styles.secondaryBtn, { borderColor: theme.primary }]}
+          onPress={handleSharePdf}
+          disabled={sharingPdf}
+        >
+          {sharingPdf ? (
+            <ActivityIndicator color={theme.primary} size="small" />
+          ) : (
+            <Ionicons name="document-text-outline" size={20} color={theme.primary} />
+          )}
+          <Text style={[styles.secondaryBtnText, { color: theme.primary }]}>
+            {sharingPdf ? 'Gerando PDF...' : 'Imprimir / compartilhar PDF'}
+          </Text>
+        </TouchableOpacity>
+
         {/* Share link */}
         {(st === 'draft' || st === 'sent') && (
           <TouchableOpacity
@@ -413,6 +491,21 @@ export default function OrcamentoDetailScreen() {
             </TouchableOpacity>
           </>
         )}
+
+        <TouchableOpacity
+          style={[styles.secondaryBtn, { borderColor: theme.destructive }]}
+          onPress={handleDelete}
+          disabled={isDeleting || isUpdating || isConverting}
+        >
+          {isDeleting ? (
+            <ActivityIndicator color={theme.destructive} size="small" />
+          ) : (
+            <Ionicons name="trash-outline" size={18} color={theme.destructive} />
+          )}
+          <Text style={[styles.secondaryBtnText, { color: theme.destructive }]}>
+            Excluir orçamento
+          </Text>
+        </TouchableOpacity>
       </View>
 
       <Modal visible={isScheduleOpen} transparent animationType="slide" onRequestClose={() => setIsScheduleOpen(false)}>
@@ -496,6 +589,76 @@ export default function OrcamentoDetailScreen() {
           </View>
         </View>
       </Modal>
+
+      <Modal
+        visible={isDeleteOpen}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => !isDeleting && setIsDeleteOpen(false)}
+      >
+        <View style={styles.deleteOverlay}>
+          <View style={[styles.deleteModal, { backgroundColor: theme.card }]}>
+            <View style={[styles.deleteIcon, { backgroundColor: theme.secondary }]}>
+              <Ionicons name="trash-outline" size={26} color={theme.destructive} />
+            </View>
+
+            <Text style={[styles.deleteTitle, { color: theme.foreground }]}>
+              Excluir orçamento?
+            </Text>
+            <Text style={[styles.deleteDescription, { color: theme.mutedForeground }]}>
+              Esta ação apaga permanentemente o orçamento
+              {quote?.convertedTaskId ? ' e a O.S. vinculada' : ''}.
+            </Text>
+
+            {quote?.convertedTaskId ? (
+              <View style={[styles.deleteWarning, { backgroundColor: theme.secondary, borderColor: theme.border }]}>
+                <Ionicons name="warning-outline" size={20} color={theme.destructive} />
+                <View style={styles.deleteWarningText}>
+                  <Text style={[styles.deleteWarningTitle, { color: theme.foreground }]}>
+                    1 O.S. vinculada
+                  </Text>
+                  <Text style={[styles.deleteWarningDescription, { color: theme.mutedForeground }]}>
+                    Ela também será apagada e não poderá ser recuperada.
+                  </Text>
+                </View>
+              </View>
+            ) : null}
+
+            {deleteError ? (
+              <Text style={[styles.deleteError, { color: theme.destructive }]}>
+                {deleteError}
+              </Text>
+            ) : null}
+
+            <View style={styles.deleteActions}>
+              <TouchableOpacity
+                style={[styles.deleteCancel, { borderColor: theme.border }]}
+                onPress={() => setIsDeleteOpen(false)}
+                disabled={isDeleting}
+              >
+                <Text style={[styles.deleteCancelText, { color: theme.foreground }]}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.deleteConfirm, { backgroundColor: theme.destructive }, isDeleting && styles.disabledButton]}
+                onPress={confirmDelete}
+                disabled={isDeleting}
+              >
+                {isDeleting ? (
+                  <ActivityIndicator color={theme.destructiveForeground} size="small" />
+                ) : (
+                  <>
+                    <Ionicons name="trash-outline" size={18} color={theme.destructiveForeground} />
+                    <Text style={[styles.deleteConfirmText, { color: theme.destructiveForeground }]}>
+                      Excluir tudo
+                    </Text>
+                  </>
+                )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </ScrollView>
   );
 }
@@ -549,4 +712,20 @@ const styles = StyleSheet.create({
   modalCancelText: { fontSize: 14, fontFamily: 'PlusJakartaSans_600SemiBold' },
   modalSubmit: { flex: 1, height: 48, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
   modalSubmitText: { color: '#ffffff', fontSize: 14, fontFamily: 'PlusJakartaSans_600SemiBold' },
+  deleteOverlay: { flex: 1, justifyContent: 'center', padding: 20, backgroundColor: 'rgba(15, 23, 42, 0.62)' },
+  deleteModal: { width: '100%', maxWidth: 420, alignSelf: 'center', borderRadius: 20, padding: 22 },
+  deleteIcon: { width: 52, height: 52, borderRadius: 26, alignItems: 'center', justifyContent: 'center', marginBottom: 18 },
+  deleteTitle: { fontSize: 22, fontFamily: 'PlusJakartaSans_700Bold', marginBottom: 8 },
+  deleteDescription: { fontSize: 14, lineHeight: 21, fontFamily: 'PlusJakartaSans_400Regular' },
+  deleteWarning: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, borderWidth: 1, borderRadius: 12, padding: 14, marginTop: 18 },
+  deleteWarningText: { flex: 1 },
+  deleteWarningTitle: { fontSize: 14, fontFamily: 'PlusJakartaSans_700Bold', marginBottom: 3 },
+  deleteWarningDescription: { fontSize: 13, lineHeight: 18, fontFamily: 'PlusJakartaSans_400Regular' },
+  deleteError: { fontSize: 13, lineHeight: 18, fontFamily: 'PlusJakartaSans_500Medium', marginTop: 14 },
+  deleteActions: { flexDirection: 'row', gap: 10, marginTop: 22 },
+  deleteCancel: { flex: 1, height: 50, borderWidth: 1, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  deleteCancelText: { fontSize: 14, fontFamily: 'PlusJakartaSans_600SemiBold' },
+  deleteConfirm: { flex: 1.15, height: 50, borderRadius: 10, flexDirection: 'row', gap: 8, alignItems: 'center', justifyContent: 'center' },
+  deleteConfirmText: { fontSize: 14, fontFamily: 'PlusJakartaSans_700Bold' },
+  disabledButton: { opacity: 0.65 },
 });

@@ -16,6 +16,7 @@ import { Tasks } from "@/pages/tasks/Tasks";
 import { Agenda } from "@/pages/agenda/Agenda";
 import { Reports } from "@/pages/reports/Reports";
 import { PublicQuoteView } from "@/pages/quotes/PublicQuoteView";
+import { PublicTaskFeedback } from "@/pages/tasks/PublicTaskFeedback";
 import { PrivacyPolicy } from "@/pages/legal/PrivacyPolicy";
 import { ClientsList } from "@/pages/clients/ClientsList";
 import { ClientDetail } from "@/pages/clients/ClientDetail";
@@ -251,6 +252,7 @@ function ClerkProviderWithRoutes() {
             <ProtectedRoute path="/orcamentos/novo" component={QuoteForm} />
             <ProtectedRoute path="/orcamentos/:id" component={QuoteDetail} />
             <Route path="/orcamento-publico/:token" component={PublicQuoteView} />
+            <Route path="/feedback/:token" component={PublicTaskFeedback} />
             <Route path="/politica-de-privacidade" component={PrivacyPolicy} />
             <ProtectedRoute path="/tarefas" component={Tasks} />
             <ProtectedRoute path="/agenda" component={Agenda} />

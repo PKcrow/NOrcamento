@@ -136,9 +136,12 @@ export function PublicQuoteView() {
                 ) : null}
                 <div className="min-w-0">
                   <h3 className="text-lg font-bold text-gray-900">{company?.name || "Negócio"}</h3>
-                  {company?.address && <p className="mt-1 text-sm text-gray-500">{company.address}</p>}
-                  {company?.phone && <p className="text-sm text-gray-500">{company.phone}</p>}
-                  {company?.email && <p className="break-all text-sm text-gray-500">{company.email}</p>}
+                  {company?.showLegalNameOnQuotes && company.legalName && <p className="mt-1 text-sm text-gray-500">{company.legalName}</p>}
+                  {company?.showTaxIdOnQuotes && company.taxId && <p className="text-sm text-gray-500">CPF/CNPJ: {company.taxId}</p>}
+                  {company?.showAddressOnQuotes && company.address && <p className="text-sm text-gray-500">{company.address}</p>}
+                  {company?.showPhoneOnQuotes && company.phone && <p className="text-sm text-gray-500">{company.phone}</p>}
+                  {company?.showEmailOnQuotes && company.email && <p className="break-all text-sm text-gray-500">{company.email}</p>}
+                  {company?.showWebsiteOnQuotes && company.website && <p className="break-all text-sm text-gray-500">{company.website}</p>}
                 </div>
               </div>
               <div className="shrink-0 sm:text-right">
@@ -213,6 +216,36 @@ export function PublicQuoteView() {
                 <p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-600">{quote.notes}</p>
               </div>
             )}
+
+            {(company?.showPixKeyOnQuotes && company.pixKey ||
+              company?.showBankDetailsOnQuotes && company.bankDetails ||
+              company?.showPaymentInstructionsOnQuotes && company.paymentInstructions) && (
+              <div className="rounded-xl border border-gray-200 bg-gray-50 p-6">
+                <p className="mb-3 text-xs font-bold uppercase tracking-wider text-gray-400">Dados para pagamento</p>
+                {company.showPixKeyOnQuotes && company.pixKey && <p className="text-sm text-gray-700"><strong>Chave Pix:</strong> {company.pixKey}</p>}
+                {company.showBankDetailsOnQuotes && company.bankDetails && <p className="whitespace-pre-wrap text-sm text-gray-700"><strong>Dados bancários:</strong> {company.bankDetails}</p>}
+                {company.showPaymentInstructionsOnQuotes && company.paymentInstructions && <p className="whitespace-pre-wrap text-sm text-gray-700"><strong>Condições:</strong> {company.paymentInstructions}</p>}
+              </div>
+            )}
+            {company?.showAdditionalInfoOnQuotes && company.additionalInfo && (
+              <div className="rounded-xl border border-gray-200 p-6">
+                <p className="mb-2 text-xs font-bold uppercase tracking-wider text-gray-400">Informações adicionais</p>
+                <p className="whitespace-pre-wrap text-sm text-gray-700">{company.additionalInfo}</p>
+              </div>
+            )}
+
+            <div className="rounded-xl border border-primary/20 bg-primary/[0.04] p-4 text-sm text-gray-600">
+              <p className="font-semibold text-gray-900">Validade do link de aprovação</p>
+              <p className="mt-1">
+                {quote.publicLinkExpiresAt
+                  ? <>
+                      Este link fica disponível até{" "}
+                      <strong className="text-gray-900">{formatDateTime(quote.publicLinkExpiresAt)}</strong>.
+                    </>
+                  : "Este orçamento não possui uma data de expiração disponível."}{" "}
+                O prazo padrão de validade é de 90 dias.
+              </p>
+            </div>
           </div>
         </div>
 

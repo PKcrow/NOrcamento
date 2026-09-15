@@ -9,7 +9,12 @@ export const MAX_UPLOAD_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
 // Upper bound on the *original* file we'll even attempt to process, mostly
 // to avoid hanging the browser on absurdly large raw files.
 export const MAX_ORIGINAL_SIZE_BYTES = 30 * 1024 * 1024; // 30MB
-export const ACCEPTED_IMAGE_TYPES = ["image/png", "image/jpeg", "image/webp"];
+export const ACCEPTED_IMAGE_TYPES = [
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "image/svg+xml",
+];
 
 /**
  * Uploads a file directly to object storage using a presigned URL, then

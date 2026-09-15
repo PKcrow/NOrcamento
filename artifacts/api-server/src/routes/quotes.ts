@@ -47,7 +47,8 @@ import {
 } from "../lib/scheduling";
 
 const router: IRouter = Router();
-const PUBLIC_LINK_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const PUBLIC_LINK_MIN_TTL_MS = 24 * 60 * 60 * 1000;
+const PUBLIC_LINK_TTL_MS = 90 * 24 * 60 * 60 * 1000;
 
 export function quoteWithTotal(
   quote: Quote,
@@ -170,15 +171,25 @@ function isUniqueConstraintError(error: unknown) {
 function isPublicLinkActive(
   quote: Pick<
     Quote,
-    "publicToken" | "publicLinkExpiresAt" | "publicLinkRevokedAt"
+    | "publicToken"
+    | "publicLinkExpiresAt"
+    | "publicLinkRevokedAt"
+    | "status"
   >,
   now = new Date(),
 ) {
+  const canViewPublicQuote =
+    quote.status === "sent" ||
+    quote.status === "approved" ||
+    quote.status === "rejected";
   return Boolean(
     quote.publicToken &&
-      quote.publicLinkExpiresAt &&
       !quote.publicLinkRevokedAt &&
-      quote.publicLinkExpiresAt.getTime() > now.getTime(),
+      canViewPublicQuote &&
+      (quote.status === "approved" ||
+        quote.status === "rejected" ||
+        (quote.publicLinkExpiresAt &&
+          quote.publicLinkExpiresAt.getTime() > now.getTime())),
   );
 }
 
@@ -385,22 +396,18 @@ router.delete("/quotes/:id", requireAuth, requireTeam, async (req, res) => {
     return;
   }
 
-  const [convertedTask] = await db
-    .select({ id: tasksTable.id })
-    .from(tasksTable)
-    .where(eq(tasksTable.quoteId, id));
-  if (convertedTask) {
-    res.status(409).json({
-      error: "Este orçamento já possui uma ordem de serviço vinculada e não pode ser excluído.",
-    });
-    return;
-  }
-
-  await db.delete(quotesTable).where(eq(quotesTable.id, id));
+  await db.transaction(async (tx) => {
+    await tx
+      .delete(tasksTable)
+      .where(and(eq(tasksTable.quoteId, id), eq(tasksTable.teamId, teamId)));
+    await tx
+      .delete(quotesTable)
+      .where(and(eq(quotesTable.id, id), eq(quotesTable.teamId, teamId)));
+  });
   res.status(204).send();
 });
 
-// POST /quotes/:id/share — generate (or reuse) a 30-day public approval link
+// POST /quotes/:id/share — generate (or reuse) a public approval link
 router.post("/quotes/:id/share", requireAuth, requireTeam, async (req, res) => {
   const { id } = ShareQuoteParams.parse(req.params);
   const teamId = req.localUser!.teamId!;
@@ -415,17 +422,36 @@ router.post("/quotes/:id/share", requireAuth, requireTeam, async (req, res) => {
   }
 
   const now = new Date();
-  if (!isPublicLinkActive(existing, now)) {
+  const shouldSendDraft = existing.status === "draft";
+  const existingPublicLinkIsActive = isPublicLinkActive(existing, now);
+  const minimumExpiry = new Date(now.getTime() + PUBLIC_LINK_MIN_TTL_MS);
+  const desiredExpiry = new Date(now.getTime() + PUBLIC_LINK_TTL_MS);
+  const linkNeedsExtension =
+    existingPublicLinkIsActive &&
+    (!existing.publicLinkExpiresAt ||
+      existing.publicLinkExpiresAt <= desiredExpiry);
+  if (!existingPublicLinkIsActive || shouldSendDraft || linkNeedsExtension) {
     const token = randomBytes(24).toString("base64url");
+    const currentExpiry = existing.publicLinkExpiresAt;
+    const linkExpiresAt =
+      existingPublicLinkIsActive &&
+      currentExpiry &&
+      currentExpiry > minimumExpiry &&
+      currentExpiry > desiredExpiry
+        ? currentExpiry
+        : new Date(now.getTime() + PUBLIC_LINK_TTL_MS);
     await db
       .update(quotesTable)
       .set({
-        publicToken: token,
-        publicLinkExpiresAt: new Date(now.getTime() + PUBLIC_LINK_TTL_MS),
+        publicToken:
+          existingPublicLinkIsActive && existing.publicToken
+            ? existing.publicToken
+            : token,
+        publicLinkExpiresAt: linkExpiresAt,
         publicLinkRevokedAt: null,
         // Sharing implies sending: move drafts to "sent"
-        ...(existing.status === "draft"
-          ? { status: "sent" as const, sentAt: new Date() }
+        ...(shouldSendDraft
+          ? { status: "sent" as const, sentAt: existing.sentAt ?? new Date() }
           : {}),
       })
       .where(eq(quotesTable.id, id));
@@ -635,6 +661,23 @@ async function loadPublicQuoteRecord(quote: Quote) {
           phone: team.phone,
           email: team.email,
           address: team.address,
+          legalName: team.legalName,
+          taxId: team.taxId,
+          website: team.website,
+          pixKey: team.pixKey,
+          bankDetails: team.bankDetails,
+          paymentInstructions: team.paymentInstructions,
+          additionalInfo: team.additionalInfo,
+          showPhoneOnQuotes: team.showPhoneOnQuotes,
+          showEmailOnQuotes: team.showEmailOnQuotes,
+          showAddressOnQuotes: team.showAddressOnQuotes,
+          showLegalNameOnQuotes: team.showLegalNameOnQuotes,
+          showTaxIdOnQuotes: team.showTaxIdOnQuotes,
+          showWebsiteOnQuotes: team.showWebsiteOnQuotes,
+          showPixKeyOnQuotes: team.showPixKeyOnQuotes,
+          showBankDetailsOnQuotes: team.showBankDetailsOnQuotes,
+          showPaymentInstructionsOnQuotes: team.showPaymentInstructionsOnQuotes,
+          showAdditionalInfoOnQuotes: team.showAdditionalInfoOnQuotes,
           createdAt: team.createdAt,
         }
       : null,

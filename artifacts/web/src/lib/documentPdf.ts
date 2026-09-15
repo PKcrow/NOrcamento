@@ -4,7 +4,7 @@ import type { Company, Quote, Task } from "@workspace/api-client-react";
 import { formatCurrency, formatDate, formatDateTime } from "@/lib/format";
 import { normalizeStoredObjectUrl } from "@/lib/objectUrl";
 
-type PdfCompany = Pick<Company, "name" | "logoUrl" | "phone" | "email" | "address">;
+type PdfCompany = Partial<Company> & Pick<Company, "name">;
 
 function safeFilePart(value: string): string {
   return value
@@ -54,7 +54,14 @@ function addCompanyHeader(doc: jsPDF, company: PdfCompany, logoDataUrl: string |
   doc.setFont("helvetica", "normal");
   doc.setFontSize(8.5);
   doc.setTextColor(95, 95, 95);
-  const contactLines = [company.address, company.phone, company.email].filter(Boolean) as string[];
+  const contactLines = [
+    company.showLegalNameOnQuotes && company.legalName,
+    company.showTaxIdOnQuotes && company.taxId ? `CPF/CNPJ: ${company.taxId}` : null,
+    company.showAddressOnQuotes && company.address,
+    company.showPhoneOnQuotes && company.phone,
+    company.showEmailOnQuotes && company.email,
+    company.showWebsiteOnQuotes && company.website,
+  ].filter(Boolean) as string[];
   contactLines.slice(0, 3).forEach((line, index) => {
     const lines = doc.splitTextToSize(line, 92);
     doc.text(lines, textX, 25 + index * 5);
@@ -172,9 +179,30 @@ export async function generateQuotePdf(quote: Quote, company?: PdfCompany): Prom
   pdf.setTextColor(239, 115, 31);
   pdf.text(formatCurrency(quote.total), pageWidth - margin - 6, totalY + 8, { align: "right" });
 
+  const paymentRows = [
+    company?.showPixKeyOnQuotes && company.pixKey ? ["Chave Pix", company.pixKey] : null,
+    company?.showBankDetailsOnQuotes && company.bankDetails ? ["Dados bancários", company.bankDetails] : null,
+    company?.showPaymentInstructionsOnQuotes && company.paymentInstructions ? ["Condições", company.paymentInstructions] : null,
+    company?.showAdditionalInfoOnQuotes && company.additionalInfo ? ["Informações adicionais", company.additionalInfo] : null,
+  ].filter(Boolean) as string[][];
+  let extraContentY = totalY + 30;
+  if (paymentRows.length) {
+    autoTable(pdf, {
+      startY: extraContentY,
+      margin: { left: margin, right: margin },
+      head: [["DADOS DA EMPRESA E PAGAMENTO", ""]],
+      body: paymentRows,
+      theme: "grid",
+      styles: { fontSize: 9, cellPadding: 3 },
+      headStyles: { fillColor: [248, 249, 250], textColor: [80, 80, 80] },
+      columnStyles: { 0: { fontStyle: "bold", cellWidth: 42 } },
+    });
+    extraContentY = ((pdf as typeof pdf & { lastAutoTable?: { finalY: number } }).lastAutoTable?.finalY ?? extraContentY) + 10;
+  }
+
   if (quote.notes) {
     const noteLines = pdf.splitTextToSize(quote.notes, pageWidth - margin * 2);
-    let notesY = totalY + 32;
+    let notesY = extraContentY;
     if (notesY + noteLines.length * 4.5 > pageHeight - 20) {
       pdf.addPage();
       notesY = 24;

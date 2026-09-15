@@ -1,6 +1,11 @@
 import { Router, type IRouter } from "express";
 import { and, desc, eq, ilike } from "drizzle-orm";
-import { db, productsTable } from "@workspace/db";
+import {
+  db,
+  productsTable,
+  quoteItemsTable,
+  serviceTemplateItemsTable,
+} from "@workspace/db";
 import {
   ListProductsQueryParams,
   ListProductsResponse,
@@ -96,6 +101,16 @@ router.delete("/products/:id", requireAuth, requireTeam, async (req, res) => {
     return;
   }
 
+  // Keep historical quote/template lines intact while removing the catalog
+  // association, so a product can be deleted after it has been used.
+  await db
+    .update(quoteItemsTable)
+    .set({ productId: null })
+    .where(eq(quoteItemsTable.productId, id));
+  await db
+    .update(serviceTemplateItemsTable)
+    .set({ productId: null })
+    .where(eq(serviceTemplateItemsTable.productId, id));
   await db.delete(productsTable).where(eq(productsTable.id, id));
   res.status(204).send();
 });

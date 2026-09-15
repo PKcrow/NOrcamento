@@ -1,3 +1,4 @@
+- [API codegen and Zod](api-codegen-zod-v4.md) — generated integer validators require the workspace's Zod v4 compatibility entrypoint.
 - [Clerk has no orgs — team model workaround](clerk-team-workaround.md) — build multi-user "team" access as custom DB tables, not a Clerk feature.
 - [removeChild crash from browser translation/extensions](removechild-translate-crash.md) — intermittent NotFoundError removeChild/insertBefore crashes are usually Chrome translate/extensions, not app bugs.
 - [Object storage servable URL convention](object-storage-servable-url.md) — how to turn an upload's objectPath into a browser-loadable URL in this app.
@@ -5,3 +6,7 @@
 - [Adding a field to a shared response shape](shared-response-field-fanout.md) — a field added to one entity (e.g. task.photos) must be backfilled into every route that independently re-shapes that entity, or Zod parsing 500s elsewhere.
 - [Large uploads: compress client-side, don't raise the cap](client-side-image-compression.md) — resize/re-encode phone photos in the browser before upload instead of raising the size limit.
 - [Native document sharing](native-document-sharing.md) — generate a real PDF and use Android Web Share with a file, falling back to download when unsupported.
+- [Expo Print web behavior](expo-print-web-behavior.md) — on Expo Web, printToFileAsync delegates to window.print instead of creating a PDF file.
+- [Destructive confirmations on Expo Web](expo-web-confirmations.md) — multi-button React Native alerts may not invoke actions; use browser confirmation on web.
+- [Expo native package compatibility](expo-native-package-compatibility.md) — native Expo modules must use the SDK-compatible version line, not the newest registry release.
+- [Public web links from mobile](public-web-links.md) — customer links require the published app; preview links and data are development-only.

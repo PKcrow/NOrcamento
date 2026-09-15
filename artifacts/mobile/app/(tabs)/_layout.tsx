@@ -47,9 +47,7 @@ export default function TabsLayout() {
         tabBarActiveTintColor: theme.primary,
         tabBarInactiveTintColor: theme.tabIconDefault,
         tabBarStyle: {
-          backgroundColor: theme.card,
-          borderTopColor: theme.border,
-          borderTopWidth: 1,
+            display: 'none',
         },
         tabBarLabelStyle: {
           fontFamily: 'PlusJakartaSans_500Medium',

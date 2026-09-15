@@ -127,18 +127,24 @@ export default function EquipesScreen() {
 
   const handleRemoveMember = (userId: string, name: string) => {
     if (!isOwner) return;
+    const isSelf = userId === me?.id;
     Alert.alert(
-      'Remover membro',
-      `Remover ${name} da equipe?`,
+      isSelf ? 'Sair da equipe' : 'Remover membro',
+      isSelf
+        ? 'Você perderá o acesso a esta equipe. Se você for o único dono, esta ação não será permitida.'
+        : `Remover ${name} da equipe?`,
       [
         { text: 'Cancelar', style: 'cancel' },
         {
-          text: 'Remover',
+          text: isSelf ? 'Sair' : 'Remover',
           style: 'destructive',
           onPress: () =>
             removeMember(
               { userId },
-              { onSuccess: refresh, onError: () => Alert.alert('Erro', 'Não foi possível remover o membro.') }
+              {
+                onSuccess: refresh,
+                onError: () => Alert.alert('Erro', isSelf ? 'Não foi possível sair da equipe.' : 'Não foi possível remover o membro.'),
+              }
             ),
         },
       ]
@@ -226,10 +232,14 @@ export default function EquipesScreen() {
                     {member.role === 'owner' ? 'Proprietário' : 'Membro'}
                   </Text>
                 </View>
-                {isOwner && member.id !== me?.id && (
+                {(isOwner || member.id === me?.id) && (
                   <TouchableOpacity
                     style={styles.memberAction}
                     onPress={() => {
+                      if (member.id === me?.id) {
+                        handleRemoveMember(member.id, member.name);
+                        return;
+                      }
                       Alert.alert(member.name, 'Escolha uma ação:', [
                         { text: 'Cancelar', style: 'cancel' },
                         {

@@ -39,6 +39,10 @@ export const tasksTable = pgTable("tasks", {
     .default("scheduled"),
   paidAt: timestamp("paid_at", { withTimezone: true }),
   paidAmount: numeric("paid_amount", { precision: 12, scale: 2 }),
+  feedbackToken: text("feedback_token").unique(),
+  feedbackSubmittedAt: timestamp("feedback_submitted_at", { withTimezone: true }),
+  feedbackRating: integer("feedback_rating"),
+  feedbackComment: text("feedback_comment"),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()
     .defaultNow(),

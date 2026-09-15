@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   RefreshControl,
   ScrollView,
+  TextInput,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -30,8 +31,6 @@ const STATUS_COLORS: Record<TaskStatus, string> = {
   paid: '#8b5cf6',
 };
 
-const fmt = (v: number) =>
-  new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 const timeRange = (task: { dueAt: string; endAt?: string | null }) => {
   const start = new Date(task.dueAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' });
   if (!task.endAt) return `${start} · defina o término`;
@@ -49,6 +48,94 @@ function isSameDay(a: Date, b: Date) {
   return a.getFullYear() === b.getFullYear() &&
     a.getMonth() === b.getMonth() &&
     a.getDate() === b.getDate();
+}
+
+function startOfWeek(date: Date): Date {
+  const result = new Date(date);
+  result.setHours(0, 0, 0, 0);
+  result.setDate(result.getDate() - result.getDay());
+  return result;
+}
+
+function hasConflicts(tasks: any[]): boolean {
+  const sorted = [...tasks]
+    .filter(task => task.dueAt)
+    .sort((a, b) => new Date(a.dueAt).getTime() - new Date(b.dueAt).getTime());
+  return sorted.some((task, index) => {
+    if (index === 0) return false;
+    const previous = sorted[index - 1];
+    const previousEnd = previous.endAt ? new Date(previous.endAt).getTime() : new Date(previous.dueAt).getTime();
+    return new Date(task.dueAt).getTime() < previousEnd;
+  });
+}
+
+function WeekAgenda({
+  theme,
+  tasks,
+  selectedDate,
+  onSelectDate,
+  onPrev,
+  onNext,
+}: {
+  theme: typeof Colors.light;
+  tasks: any[];
+  selectedDate: Date;
+  onSelectDate: (date: Date) => void;
+  onPrev: () => void;
+  onNext: () => void;
+}) {
+  const weekStart = startOfWeek(selectedDate);
+  const days = Array.from({ length: 7 }, (_, index) => {
+    const day = new Date(weekStart);
+    day.setDate(weekStart.getDate() + index);
+    return day;
+  });
+
+  return (
+    <View style={[styles.weekAgenda, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
+      <View style={styles.weekHeader}>
+        <TouchableOpacity onPress={onPrev} style={styles.weekNavButton}>
+          <Ionicons name="chevron-back" size={19} color={theme.primary} />
+        </TouchableOpacity>
+        <Text style={[styles.weekTitle, { color: theme.foreground }]}>
+          {days[0].toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' })} — {days[6].toLocaleDateString('pt-BR', { day: '2-digit', month: 'short', year: 'numeric' })}
+        </Text>
+        <TouchableOpacity onPress={onNext} style={styles.weekNavButton}>
+          <Ionicons name="chevron-forward" size={19} color={theme.primary} />
+        </TouchableOpacity>
+      </View>
+      <View style={styles.weekDays}>
+        {days.map(day => {
+          const dayTasks = tasks.filter(task => isSameDay(new Date(task.dueAt), day));
+          const selected = isSameDay(day, selectedDate);
+          const today = isSameDay(day, new Date());
+          return (
+            <TouchableOpacity
+              key={day.toISOString()}
+              style={[
+                styles.weekDay,
+                selected && { backgroundColor: theme.primary },
+                !selected && today && { borderColor: theme.primary, borderWidth: 1 },
+              ]}
+              onPress={() => onSelectDate(day)}
+            >
+              <Text style={[styles.weekDayName, { color: selected ? '#ffffff' : theme.mutedForeground }]}>
+                {DAY_NAMES[day.getDay()]}
+              </Text>
+              <Text style={[styles.weekDayNumber, { color: selected ? '#ffffff' : theme.foreground }]}>
+                {day.getDate()}
+              </Text>
+              {!!dayTasks.length && (
+                <View style={[styles.weekTaskCount, { backgroundColor: selected ? '#ffffff' : theme.primary }]}>
+                  <Text style={[styles.weekTaskCountText, { color: selected ? theme.primary : '#ffffff' }]}>{dayTasks.length}</Text>
+                </View>
+              )}
+            </TouchableOpacity>
+          );
+        })}
+      </View>
+    </View>
+  );
 }
 
 function MonthCalendar({
@@ -151,6 +238,8 @@ export default function TarefasScreen() {
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
   const [status, setStatus] = useState<TaskStatus | undefined>(undefined);
   const [selectedDate, setSelectedDate] = useState<Date | null>(null);
+  const [search, setSearch] = useState('');
+  const [calendarMode, setCalendarMode] = useState<'month' | 'week' | 'day'>('month');
 
   const now = new Date();
   const [calYear, setCalYear] = useState(now.getFullYear());
@@ -161,11 +250,12 @@ export default function TarefasScreen() {
   const { data: filteredTasks, isRefetching, refetch } = useListTasks({ status });
 
   const tasksForCalendar = allTasks ?? [];
+  const agendaDate = selectedDate ?? new Date();
 
   const calendarDayTasks = useMemo(() => {
-    if (!selectedDate) return tasksForCalendar;
-    return tasksForCalendar.filter(t => t.dueAt && isSameDay(new Date(t.dueAt), selectedDate));
-  }, [tasksForCalendar, selectedDate]);
+    if (calendarMode === 'month' && !selectedDate) return tasksForCalendar;
+    return tasksForCalendar.filter(t => t.dueAt && isSameDay(new Date(t.dueAt), agendaDate));
+  }, [tasksForCalendar, selectedDate, calendarMode, agendaDate]);
 
   const filters: Array<TaskStatus | 'all'> = ['all', 'scheduled', 'in_progress', 'completed', 'paid'];
 
@@ -179,8 +269,23 @@ export default function TarefasScreen() {
     else setCalMonth(m => m + 1);
     setSelectedDate(null);
   };
+  const moveWeek = (amount: number) => {
+    const date = new Date(agendaDate);
+    date.setDate(date.getDate() + amount * 7);
+    setSelectedDate(date);
+  };
 
-  const displayTasks = viewMode === 'calendar' ? calendarDayTasks : (filteredTasks ?? []);
+  const displayTasks = viewMode === 'calendar'
+    ? calendarDayTasks
+    : (filteredTasks ?? []).filter(task => {
+      const term = search.trim().toLowerCase();
+      if (!term) return true;
+      return (
+        task.title.toLowerCase().includes(term) ||
+        (task.clientName?.toLowerCase().includes(term) ?? false) ||
+        (task.description?.toLowerCase().includes(term) ?? false)
+      );
+    });
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>
@@ -206,54 +311,106 @@ export default function TarefasScreen() {
 
       {/* Calendar */}
       {viewMode === 'calendar' && (
-        <MonthCalendar
-          theme={theme}
-          tasks={tasksForCalendar}
-          calYear={calYear}
-          calMonth={calMonth}
-          selectedDate={selectedDate}
-          onSelectDate={d => setSelectedDate(prev => prev && isSameDay(prev, d) ? null : d)}
-          onPrev={prevMonth}
-          onNext={nextMonth}
-        />
+        <>
+          <View style={[styles.agendaModes, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
+            {(['month', 'week', 'day'] as const).map(mode => (
+              <TouchableOpacity
+                key={mode}
+                style={[styles.agendaMode, calendarMode === mode && { backgroundColor: theme.primary }]}
+                onPress={() => {
+                  setCalendarMode(mode);
+                  if (mode !== 'month' && !selectedDate) setSelectedDate(new Date());
+                }}
+              >
+                <Text style={[styles.agendaModeText, { color: calendarMode === mode ? '#ffffff' : theme.mutedForeground }]}>
+                  {mode === 'month' ? 'Mês' : mode === 'week' ? 'Semana' : 'Dia'}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+          {calendarMode === 'month' ? (
+            <MonthCalendar
+              theme={theme}
+              tasks={tasksForCalendar}
+              calYear={calYear}
+              calMonth={calMonth}
+              selectedDate={selectedDate}
+              onSelectDate={d => setSelectedDate(prev => prev && isSameDay(prev, d) ? null : d)}
+              onPrev={prevMonth}
+              onNext={nextMonth}
+            />
+          ) : (
+            <WeekAgenda
+              theme={theme}
+              tasks={tasksForCalendar}
+              selectedDate={agendaDate}
+              onSelectDate={setSelectedDate}
+              onPrev={() => moveWeek(-1)}
+              onNext={() => moveWeek(1)}
+            />
+          )}
+        </>
       )}
 
       {/* Status filters (list mode only) */}
       {viewMode === 'list' && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          style={[styles.filterRow, { backgroundColor: theme.card, borderBottomColor: theme.border }]}
-          contentContainerStyle={styles.filterContent}
-        >
-          {filters.map(f => (
-            <TouchableOpacity
-              key={f}
-              style={[
-                styles.filterChip,
-                { backgroundColor: theme.muted },
-                (f === 'all' ? !status : status === f) && { backgroundColor: theme.primary },
-              ]}
-              onPress={() => setStatus(f === 'all' ? undefined : f as TaskStatus)}
-            >
-              <Text style={[
-                styles.filterChipText,
-                { color: (f === 'all' ? !status : status === f) ? '#ffffff' : theme.mutedForeground },
-              ]}>
-                {STATUS_LABELS[f]}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+        <>
+          <View style={[styles.searchRow, { backgroundColor: theme.card, borderBottomColor: theme.border }]}>
+            <Ionicons name="search-outline" size={18} color={theme.mutedForeground} />
+            <TextInput
+              style={[styles.searchInput, { color: theme.foreground }]}
+              placeholder="Buscar por título, cliente ou descrição..."
+              placeholderTextColor={theme.mutedForeground}
+              value={search}
+              onChangeText={setSearch}
+              returnKeyType="search"
+            />
+            {!!search && (
+              <TouchableOpacity onPress={() => setSearch('')} accessibilityLabel="Limpar busca">
+                <Ionicons name="close-circle" size={18} color={theme.mutedForeground} />
+              </TouchableOpacity>
+            )}
+          </View>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={[styles.filterRow, { backgroundColor: theme.card, borderBottomColor: theme.border }]}
+            contentContainerStyle={styles.filterContent}
+          >
+            {filters.map(f => (
+              <TouchableOpacity
+                key={f}
+                style={[
+                  styles.filterChip,
+                  { backgroundColor: theme.muted },
+                  (f === 'all' ? !status : status === f) && { backgroundColor: theme.primary },
+                ]}
+                onPress={() => setStatus(f === 'all' ? undefined : f as TaskStatus)}
+              >
+                <Text style={[
+                  styles.filterChipText,
+                  { color: (f === 'all' ? !status : status === f) ? '#ffffff' : theme.mutedForeground },
+                ]}>
+                  {STATUS_LABELS[f]}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </>
       )}
 
       {/* Calendar day header */}
       {viewMode === 'calendar' && selectedDate && (
         <View style={[styles.dayHeader, { backgroundColor: theme.background }]}>
-          <Text style={[styles.dayHeaderText, { color: theme.foreground }]}>
-            {selectedDate.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })}
-          </Text>
-          <TouchableOpacity onPress={() => setSelectedDate(null)}>
+          <View style={styles.dayHeaderTextBlock}>
+            <Text style={[styles.dayHeaderText, { color: theme.foreground }]}>
+              {selectedDate.toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' })}
+            </Text>
+            {hasConflicts(calendarDayTasks) && (
+              <Text style={styles.conflictText}>Atenção: há horários sobrepostos neste dia.</Text>
+            )}
+          </View>
+          <TouchableOpacity onPress={() => setSelectedDate(null)} accessibilityLabel="Limpar dia selecionado">
             <Ionicons name="close-circle" size={18} color={theme.mutedForeground} />
           </TouchableOpacity>
         </View>
@@ -296,13 +453,35 @@ export default function TarefasScreen() {
                     {STATUS_LABELS[item.status as TaskStatus]}
                   </Text>
                 </View>
-                {item.paidAmount != null && (
-                  <Text style={[styles.cardAmount, { color: '#8b5cf6' }]}>
-                    {fmt(item.paidAmount)}
-                  </Text>
+                {(item.status === 'completed' || item.status === 'paid') && item.feedbackSubmittedAt && item.feedbackRating != null && (
+                  <View style={styles.ratingRow}>
+                    {Array.from({ length: 5 }, (_, index) => (
+                      <Ionicons
+                        key={index}
+                        name={index < item.feedbackRating! ? 'star' : 'star-outline'}
+                        size={12}
+                        color={index < item.feedbackRating! ? '#f59e0b' : theme.border}
+                      />
+                    ))}
+                    <Text style={[styles.ratingText, { color: theme.mutedForeground }]}>
+                      {item.feedbackRating}/5
+                    </Text>
+                  </View>
                 )}
               </View>
             </View>
+            {viewMode === 'calendar' && (
+              <TouchableOpacity
+                style={[styles.rescheduleButton, { borderTopColor: theme.border }]}
+                onPress={event => {
+                  event.stopPropagation();
+                  router.push(`/tarefa/editar/${item.id}`);
+                }}
+              >
+                <Ionicons name="calendar-outline" size={14} color={theme.primary} />
+                <Text style={[styles.rescheduleText, { color: theme.primary }]}>Reagendar</Text>
+              </TouchableOpacity>
+            )}
           </TouchableOpacity>
         )}
         ListEmptyComponent={() => (
@@ -313,6 +492,8 @@ export default function TarefasScreen() {
                 ? 'Nenhuma O.S. neste dia.'
                 : status
                 ? 'Nenhuma O.S. com esse status.'
+                : search
+                ? 'Nenhuma O.S. encontrada para essa busca.'
                 : 'Nenhuma ordem de serviço ainda.'}
             </Text>
           </View>
@@ -365,6 +546,29 @@ const styles = StyleSheet.create({
     borderRadius: 8,
   },
   segmentText: { fontSize: 13, fontFamily: 'PlusJakartaSans_600SemiBold' },
+  agendaModes: {
+    flexDirection: 'row',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    gap: 6,
+    borderBottomWidth: 1,
+  },
+  agendaMode: { flex: 1, alignItems: 'center', paddingVertical: 7, borderRadius: 8 },
+  agendaModeText: { fontSize: 12, fontFamily: 'PlusJakartaSans_600SemiBold' },
+  searchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 14,
+    fontFamily: 'PlusJakartaSans_400Regular',
+    paddingVertical: 0,
+  },
   filterRow: { maxHeight: 48, borderBottomWidth: 1 },
   filterContent: { paddingHorizontal: 12, paddingVertical: 8, gap: 6, alignItems: 'center' },
   filterChip: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
@@ -377,6 +581,20 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   dayHeaderText: { fontSize: 13, fontFamily: 'PlusJakartaSans_600SemiBold', textTransform: 'capitalize' },
+  dayHeaderTextBlock: { flex: 1 },
+  conflictText: { color: '#dc2626', fontSize: 11, fontFamily: 'PlusJakartaSans_600SemiBold', marginTop: 3 },
+  weekAgenda: { borderBottomWidth: 1, paddingHorizontal: 10, paddingBottom: 10 },
+  weekHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingVertical: 8 },
+  weekNavButton: { padding: 5 },
+  weekTitle: { fontSize: 13, fontFamily: 'PlusJakartaSans_600SemiBold', textTransform: 'capitalize' },
+  weekDays: { flexDirection: 'row', justifyContent: 'space-between', gap: 4 },
+  weekDay: { flex: 1, minHeight: 66, alignItems: 'center', justifyContent: 'center', borderRadius: 10, gap: 3 },
+  weekDayName: { fontSize: 10, fontFamily: 'PlusJakartaSans_600SemiBold' },
+  weekDayNumber: { fontSize: 16, fontFamily: 'PlusJakartaSans_700Bold' },
+  weekTaskCount: { minWidth: 16, height: 16, paddingHorizontal: 4, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
+  weekTaskCountText: { fontSize: 9, fontFamily: 'PlusJakartaSans_700Bold' },
+  rescheduleButton: { flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 5, borderTopWidth: 1, marginTop: 10, paddingTop: 9 },
+  rescheduleText: { fontSize: 12, fontFamily: 'PlusJakartaSans_600SemiBold' },
   listContent: { padding: 12, paddingBottom: 80 },
   card: { borderRadius: 10, borderWidth: 1, padding: 14, marginBottom: 8 },
   cardRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
@@ -385,7 +603,8 @@ const styles = StyleSheet.create({
   cardSub: { fontSize: 12, fontFamily: 'PlusJakartaSans_400Regular', marginBottom: 2 },
   cardDate: { fontSize: 11, fontFamily: 'PlusJakartaSans_400Regular' },
   cardRight: { alignItems: 'flex-end', gap: 6 },
-  cardAmount: { fontSize: 13, fontFamily: 'PlusJakartaSans_700Bold' },
+  ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  ratingText: { fontSize: 11, fontFamily: 'PlusJakartaSans_600SemiBold', marginLeft: 3 },
   badge: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 },
   badgeText: { fontSize: 11, fontFamily: 'PlusJakartaSans_600SemiBold' },
   empty: { alignItems: 'center', paddingVertical: 60, gap: 12 },

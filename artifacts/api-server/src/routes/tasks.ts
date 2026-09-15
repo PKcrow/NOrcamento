@@ -1,6 +1,13 @@
 import { Router, type IRouter } from "express";
-import { and, asc, eq, ilike, or } from "drizzle-orm";
-import { db, clientsTable, tasksTable, taskPhotosTable } from "@workspace/db";
+import { randomBytes } from "node:crypto";
+import { and, asc, eq, ilike, isNull, or } from "drizzle-orm";
+import {
+  db,
+  clientsTable,
+  tasksTable,
+  taskPhotosTable,
+  teamsTable,
+} from "@workspace/db";
 import {
   ListTasksQueryParams,
   ListTasksResponse,
@@ -14,6 +21,13 @@ import {
   AddTaskPhotoBody,
   AddTaskPhotoResponse,
   DeleteTaskPhotoParams,
+  CreateTaskFeedbackLinkParams,
+  CreateTaskFeedbackLinkResponse,
+  GetPublicTaskFeedbackParams,
+  GetPublicTaskFeedbackResponse,
+  RespondPublicTaskFeedbackParams,
+  RespondPublicTaskFeedbackBody,
+  RespondPublicTaskFeedbackResponse,
 } from "@workspace/api-zod";
 import { requireAuth, requireTeam } from "../middlewares/auth";
 import {
@@ -209,6 +223,17 @@ router.patch("/tasks/:id", requireAuth, requireTeam, async (req, res) => {
     ...(paidAmount !== undefined
       ? { paidAmount: paidAmount !== null ? String(paidAmount) : null }
       : {}),
+    ...(body.status &&
+    body.status !== "completed" &&
+    body.status !== "paid" &&
+    existing.feedbackToken
+      ? {
+          feedbackToken: null,
+          feedbackSubmittedAt: null,
+          feedbackRating: null,
+          feedbackComment: null,
+        }
+      : {}),
   };
 
   let updated: typeof tasksTable.$inferSelect;
@@ -246,6 +271,56 @@ router.patch("/tasks/:id", requireAuth, requireTeam, async (req, res) => {
 
   res.json(UpdateTaskResponse.parse(await withClientName(updated)));
 });
+
+router.post(
+  "/tasks/:id/feedback-link",
+  requireAuth,
+  requireTeam,
+  async (req, res) => {
+    const { id } = CreateTaskFeedbackLinkParams.parse(req.params);
+    const teamId = req.localUser!.teamId!;
+    const [existing] = await db
+      .select()
+      .from(tasksTable)
+      .where(and(eq(tasksTable.id, id), eq(tasksTable.teamId, teamId)));
+
+    if (!existing) {
+      res.status(404).json({ error: "Tarefa não encontrada" });
+      return;
+    }
+    if (existing.status !== "completed" && existing.status !== "paid") {
+      res
+        .status(409)
+        .json({ error: "O feedback só pode ser solicitado após concluir a O.S." });
+      return;
+    }
+
+    const feedbackToken =
+      existing.feedbackToken && !existing.feedbackSubmittedAt
+        ? existing.feedbackToken
+        : randomBytes(24).toString("hex");
+    const [updated] = await db
+      .update(tasksTable)
+      .set({
+        feedbackToken,
+        feedbackSubmittedAt: null,
+        feedbackRating: null,
+        feedbackComment: null,
+      })
+      .where(eq(tasksTable.id, id))
+      .returning();
+
+    res.json(
+      CreateTaskFeedbackLinkResponse.parse({
+        taskId: updated.id,
+        feedbackToken: updated.feedbackToken,
+        feedbackSubmittedAt: updated.feedbackSubmittedAt,
+        feedbackRating: updated.feedbackRating,
+        feedbackComment: updated.feedbackComment,
+      }),
+    );
+  },
+);
 
 router.delete("/tasks/:id", requireAuth, requireTeam, async (req, res) => {
   const { id } = DeleteTaskParams.parse(req.params);
@@ -318,5 +393,93 @@ router.delete(
     res.status(204).send();
   },
 );
+
+router.get("/public/feedback/:token", async (req, res) => {
+  const { token } = GetPublicTaskFeedbackParams.parse(req.params);
+  const [task] = await db
+    .select()
+    .from(tasksTable)
+    .where(
+      and(
+        eq(tasksTable.feedbackToken, token),
+        isNull(tasksTable.feedbackSubmittedAt),
+      ),
+    );
+  if (!task) {
+    res.status(404).json({ error: "Link de feedback não encontrado ou já respondido" });
+    return;
+  }
+
+  const [client] = task.clientId
+    ? await db
+        .select({ name: clientsTable.name })
+        .from(clientsTable)
+        .where(eq(clientsTable.id, task.clientId))
+    : [];
+  const [team] = await db
+    .select()
+    .from(teamsTable)
+    .where(eq(teamsTable.id, task.teamId));
+
+  res.json(
+    GetPublicTaskFeedbackResponse.parse({
+      task: {
+        id: task.id,
+        title: task.title,
+        clientName: client?.name ?? null,
+        status: task.status,
+      },
+      company: team
+        ? {
+            id: team.id,
+            name: team.name,
+            logoUrl: team.logoUrl,
+            phone: team.phone,
+            email: team.email,
+            address: team.address,
+            createdAt: team.createdAt,
+          }
+        : null,
+    }),
+  );
+});
+
+router.post("/public/feedback/:token", async (req, res) => {
+  const { token } = RespondPublicTaskFeedbackParams.parse(req.params);
+  const body = RespondPublicTaskFeedbackBody.parse(req.body);
+  const [updated] = await db
+    .update(tasksTable)
+    .set({
+      feedbackRating: body.rating,
+      feedbackComment: body.comment?.trim() || null,
+      feedbackSubmittedAt: new Date(),
+    })
+    .where(
+      and(
+        eq(tasksTable.feedbackToken, token),
+        isNull(tasksTable.feedbackSubmittedAt),
+      ),
+    )
+    .returning({
+      id: tasksTable.id,
+      rating: tasksTable.feedbackRating,
+      comment: tasksTable.feedbackComment,
+      submittedAt: tasksTable.feedbackSubmittedAt,
+    });
+
+  if (!updated) {
+    res.status(404).json({ error: "Link de feedback não encontrado ou já respondido" });
+    return;
+  }
+
+  res.json(
+    RespondPublicTaskFeedbackResponse.parse({
+      taskId: updated.id,
+      rating: updated.rating,
+      comment: updated.comment,
+      submittedAt: updated.submittedAt,
+    }),
+  );
+});
 
 export default router;

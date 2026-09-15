@@ -190,6 +190,21 @@ export interface Task {
   paidAmount: number | null;
   createdAt: string;
   photos: TaskPhoto[];
+  /**
+     * Active public feedback token, if one has been created.
+     * @nullable
+     */
+  feedbackToken: string | null;
+  /** @nullable */
+  feedbackSubmittedAt: string | null;
+  /**
+     * @minimum 1
+     * @maximum 5
+     * @nullable
+     */
+  feedbackRating: number | null;
+  /** @nullable */
+  feedbackComment: string | null;
 }
 
 export type ClientDetail = Client & {
@@ -328,6 +343,30 @@ export interface Company {
   email: string | null;
   /** @nullable */
   address: string | null;
+  /** @nullable */
+  legalName: string | null;
+  /** @nullable */
+  taxId: string | null;
+  /** @nullable */
+  website: string | null;
+  /** @nullable */
+  pixKey: string | null;
+  /** @nullable */
+  bankDetails: string | null;
+  /** @nullable */
+  paymentInstructions: string | null;
+  /** @nullable */
+  additionalInfo: string | null;
+  showPhoneOnQuotes: boolean;
+  showEmailOnQuotes: boolean;
+  showAddressOnQuotes: boolean;
+  showLegalNameOnQuotes: boolean;
+  showTaxIdOnQuotes: boolean;
+  showWebsiteOnQuotes: boolean;
+  showPixKeyOnQuotes: boolean;
+  showBankDetailsOnQuotes: boolean;
+  showPaymentInstructionsOnQuotes: boolean;
+  showAdditionalInfoOnQuotes: boolean;
   createdAt: string;
 }
 
@@ -448,6 +487,56 @@ export interface TaskPhotoInput {
   url: string;
 }
 
+export interface TaskFeedbackLink {
+  taskId: number;
+  feedbackToken: string;
+  /** @nullable */
+  feedbackSubmittedAt: string | null;
+  /**
+     * @minimum 1
+     * @maximum 5
+     * @nullable
+     */
+  feedbackRating: number | null;
+  /** @nullable */
+  feedbackComment: string | null;
+}
+
+export interface PublicTaskFeedbackTask {
+  id: number;
+  title: string;
+  /** @nullable */
+  clientName: string | null;
+  status: TaskStatus;
+}
+
+export interface PublicTaskFeedback {
+  task: PublicTaskFeedbackTask;
+  company: Company | null;
+}
+
+export interface PublicTaskFeedbackInput {
+  /**
+     * @minimum 1
+     * @maximum 5
+     */
+  rating: number;
+  /** @maxLength 2000 */
+  comment?: string;
+}
+
+export interface PublicTaskFeedbackSubmission {
+  taskId: number;
+  /**
+     * @minimum 1
+     * @maximum 5
+     */
+  rating: number;
+  /** @nullable */
+  comment: string | null;
+  submittedAt: string;
+}
+
 export type DashboardPriorityType = typeof DashboardPriorityType[keyof typeof DashboardPriorityType];
 
 
@@ -547,6 +636,56 @@ export interface CompanyUpdate {
   email?: string | null;
   /** @nullable */
   address?: string | null;
+  /** @nullable */
+  legalName?: string | null;
+  /** @nullable */
+  taxId?: string | null;
+  /** @nullable */
+  website?: string | null;
+  /** @nullable */
+  pixKey?: string | null;
+  /** @nullable */
+  bankDetails?: string | null;
+  /** @nullable */
+  paymentInstructions?: string | null;
+  /** @nullable */
+  additionalInfo?: string | null;
+  showPhoneOnQuotes?: boolean;
+  showEmailOnQuotes?: boolean;
+  showAddressOnQuotes?: boolean;
+  showLegalNameOnQuotes?: boolean;
+  showTaxIdOnQuotes?: boolean;
+  showWebsiteOnQuotes?: boolean;
+  showPixKeyOnQuotes?: boolean;
+  showBankDetailsOnQuotes?: boolean;
+  showPaymentInstructionsOnQuotes?: boolean;
+  showAdditionalInfoOnQuotes?: boolean;
+}
+
+export interface CompanyDocument {
+  id: number;
+  name: string;
+  documentType: string;
+  fileName: string;
+  objectPath: string;
+  contentType: string;
+  size: number;
+  createdAt: string;
+}
+
+export interface CompanyDocumentInput {
+  /** @minLength 1 */
+  name: string;
+  /** @minLength 1 */
+  documentType: string;
+  /** @minLength 1 */
+  fileName: string;
+  /** @minLength 1 */
+  objectPath: string;
+  /** @minLength 1 */
+  contentType: string;
+  /** @minimum 1 */
+  size: number;
 }
 
 export interface UploadUrlRequest {

@@ -14,6 +14,7 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import {
   useListClients,
+  useListProducts,
   useListServiceTemplates,
   useCreateQuote,
 } from '@workspace/api-client-react';
@@ -22,6 +23,7 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 import { useQueryClient } from '@tanstack/react-query';
 
 type Item = {
+  productId: number | null;
   description: string;
   quantity: string;
   unitPrice: string;
@@ -48,12 +50,18 @@ export default function NovoOrcamentoScreen() {
   const [serviceScopeEnabled, setServiceScopeEnabled] = useState(false);
   const [serviceDescription, setServiceDescription] = useState('');
   const [items, setItems] = useState<Item[]>([
-    { description: '', quantity: '1', unitPrice: '' },
+    { productId: null, description: '', quantity: '1', unitPrice: '' },
   ]);
 
   const { data: clients } = useListClients({ search: clientSearch || undefined });
+  const {
+    data: products,
+    isLoading: isLoadingProducts,
+    isError: isProductsError,
+  } = useListProducts();
   const { data: serviceTemplates } = useListServiceTemplates();
   const { mutate: createQuote, isPending } = useCreateQuote();
+  const [openProductIndex, setOpenProductIndex] = useState<number | null>(null);
 
   const selectedClient = clients?.find(c => c.id === selectedClientId);
 
@@ -67,19 +75,35 @@ export default function NovoOrcamentoScreen() {
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
   const addItem = () =>
-    setItems(prev => [{ description: '', quantity: '1', unitPrice: '' }, ...prev]);
+    setItems(prev => [{ productId: null, description: '', quantity: '1', unitPrice: '' }, ...prev]);
 
-  const updateItem = (i: number, field: keyof Item, value: string) =>
+  const updateItem = (i: number, field: Exclude<keyof Item, 'productId'>, value: string) =>
     setItems(prev => prev.map((it, idx) => (idx === i ? { ...it, [field]: value } : it)));
 
   const removeItem = (i: number) =>
     setItems(prev => prev.length > 1 ? prev.filter((_, idx) => idx !== i) : prev);
+
+  const selectProduct = (itemIndex: number, productId: number | null) => {
+    const product = products?.find((entry) => entry.id === productId);
+    setItems(prev => prev.map((item, index) => {
+      if (index !== itemIndex) return item;
+      if (!product) return { ...item, productId: null };
+      return {
+        ...item,
+        productId: product.id,
+        description: product.name,
+        unitPrice: String(product.price),
+      };
+    }));
+    setOpenProductIndex(null);
+  };
 
   const applyTemplate = (templateId: number) => {
     const template = serviceTemplates?.find((entry) => entry.id === templateId);
     if (!template) return;
     setSelectedTemplateId(template.id);
     setItems(template.items.map((item) => ({
+      productId: item.productId,
       description: item.description,
       quantity: String(item.quantity),
       unitPrice: String(item.unitPrice),
@@ -110,6 +134,7 @@ export default function NovoOrcamentoScreen() {
           serviceScopeEnabled,
           serviceDescription: serviceScopeEnabled ? serviceDescription.trim() || null : null,
           items: validItems.map(it => ({
+            productId: it.productId,
             description: it.description.trim(),
             quantity: parseMoney(it.quantity) || 1,
             unitPrice: parseMoney(it.unitPrice),
@@ -293,6 +318,81 @@ export default function NovoOrcamentoScreen() {
                 </TouchableOpacity>
               )}
             </View>
+            <Text style={[styles.inputLabel, { color: theme.mutedForeground }]}>Produto cadastrado</Text>
+            <TouchableOpacity
+              style={[styles.productPicker, { borderColor: theme.border, backgroundColor: theme.background }]}
+              onPress={() => setOpenProductIndex(openProductIndex === i ? null : i)}
+              disabled={isLoadingProducts || isProductsError}
+            >
+              <Ionicons
+                name="pricetag-outline"
+                size={16}
+                color={item.productId ? theme.primary : theme.mutedForeground}
+              />
+              <Text
+                style={[
+                  styles.productPickerText,
+                  { color: item.productId ? theme.foreground : theme.mutedForeground },
+                ]}
+                numberOfLines={1}
+              >
+                {isLoadingProducts
+                  ? 'Carregando produtos...'
+                  : isProductsError
+                    ? 'Não foi possível carregar os produtos'
+                    : products?.find((product) => product.id === item.productId)?.name
+                      ?? 'Selecionar produto ou serviço'}
+              </Text>
+              <Ionicons
+                name={openProductIndex === i ? 'chevron-up' : 'chevron-down'}
+                size={16}
+                color={theme.mutedForeground}
+              />
+            </TouchableOpacity>
+            {openProductIndex === i && !isLoadingProducts && !isProductsError && (
+              <View style={[styles.productDropdown, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                <TouchableOpacity
+                  style={styles.productDropdownItem}
+                  onPress={() => selectProduct(i, null)}
+                >
+                  <Text style={[styles.dropdownItemText, { color: theme.mutedForeground }]}>
+                    Item livre (sem catálogo)
+                  </Text>
+                </TouchableOpacity>
+                {(products ?? []).map((product) => (
+                  <TouchableOpacity
+                    key={product.id}
+                    style={[
+                      styles.productDropdownItem,
+                      item.productId === product.id && { backgroundColor: theme.primary + '11' },
+                    ]}
+                    onPress={() => selectProduct(i, product.id)}
+                  >
+                    <View style={styles.productChoiceCopy}>
+                      <Text style={[styles.dropdownItemText, { color: theme.foreground }]}>
+                        {product.name}
+                      </Text>
+                      {product.description ? (
+                        <Text
+                          style={[styles.productChoiceMeta, { color: theme.mutedForeground }]}
+                          numberOfLines={1}
+                        >
+                          {product.description}
+                        </Text>
+                      ) : null}
+                    </View>
+                    <Text style={[styles.productPrice, { color: theme.primary }]}>
+                      {fmt(product.price)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+                {(products ?? []).length === 0 && (
+                  <Text style={[styles.dropdownEmpty, { color: theme.mutedForeground }]}>
+                    Nenhum produto cadastrado. Cadastre um em Perfil › Produtos e serviços.
+                  </Text>
+                )}
+              </View>
+            )}
             <TextInput
               style={[styles.input, { borderColor: theme.border, color: theme.foreground }]}
               placeholder="Descrição do item *"
@@ -450,6 +550,34 @@ const styles = StyleSheet.create({
   itemCard: { borderWidth: 1, borderRadius: 10, padding: 12, marginBottom: 10 },
   itemHeaderRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
   itemLabel: { fontSize: 12, fontFamily: 'PlusJakartaSans_500Medium' },
+  productPicker: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    height: 44,
+    borderWidth: 1,
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    marginBottom: 8,
+  },
+  productPickerText: { flex: 1, fontSize: 14, fontFamily: 'PlusJakartaSans_400Regular' },
+  productDropdown: {
+    borderWidth: 1,
+    borderRadius: 8,
+    marginBottom: 8,
+    overflow: 'hidden',
+  },
+  productDropdownItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 10,
+  },
+  productChoiceCopy: { flex: 1 },
+  productChoiceMeta: { fontSize: 11, fontFamily: 'PlusJakartaSans_400Regular', marginTop: 2 },
+  productPrice: { fontSize: 12, fontFamily: 'PlusJakartaSans_600SemiBold' },
   itemRow: { flexDirection: 'row', gap: 8, marginTop: 8 },
   inputGroup: { flex: 1 },
   inputLabel: { fontSize: 11, fontFamily: 'PlusJakartaSans_400Regular', marginBottom: 4 },

@@ -17,5 +17,29 @@ export interface Company {
   email: string | null;
   /** @nullable */
   address: string | null;
+  /** @nullable */
+  legalName: string | null;
+  /** @nullable */
+  taxId: string | null;
+  /** @nullable */
+  website: string | null;
+  /** @nullable */
+  pixKey: string | null;
+  /** @nullable */
+  bankDetails: string | null;
+  /** @nullable */
+  paymentInstructions: string | null;
+  /** @nullable */
+  additionalInfo: string | null;
+  showPhoneOnQuotes: boolean;
+  showEmailOnQuotes: boolean;
+  showAddressOnQuotes: boolean;
+  showLegalNameOnQuotes: boolean;
+  showTaxIdOnQuotes: boolean;
+  showWebsiteOnQuotes: boolean;
+  showPixKeyOnQuotes: boolean;
+  showBankDetailsOnQuotes: boolean;
+  showPaymentInstructionsOnQuotes: boolean;
+  showAdditionalInfoOnQuotes: boolean;
   createdAt: Date;
 }

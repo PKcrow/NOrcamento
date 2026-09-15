@@ -15,12 +15,19 @@ import {
   useGetQuote,
   useUpdateQuote,
   useListClients,
+  useListProducts,
 } from '@workspace/api-client-react';
 import Colors from '@/constants/colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useQueryClient } from '@tanstack/react-query';
 
-type Item = { id?: number; description: string; quantity: string; unitPrice: string };
+type Item = {
+  id?: number;
+  productId: number | null;
+  description: string;
+  quantity: string;
+  unitPrice: string;
+};
 
 export default function EditarOrcamentoScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -32,14 +39,22 @@ export default function EditarOrcamentoScreen() {
 
   const { data: quote, isLoading } = useGetQuote(quoteId);
   const { data: clients } = useListClients({});
+  const {
+    data: products,
+    isLoading: isLoadingProducts,
+    isError: isProductsError,
+  } = useListProducts();
   const { mutate: updateQuote, isPending } = useUpdateQuote();
 
   const [clientSearch, setClientSearch] = useState('');
   const [selectedClientId, setSelectedClientId] = useState<number | undefined>();
   const [showClientPicker, setShowClientPicker] = useState(false);
-  const [items, setItems] = useState<Item[]>([{ description: '', quantity: '1', unitPrice: '' }]);
+  const [items, setItems] = useState<Item[]>([
+    { productId: null, description: '', quantity: '1', unitPrice: '' },
+  ]);
   const [laborCost, setLaborCost] = useState('');
   const [notes, setNotes] = useState('');
+  const [openProductIndex, setOpenProductIndex] = useState<number | null>(null);
 
   useEffect(() => {
     if (quote) {
@@ -48,11 +63,12 @@ export default function EditarOrcamentoScreen() {
         quote.items.length > 0
           ? quote.items.map(i => ({
               id: i.id,
+              productId: i.productId,
               description: i.description,
               quantity: String(i.quantity),
               unitPrice: String(i.unitPrice),
             }))
-          : [{ description: '', quantity: '1', unitPrice: '' }]
+          : [{ productId: null, description: '', quantity: '1', unitPrice: '' }]
       );
       setLaborCost(quote.laborCost > 0 ? String(quote.laborCost) : '');
       setNotes(quote.notes ?? '');
@@ -75,10 +91,25 @@ export default function EditarOrcamentoScreen() {
   const fmt = (v: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(v);
 
-  const addItem = () => setItems(prev => [{ description: '', quantity: '1', unitPrice: '' }, ...prev]);
+  const addItem = () => setItems(prev => [{ productId: null, description: '', quantity: '1', unitPrice: '' }, ...prev]);
   const removeItem = (i: number) => setItems(prev => prev.filter((_, idx) => idx !== i));
-  const updateItem = (i: number, field: keyof Item, value: string) =>
+  const updateItem = (i: number, field: Exclude<keyof Item, 'id' | 'productId'>, value: string) =>
     setItems(prev => prev.map((item, idx) => idx === i ? { ...item, [field]: value } : item));
+
+  const selectProduct = (itemIndex: number, productId: number | null) => {
+    const product = products?.find((entry) => entry.id === productId);
+    setItems(prev => prev.map((item, index) => {
+      if (index !== itemIndex) return item;
+      if (!product) return { ...item, productId: null };
+      return {
+        ...item,
+        productId: product.id,
+        description: product.name,
+        unitPrice: String(product.price),
+      };
+    }));
+    setOpenProductIndex(null);
+  };
 
   const handleSave = () => {
     const validItems = items.filter(i => i.description.trim());
@@ -94,6 +125,7 @@ export default function EditarOrcamentoScreen() {
           notes: notes.trim() || null,
           laborCost: labor,
           items: validItems.map(i => ({
+            productId: i.productId,
             description: i.description.trim(),
             quantity: parseFloat(i.quantity) || 1,
             unitPrice: parseFloat(i.unitPrice.replace(',', '.')) || 0,
@@ -190,6 +222,81 @@ export default function EditarOrcamentoScreen() {
                 </TouchableOpacity>
               )}
             </View>
+            <Text style={[styles.catalogLabel, { color: theme.mutedForeground }]}>Produto cadastrado</Text>
+            <TouchableOpacity
+              style={[styles.productPicker, { borderColor: theme.border, backgroundColor: theme.background }]}
+              onPress={() => setOpenProductIndex(openProductIndex === i ? null : i)}
+              disabled={isLoadingProducts || isProductsError}
+            >
+              <Ionicons
+                name="pricetag-outline"
+                size={16}
+                color={item.productId ? theme.primary : theme.mutedForeground}
+              />
+              <Text
+                style={[
+                  styles.productPickerText,
+                  { color: item.productId ? theme.foreground : theme.mutedForeground },
+                ]}
+                numberOfLines={1}
+              >
+                {isLoadingProducts
+                  ? 'Carregando produtos...'
+                  : isProductsError
+                    ? 'Não foi possível carregar os produtos'
+                    : products?.find((product) => product.id === item.productId)?.name
+                      ?? 'Selecionar produto ou serviço'}
+              </Text>
+              <Ionicons
+                name={openProductIndex === i ? 'chevron-up' : 'chevron-down'}
+                size={16}
+                color={theme.mutedForeground}
+              />
+            </TouchableOpacity>
+            {openProductIndex === i && !isLoadingProducts && !isProductsError && (
+              <View style={[styles.productDropdown, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                <TouchableOpacity
+                  style={styles.productDropdownItem}
+                  onPress={() => selectProduct(i, null)}
+                >
+                  <Text style={[styles.dropdownItemText, { color: theme.mutedForeground }]}>
+                    Item livre (sem catálogo)
+                  </Text>
+                </TouchableOpacity>
+                {(products ?? []).map((product) => (
+                  <TouchableOpacity
+                    key={product.id}
+                    style={[
+                      styles.productDropdownItem,
+                      item.productId === product.id && { backgroundColor: theme.primary + '11' },
+                    ]}
+                    onPress={() => selectProduct(i, product.id)}
+                  >
+                    <View style={styles.productChoiceCopy}>
+                      <Text style={[styles.dropdownItemText, { color: theme.foreground }]}>
+                        {product.name}
+                      </Text>
+                      {product.description ? (
+                        <Text
+                          style={[styles.productChoiceMeta, { color: theme.mutedForeground }]}
+                          numberOfLines={1}
+                        >
+                          {product.description}
+                        </Text>
+                      ) : null}
+                    </View>
+                    <Text style={[styles.productPrice, { color: theme.primary }]}>
+                      {fmt(product.price)}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+                {(products ?? []).length === 0 && (
+                  <Text style={[styles.dropdownEmpty, { color: theme.mutedForeground }]}>
+                    Nenhum produto cadastrado. Cadastre um em Perfil › Produtos e serviços.
+                  </Text>
+                )}
+              </View>
+            )}
             <View style={styles.itemPriceRow}>
               <TextInput
                 style={[styles.itemSmall, { borderColor: theme.border, color: theme.foreground }]}
@@ -281,6 +388,23 @@ const styles = StyleSheet.create({
   },
   dropdownItem: { padding: 12 },
   dropdownItemText: { fontSize: 14, fontFamily: 'PlusJakartaSans_400Regular' },
+  dropdownEmpty: { padding: 12, fontSize: 13, fontFamily: 'PlusJakartaSans_400Regular' },
+  catalogLabel: { fontSize: 11, fontFamily: 'PlusJakartaSans_500Medium', marginBottom: 4 },
+  productPicker: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    height: 42, borderWidth: 1, borderRadius: 7, paddingHorizontal: 10,
+  },
+  productPickerText: { flex: 1, fontSize: 13, fontFamily: 'PlusJakartaSans_400Regular' },
+  productDropdown: {
+    borderWidth: 1, borderRadius: 8, marginTop: 6, overflow: 'hidden',
+  },
+  productDropdownItem: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    paddingHorizontal: 10, paddingVertical: 9, gap: 10,
+  },
+  productChoiceCopy: { flex: 1 },
+  productChoiceMeta: { fontSize: 11, fontFamily: 'PlusJakartaSans_400Regular', marginTop: 2 },
+  productPrice: { fontSize: 12, fontFamily: 'PlusJakartaSans_600SemiBold' },
   addBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, borderRadius: 8 },
   addBtnText: { fontSize: 13, fontFamily: 'PlusJakartaSans_600SemiBold' },
   itemCard: { borderRadius: 8, borderWidth: 1, padding: 10, marginBottom: 8, gap: 8 },

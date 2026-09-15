@@ -7,4 +7,5 @@ export * from "./serviceTemplates";
 export * from "./quotes";
 export * from "./tasks";
 export * from "./taskPhotos";
+export * from "./companyDocuments";
 export * from "./pushTokens";

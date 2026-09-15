@@ -835,6 +835,29 @@ paths:
         "404":
           description: Task not found
 
+  /tasks/{id}/feedback-link:
+    post:
+      operationId: createTaskFeedbackLink
+      tags: [tasks]
+      summary: Create or reopen the feedback link for a completed task
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Feedback link created or reopened
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/TaskFeedbackLink"
+        "409":
+          description: Only completed or paid tasks can receive feedback
+        "404":
+          description: Task not found
+
   /tasks/{id}/photos:
     post:
       operationId: addTaskPhoto
@@ -957,6 +980,103 @@ paths:
                 $ref: "#/components/schemas/Company"
         "404":
           description: User has no team yet
+
+  /company/documents:
+    get:
+      operationId: listCompanyDocuments
+      tags: [company]
+      summary: List documents saved for the current company
+      responses:
+        "200":
+          description: Company documents
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/CompanyDocument"
+    post:
+      operationId: createCompanyDocument
+      tags: [company]
+      summary: Save metadata for an uploaded company document
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CompanyDocumentInput"
+      responses:
+        "201":
+          description: Company document saved
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CompanyDocument"
+        "400":
+          description: Invalid document metadata
+
+  /company/documents/{id}:
+    delete:
+      operationId: deleteCompanyDocument
+      tags: [company]
+      summary: Remove a saved company document
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Company document removed
+        "404":
+          description: Company document not found
+
+  /public/feedback/{token}:
+    get:
+      operationId: getPublicTaskFeedback
+      tags: [tasks]
+      summary: Get a public feedback form for a completed task
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Public feedback form
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicTaskFeedback"
+        "404":
+          description: Feedback link not found or already answered
+    post:
+      operationId: respondPublicTaskFeedback
+      tags: [tasks]
+      summary: Submit a public rating and comment for a completed task
+      parameters:
+        - name: token
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PublicTaskFeedbackInput"
+      responses:
+        "200":
+          description: Feedback submitted
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PublicTaskFeedbackSubmission"
+        "404":
+          description: Feedback link not found or already answered
 
   /storage/uploads/request-url:
     post:
@@ -1637,6 +1757,10 @@ components:
           paidAmount,
           photos,
           quoteId,
+          feedbackToken,
+          feedbackSubmittedAt,
+          feedbackRating,
+          feedbackComment,
         ]
       properties:
         id:
@@ -1673,6 +1797,18 @@ components:
           type: array
           items:
             $ref: "#/components/schemas/TaskPhoto"
+        feedbackToken:
+          type: ["string", "null"]
+          description: Active public feedback token, if one has been created.
+        feedbackSubmittedAt:
+          type: ["string", "null"]
+          format: date-time
+        feedbackRating:
+          type: ["integer", "null"]
+          minimum: 1
+          maximum: 5
+        feedbackComment:
+          type: ["string", "null"]
 
     TaskInput:
       type: object
@@ -1747,6 +1883,76 @@ components:
       properties:
         url:
           type: string
+
+    TaskFeedbackLink:
+      type: object
+      required: [taskId, feedbackToken, feedbackSubmittedAt, feedbackRating, feedbackComment]
+      properties:
+        taskId:
+          type: integer
+        feedbackToken:
+          type: string
+        feedbackSubmittedAt:
+          type: ["string", "null"]
+          format: date-time
+        feedbackRating:
+          type: ["integer", "null"]
+          minimum: 1
+          maximum: 5
+        feedbackComment:
+          type: ["string", "null"]
+
+    PublicTaskFeedbackTask:
+      type: object
+      required: [id, title, clientName, status]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        clientName:
+          type: ["string", "null"]
+        status:
+          $ref: "#/components/schemas/TaskStatus"
+
+    PublicTaskFeedback:
+      type: object
+      required: [task, company]
+      properties:
+        task:
+          $ref: "#/components/schemas/PublicTaskFeedbackTask"
+        company:
+          oneOf:
+            - $ref: "#/components/schemas/Company"
+            - type: "null"
+
+    PublicTaskFeedbackInput:
+      type: object
+      required: [rating]
+      properties:
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        comment:
+          type: string
+          maxLength: 2000
+
+    PublicTaskFeedbackSubmission:
+      type: object
+      required: [taskId, rating, comment, submittedAt]
+      properties:
+        taskId:
+          type: integer
+        rating:
+          type: integer
+          minimum: 1
+          maximum: 5
+        comment:
+          type: ["string", "null"]
+        submittedAt:
+          type: string
+          format: date-time
 
     DashboardSummary:
       type: object
@@ -1872,7 +2078,7 @@ components:
 
     Company:
       type: object
-      required: [id, name, logoUrl, phone, email, address, createdAt]
+      required: [id, name, logoUrl, phone, email, address, legalName, taxId, website, pixKey, bankDetails, paymentInstructions, additionalInfo, showPhoneOnQuotes, showEmailOnQuotes, showAddressOnQuotes, showLegalNameOnQuotes, showTaxIdOnQuotes, showWebsiteOnQuotes, showPixKeyOnQuotes, showBankDetailsOnQuotes, showPaymentInstructionsOnQuotes, showAdditionalInfoOnQuotes, createdAt]
       properties:
         id:
           type: string
@@ -1886,6 +2092,40 @@ components:
           type: ["string", "null"]
         address:
           type: ["string", "null"]
+        legalName:
+          type: ["string", "null"]
+        taxId:
+          type: ["string", "null"]
+        website:
+          type: ["string", "null"]
+        pixKey:
+          type: ["string", "null"]
+        bankDetails:
+          type: ["string", "null"]
+        paymentInstructions:
+          type: ["string", "null"]
+        additionalInfo:
+          type: ["string", "null"]
+        showPhoneOnQuotes:
+          type: boolean
+        showEmailOnQuotes:
+          type: boolean
+        showAddressOnQuotes:
+          type: boolean
+        showLegalNameOnQuotes:
+          type: boolean
+        showTaxIdOnQuotes:
+          type: boolean
+        showWebsiteOnQuotes:
+          type: boolean
+        showPixKeyOnQuotes:
+          type: boolean
+        showBankDetailsOnQuotes:
+          type: boolean
+        showPaymentInstructionsOnQuotes:
+          type: boolean
+        showAdditionalInfoOnQuotes:
+          type: boolean
         createdAt:
           type: string
           format: date-time
@@ -1904,6 +2144,85 @@ components:
           type: ["string", "null"]
         address:
           type: ["string", "null"]
+        legalName:
+          type: ["string", "null"]
+        taxId:
+          type: ["string", "null"]
+        website:
+          type: ["string", "null"]
+        pixKey:
+          type: ["string", "null"]
+        bankDetails:
+          type: ["string", "null"]
+        paymentInstructions:
+          type: ["string", "null"]
+        additionalInfo:
+          type: ["string", "null"]
+        showPhoneOnQuotes:
+          type: boolean
+        showEmailOnQuotes:
+          type: boolean
+        showAddressOnQuotes:
+          type: boolean
+        showLegalNameOnQuotes:
+          type: boolean
+        showTaxIdOnQuotes:
+          type: boolean
+        showWebsiteOnQuotes:
+          type: boolean
+        showPixKeyOnQuotes:
+          type: boolean
+        showBankDetailsOnQuotes:
+          type: boolean
+        showPaymentInstructionsOnQuotes:
+          type: boolean
+        showAdditionalInfoOnQuotes:
+          type: boolean
+
+    CompanyDocument:
+      type: object
+      required: [id, name, documentType, fileName, objectPath, contentType, size, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        documentType:
+          type: string
+        fileName:
+          type: string
+        objectPath:
+          type: string
+        contentType:
+          type: string
+        size:
+          type: integer
+        createdAt:
+          type: string
+          format: date-time
+
+    CompanyDocumentInput:
+      type: object
+      required: [name, documentType, fileName, objectPath, contentType, size]
+      properties:
+        name:
+          type: string
+          minLength: 1
+        documentType:
+          type: string
+          minLength: 1
+        fileName:
+          type: string
+          minLength: 1
+        objectPath:
+          type: string
+          minLength: 1
+        contentType:
+          type: string
+          minLength: 1
+        size:
+          type: integer
+          minimum: 1
 
     UploadUrlRequest:
       type: object

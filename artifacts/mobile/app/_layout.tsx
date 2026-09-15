@@ -1,8 +1,8 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { ClerkProvider, useAuth } from '@clerk/clerk-expo';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-import { SafeAreaProvider } from 'react-native-safe-area-context';
+import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   PlusJakartaSans_400Regular,
   PlusJakartaSans_500Medium,
@@ -10,23 +10,30 @@ import {
   PlusJakartaSans_700Bold,
   useFonts,
 } from '@expo-google-fonts/plus-jakarta-sans';
-import { Stack, useRouter } from 'expo-router';
+import { Stack, usePathname, useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Notifications from 'expo-notifications';
-import { Platform } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import {
   setBaseUrl,
   setAuthTokenGetter,
   getGetMeQueryKey,
+  getListTasksQueryKey,
+  useListTasks,
   useGetMe,
   useRegisterPushToken,
 } from '@workspace/api-client-react';
 import {
+  clearLocalTaskNotifications,
   requestNativePushRegistration,
   saveNativePushToken,
+  syncLocalTaskNotifications,
 } from '@/lib/pushNotifications';
+import Colors from '@/constants/colors';
+import { useColorScheme } from '@/hooks/useColorScheme';
 
 // Token cache for Clerk — persists sessions across app restarts
 const tokenCache = {
@@ -73,6 +80,97 @@ const queryClient = new QueryClient({
   },
 });
 
+type BottomNavItem = {
+  label: string;
+  path: string;
+  icon: React.ComponentProps<typeof Ionicons>['name'];
+};
+
+const BOTTOM_NAV_ITEMS: BottomNavItem[] = [
+  { label: 'Dashboard', path: '/', icon: 'home-outline' },
+  { label: 'Orçamentos', path: '/orcamentos', icon: 'document-text-outline' },
+  { label: 'Ordens', path: '/tarefas', icon: 'clipboard-outline' },
+  { label: 'Clientes', path: '/clientes', icon: 'people-outline' },
+  { label: 'Relatórios', path: '/relatorios', icon: 'bar-chart-outline' },
+  { label: 'Perfil', path: '/mais', icon: 'person-circle-outline' },
+];
+
+function BottomNavigation() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const colorScheme = useColorScheme();
+  const theme = Colors[colorScheme];
+  const insets = useSafeAreaInsets();
+  const scrollRef = useRef<ScrollView>(null);
+
+  const activeIndex = Math.max(
+    0,
+    BOTTOM_NAV_ITEMS.findIndex((item) =>
+      item.path === '/' ? pathname === '/' : pathname.startsWith(item.path),
+    ),
+  );
+
+  useEffect(() => {
+    scrollRef.current?.scrollTo({
+      x: Math.max(0, activeIndex * 92 - 110),
+      animated: true,
+    });
+  }, [activeIndex]);
+
+  return (
+    <View
+      style={[
+        styles.bottomNavigation,
+        {
+          backgroundColor: theme.card,
+          borderTopColor: theme.border,
+          paddingBottom: Math.max(insets.bottom, 8),
+        },
+      ]}
+    >
+      <ScrollView
+        ref={scrollRef}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={styles.bottomNavigationContent}
+        keyboardShouldPersistTaps="handled"
+      >
+        {BOTTOM_NAV_ITEMS.map((item, index) => {
+          const isActive = index === activeIndex;
+          return (
+            <Pressable
+              key={item.path}
+              accessibilityRole="tab"
+              accessibilityState={{ selected: isActive }}
+              onPress={() => router.push(item.path as never)}
+              style={({ pressed }) => [
+                styles.bottomNavigationItem,
+                isActive && { backgroundColor: `${theme.primary}18` },
+                pressed && styles.bottomNavigationItemPressed,
+              ]}
+            >
+              <Ionicons
+                name={isActive ? item.icon.replace('-outline', '') as React.ComponentProps<typeof Ionicons>['name'] : item.icon}
+                size={21}
+                color={isActive ? theme.primary : theme.tabIconDefault}
+              />
+              <Text
+                numberOfLines={1}
+                style={[
+                  styles.bottomNavigationLabel,
+                  { color: isActive ? theme.primary : theme.tabIconDefault },
+                ]}
+              >
+                {item.label}
+              </Text>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
+    </View>
+  );
+}
+
 function RootLayoutNav() {
   const { isLoaded, isSignedIn, getToken } = useAuth();
   const router = useRouter();
@@ -93,14 +191,19 @@ function RootLayoutNav() {
   useEffect(() => {
     if (Platform.OS === 'web') return;
 
-    const openQuote = (response: Notifications.NotificationResponse | null) => {
-      const quoteId = response?.notification.request.content.data?.quoteId;
-      if (typeof quoteId !== 'string' || !/^\d+$/.test(quoteId)) return;
-      router.push({ pathname: '/orcamento/[id]', params: { id: quoteId } });
+    const openNotification = (response: Notifications.NotificationResponse | null) => {
+      const data = response?.notification.request.content.data;
+      const quoteId = data?.quoteId;
+      const taskId = data?.taskId;
+      if (typeof quoteId === 'string' && /^\d+$/.test(quoteId)) {
+        router.push({ pathname: '/orcamento/[id]', params: { id: quoteId } });
+      } else if (typeof taskId === 'string' && /^\d+$/.test(taskId)) {
+        router.push({ pathname: '/tarefa/[id]', params: { id: taskId } });
+      }
     };
 
-    void Notifications.getLastNotificationResponseAsync().then(openQuote);
-    const subscription = Notifications.addNotificationResponseReceivedListener(openQuote);
+    void Notifications.getLastNotificationResponseAsync().then(openNotification);
+    const subscription = Notifications.addNotificationResponseReceivedListener(openNotification);
     return () => subscription.remove();
   }, [router]);
 
@@ -133,37 +236,100 @@ function RootLayoutNav() {
     };
   }, [isLoaded, isSignedIn, me?.teamId, registerPushToken]);
 
+  const { data: tasks } = useListTasks(
+    {},
+    {
+      query: {
+        queryKey: getListTasksQueryKey({}),
+        enabled: isLoaded && Boolean(isSignedIn && me?.teamId),
+        refetchInterval: 15 * 60 * 1000,
+      },
+    },
+  );
+
+  useEffect(() => {
+    if (Platform.OS === 'web') return;
+    if (!isLoaded || !isSignedIn || !me?.teamId) {
+      void clearLocalTaskNotifications();
+      return;
+    }
+    void syncLocalTaskNotifications(
+      (tasks ?? []).map((task) => ({
+        id: task.id,
+        title: task.title,
+        dueAt: task.dueAt,
+        status: task.status,
+      })),
+    );
+  }, [isLoaded, isSignedIn, me?.teamId, tasks]);
+
   if (!isLoaded) return null;
 
   return (
-    <Stack screenOptions={{ headerTintColor: '#f97316', headerBackTitle: 'Voltar' }}>
-      <Stack.Screen name="sign-in" options={{ headerShown: false }} />
-      <Stack.Screen name="onboarding" options={{ headerShown: false }} />
-      <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
+    <View style={styles.rootContainer}>
+      <Stack screenOptions={{ headerTintColor: '#f97316', headerBackTitle: 'Voltar' }}>
+        <Stack.Screen name="sign-in" options={{ headerShown: false }} />
+        <Stack.Screen name="onboarding" options={{ headerShown: false }} />
+        <Stack.Screen name="(tabs)" options={{ headerShown: false }} />
 
-      {/* Orçamento screens */}
-      <Stack.Screen name="orcamento/[id]" options={{ title: 'Orçamento' }} />
-      <Stack.Screen name="orcamento/novo" options={{ title: 'Novo Orçamento', presentation: 'modal' }} />
-      <Stack.Screen name="orcamento/editar/[id]" options={{ title: 'Editar Orçamento' }} />
+        {/* Orçamento screens */}
+        <Stack.Screen name="orcamento/[id]" options={{ title: 'Orçamento' }} />
+        <Stack.Screen name="orcamento/novo" options={{ title: 'Novo Orçamento', presentation: 'modal' }} />
+        <Stack.Screen name="orcamento/editar/[id]" options={{ title: 'Editar Orçamento' }} />
 
-      {/* Tarefa screens */}
-      <Stack.Screen name="tarefa/[id]" options={{ title: 'Ordem de Serviço' }} />
-      <Stack.Screen name="tarefa/nova" options={{ title: 'Nova Ordem de Serviço', presentation: 'modal' }} />
-      <Stack.Screen name="tarefa/editar/[id]" options={{ title: 'Editar O.S.' }} />
+        {/* Tarefa screens */}
+        <Stack.Screen name="tarefa/[id]" options={{ title: 'Ordem de Serviço' }} />
+        <Stack.Screen name="tarefa/nova" options={{ title: 'Nova Ordem de Serviço', presentation: 'modal' }} />
+        <Stack.Screen name="tarefa/editar/[id]" options={{ title: 'Editar O.S.' }} />
 
-      {/* Cliente screens */}
-      <Stack.Screen name="cliente/[id]" options={{ title: 'Cliente' }} />
-      <Stack.Screen name="cliente/novo" options={{ title: 'Novo Cliente', presentation: 'modal' }} />
-      <Stack.Screen name="cliente/editar/[id]" options={{ title: 'Editar Cliente' }} />
+        {/* Cliente screens */}
+        <Stack.Screen name="cliente/[id]" options={{ title: 'Cliente' }} />
+        <Stack.Screen name="cliente/novo" options={{ title: 'Novo Cliente', presentation: 'modal' }} />
+        <Stack.Screen name="cliente/editar/[id]" options={{ title: 'Editar Cliente' }} />
 
-      {/* Settings screens */}
-      <Stack.Screen name="equipes/index" options={{ title: 'Equipes' }} />
-      <Stack.Screen name="empresa" options={{ title: 'Dados da Empresa' }} />
-      <Stack.Screen name="produtos/index" options={{ title: 'Produtos e Serviços' }} />
-      <Stack.Screen name="relatorios" options={{ title: 'Relatório Mensal' }} />
-    </Stack>
+        {/* Settings screens */}
+        <Stack.Screen name="equipes/index" options={{ title: 'Equipes' }} />
+        <Stack.Screen name="empresa" options={{ title: 'Dados da Empresa' }} />
+        <Stack.Screen name="produtos/index" options={{ title: 'Produtos e Serviços' }} />
+        <Stack.Screen name="relatorios" options={{ title: 'Relatório Mensal' }} />
+        <Stack.Screen name="politica-de-privacidade" options={{ title: 'Política de Privacidade' }} />
+      </Stack>
+      {isSignedIn && me?.teamId ? <BottomNavigation /> : null}
+    </View>
   );
 }
+
+const styles = StyleSheet.create({
+  rootContainer: { flex: 1 },
+  bottomNavigation: {
+    borderTopWidth: 1,
+    elevation: 10,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+  },
+  bottomNavigationContent: {
+    alignItems: 'center',
+    gap: 4,
+    paddingHorizontal: 8,
+    paddingTop: 8,
+  },
+  bottomNavigationItem: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    minWidth: 82,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 10,
+    gap: 2,
+  },
+  bottomNavigationItemPressed: { opacity: 0.7 },
+  bottomNavigationLabel: {
+    fontSize: 10,
+    fontFamily: 'PlusJakartaSans_500Medium',
+  },
+});
 
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({

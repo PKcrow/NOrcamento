@@ -6,11 +6,15 @@ import {
   ScrollView,
   TouchableOpacity,
   RefreshControl,
+  Alert,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useGetMonthlyReport } from '@workspace/api-client-react';
 import Colors from '@/constants/colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
+import * as FileSystem from 'expo-file-system/legacy';
+import * as Sharing from 'expo-sharing';
 
 const MONTH_NAMES = [
   'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
@@ -30,6 +34,7 @@ export default function RelatoriosScreen() {
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
+  const [isExporting, setIsExporting] = useState(false);
 
   const { data: report, isLoading, refetch, isRefetching } = useGetMonthlyReport({ year, month });
 
@@ -46,6 +51,67 @@ export default function RelatoriosScreen() {
   };
   const isCurrentMonth = year === now.getFullYear() && month === now.getMonth() + 1;
 
+  const handleExportCsv = async () => {
+    if (!report || isExporting) return;
+
+    const separator = ';';
+    const escape = (value: string) => `"${value.replace(/"/g, '""')}"`;
+    const header = ['Título', 'Cliente', 'Data de Pagamento', 'Valor'].map(escape).join(separator);
+    const rows = report.paidTasks.map(task =>
+      [
+        escape(task.title),
+        escape(task.clientName ?? ''),
+        escape(fmtDate(task.paidAt)),
+        escape(fmt(task.paidAmount ?? 0)),
+      ].join(separator),
+    );
+    const summaryRow = [
+      escape('Total'),
+      escape(''),
+      escape(''),
+      escape(fmt(report.revenue)),
+    ].join(separator);
+    const csv = `\uFEFF${[header, ...rows, summaryRow].join('\r\n')}`;
+    const fileName = `relatorio-${year}-${String(month).padStart(2, '0')}.csv`;
+
+    if (Platform.OS === 'web') {
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = fileName;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      return;
+    }
+
+    if (!FileSystem.cacheDirectory) {
+      Alert.alert('Erro', 'Não foi possível preparar o arquivo para exportação.');
+      return;
+    }
+
+    setIsExporting(true);
+    try {
+      const fileUri = `${FileSystem.cacheDirectory}${fileName}`;
+      await FileSystem.writeAsStringAsync(fileUri, csv);
+      if (!(await Sharing.isAvailableAsync())) {
+        Alert.alert('Exportação indisponível', 'O compartilhamento de arquivos não está disponível neste aparelho.');
+        return;
+      }
+      await Sharing.shareAsync(fileUri, {
+        mimeType: 'text/csv',
+        dialogTitle: 'Exportar relatório mensal',
+        UTI: 'public.comma-separated-values-text',
+      });
+    } catch {
+      Alert.alert('Erro', 'Não foi possível exportar o relatório.');
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const conversionRate = report
     ? report.quotesSentCount > 0
       ? Math.round((report.quotesApprovedCount / report.quotesSentCount) * 100)
@@ -58,16 +124,32 @@ export default function RelatoriosScreen() {
       contentContainerStyle={styles.content}
       refreshControl={<RefreshControl refreshing={isRefetching} onRefresh={refetch} tintColor={theme.primary} />}
     >
-      {/* Month picker */}
-      <View style={[styles.monthPicker, { backgroundColor: theme.card, borderColor: theme.border }]}>
-        <TouchableOpacity style={styles.monthBtn} onPress={prevMonth}>
-          <Ionicons name="chevron-back" size={22} color={theme.primary} />
-        </TouchableOpacity>
-        <Text style={[styles.monthLabel, { color: theme.foreground }]}>
-          {MONTH_NAMES[month - 1]} {year}
-        </Text>
-        <TouchableOpacity style={styles.monthBtn} onPress={nextMonth} disabled={isCurrentMonth}>
-          <Ionicons name="chevron-forward" size={22} color={isCurrentMonth ? theme.border : theme.primary} />
+      <View style={styles.monthSection}>
+        <View style={[styles.monthPicker, { backgroundColor: theme.card, borderColor: theme.border }]}>
+          <TouchableOpacity style={styles.monthBtn} onPress={prevMonth}>
+            <Ionicons name="chevron-back" size={22} color={theme.primary} />
+          </TouchableOpacity>
+          <Text style={[styles.monthLabel, { color: theme.foreground }]}>
+            {MONTH_NAMES[month - 1]} {year}
+          </Text>
+          <TouchableOpacity style={styles.monthBtn} onPress={nextMonth} disabled={isCurrentMonth}>
+            <Ionicons name="chevron-forward" size={22} color={isCurrentMonth ? theme.border : theme.primary} />
+          </TouchableOpacity>
+        </View>
+        <TouchableOpacity
+          style={[
+            styles.exportButton,
+            { borderColor: theme.border, backgroundColor: theme.card },
+            (!report || isExporting) && { opacity: 0.5 },
+          ]}
+          onPress={handleExportCsv}
+          disabled={!report || isExporting}
+          accessibilityLabel="Exportar relatório CSV"
+        >
+          <Ionicons name="download-outline" size={18} color={theme.primary} />
+          <Text style={[styles.exportButtonText, { color: theme.primary }]}>
+            {isExporting ? 'Exportando…' : 'Exportar CSV'}
+          </Text>
         </TouchableOpacity>
       </View>
 
@@ -195,6 +277,7 @@ function StatCard({
 const styles = StyleSheet.create({
   container: { flex: 1 },
   content: { padding: 16, paddingBottom: 40 },
+  monthSection: { gap: 10, marginBottom: 20 },
   monthPicker: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -203,10 +286,19 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     paddingVertical: 4,
     paddingHorizontal: 8,
-    marginBottom: 20,
   },
   monthBtn: { padding: 8 },
   monthLabel: { fontSize: 17, fontFamily: 'PlusJakartaSans_700Bold' },
+  exportButton: {
+    minHeight: 44,
+    borderRadius: 10,
+    borderWidth: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  exportButtonText: { fontSize: 14, fontFamily: 'PlusJakartaSans_600SemiBold' },
   statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 24 },
   statCard: {
     width: '47%',

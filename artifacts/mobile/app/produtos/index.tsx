@@ -136,7 +136,11 @@ export default function ProdutosScreen() {
   const handleSubmit = ({ name, description, price }: { name: string; description: string; price: string }) => {
     if (!name.trim()) { Alert.alert('Campo obrigatório', 'Informe o nome.'); return; }
     const parsedPrice = parseFloat(price.replace(',', '.')) || 0;
-    const data = { name: name.trim(), description: description.trim() || null, price: parsedPrice } as any;
+    const data = {
+      name: name.trim(),
+      ...(description.trim() ? { description: description.trim() } : {}),
+      price: parsedPrice,
+    } as any;
 
     if (editingProduct) {
       updateProduct(

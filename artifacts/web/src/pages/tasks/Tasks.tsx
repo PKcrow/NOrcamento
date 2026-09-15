@@ -29,7 +29,7 @@ import { useFileUpload, ACCEPTED_IMAGE_TYPES, MAX_ORIGINAL_SIZE_BYTES } from "@/
 import { normalizeStoredObjectUrl } from "@/lib/objectUrl";
 import {
   Plus, Trash2, CalendarIcon, Pencil, ImagePlus, Loader2, X,
-  Share2, Search, ChevronRight, DollarSign,
+  Share2, Search, ChevronRight, DollarSign, Star,
 } from "lucide-react";
 import { formatCurrency, formatDate, formatDateTime, taskStatusMap, taskStatusNext } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
@@ -583,18 +583,20 @@ export function Tasks() {
                             <ImagePlus className="w-3 h-3" /> {task.photos.length} foto(s)
                           </span>
                         )}
-                        {isPaid && (task.paidAmount != null || task.paidAt) && (
-                          <span className="text-xs text-emerald-700 font-medium flex items-center gap-1">
-                            <DollarSign className="w-3 h-3" />
-                            {task.paidAmount != null ? formatCurrency(task.paidAmount) : "Sem valor"}
-                            {task.paidAt && (
-                              <span className="text-emerald-600/70 font-normal">· pago em {formatDate(task.paidAt)}</span>
-                            )}
-                          </span>
-                        )}
-                        {!isPaid && task.paidAmount != null && (
-                          <span className="text-xs text-emerald-700 font-medium flex items-center gap-1">
-                            <DollarSign className="w-3 h-3" /> {formatCurrency(task.paidAmount)}
+                        {(task.status === "completed" || task.status === "paid") && task.feedbackSubmittedAt && task.feedbackRating != null && (
+                          <span
+                            className="text-xs text-amber-600 font-medium flex items-center gap-1"
+                            aria-label={`Avaliação recebida: ${task.feedbackRating} de 5 estrelas`}
+                          >
+                            <span className="flex items-center gap-0.5" aria-hidden="true">
+                              {Array.from({ length: 5 }, (_, index) => (
+                                <Star
+                                  key={index}
+                                  className={`w-3 h-3 ${index < task.feedbackRating! ? "fill-amber-400 text-amber-400" : "text-gray-300"}`}
+                                />
+                              ))}
+                            </span>
+                            {task.feedbackRating}/5
                           </span>
                         )}
                         {/* Date — mobile only */}
