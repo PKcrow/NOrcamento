@@ -382,6 +382,10 @@ const styles = StyleSheet.create({
 });
 
 function StartupErrorFallback({ error }: { error: Error }) {
+  useEffect(() => {
+    void SplashScreen.hideAsync();
+  }, []);
+
   return (
     <View style={styles.startupError}>
       <Text style={styles.startupErrorTitle}>Não foi possível iniciar o aplicativo</Text>
@@ -395,7 +399,7 @@ function StartupErrorFallback({ error }: { error: Error }) {
   );
 }
 
-export default function RootLayout() {
+function RootLayoutContent() {
   const [fontsLoaded, fontError] = useFonts({
     PlusJakartaSans_400Regular,
     PlusJakartaSans_500Medium,
@@ -427,27 +431,31 @@ export default function RootLayout() {
   }
 
   return (
+    <ClerkProvider
+      publishableKey={clerkPublishableKey}
+      tokenCache={tokenCache}
+      proxyUrl={clerkProxyUrl}
+    >
+      <SafeAreaProvider>
+        <QueryClientProvider client={queryClient}>
+          <GestureHandlerRootView style={{ flex: 1 }}>
+            <RootLayoutNav />
+          </GestureHandlerRootView>
+        </QueryClientProvider>
+      </SafeAreaProvider>
+    </ClerkProvider>
+  );
+}
+
+export default function RootLayout() {
+  return (
     <ErrorBoundary
       FallbackComponent={StartupErrorFallback}
       onError={(error, stackTrace) => {
         console.error('Mobile startup error:', error, stackTrace);
       }}
     >
-      <ClerkProvider
-        publishableKey={clerkPublishableKey}
-        tokenCache={tokenCache}
-        proxyUrl={clerkProxyUrl}
-      >
-        <SafeAreaProvider>
-          <ErrorBoundary>
-            <QueryClientProvider client={queryClient}>
-              <GestureHandlerRootView style={{ flex: 1 }}>
-                <RootLayoutNav />
-              </GestureHandlerRootView>
-            </QueryClientProvider>
-          </ErrorBoundary>
-        </SafeAreaProvider>
-      </ClerkProvider>
+      <RootLayoutContent />
     </ErrorBoundary>
   );
 }
