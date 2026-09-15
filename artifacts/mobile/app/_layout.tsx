@@ -14,7 +14,15 @@ import { Stack, usePathname, useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import * as Notifications from 'expo-notifications';
 import { Ionicons } from '@expo/vector-icons';
-import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  ActivityIndicator,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { ErrorBoundary } from '@/components/ErrorBoundary';
 import {
@@ -266,7 +274,17 @@ function RootLayoutNav() {
     );
   }, [isLoaded, isSignedIn, me?.teamId, tasks]);
 
-  if (!isLoaded) return null;
+  if (!isLoaded) {
+    return (
+      <View style={styles.startupError}>
+        <ActivityIndicator size="large" color="#f97316" />
+        <Text style={styles.startupErrorTitle}>Carregando autenticação</Text>
+        <Text style={styles.startupErrorText}>
+          Aguarde enquanto conectamos sua conta com segurança.
+        </Text>
+      </View>
+    );
+  }
 
   return (
     <View style={styles.rootContainer}>
@@ -325,6 +343,14 @@ const styles = StyleSheet.create({
     marginTop: 12,
     textAlign: 'center',
   },
+  startupErrorDetails: {
+    color: '#b91c1c',
+    fontFamily: 'monospace',
+    fontSize: 12,
+    lineHeight: 18,
+    marginTop: 18,
+    textAlign: 'center',
+  },
   bottomNavigation: {
     borderTopWidth: 1,
     elevation: 10,
@@ -355,6 +381,20 @@ const styles = StyleSheet.create({
   },
 });
 
+function StartupErrorFallback({ error }: { error: Error }) {
+  return (
+    <View style={styles.startupError}>
+      <Text style={styles.startupErrorTitle}>Não foi possível iniciar o aplicativo</Text>
+      <Text style={styles.startupErrorText}>
+        Ocorreu um erro ao carregar a autenticação. Feche e abra o aplicativo novamente.
+      </Text>
+      <Text selectable style={styles.startupErrorDetails}>
+        {error.message || 'Erro de inicialização sem detalhes.'}
+      </Text>
+    </View>
+  );
+}
+
 export default function RootLayout() {
   const [fontsLoaded, fontError] = useFonts({
     PlusJakartaSans_400Regular,
@@ -364,12 +404,16 @@ export default function RootLayout() {
   });
 
   useEffect(() => {
-    if (fontsLoaded || fontError) {
-      SplashScreen.hideAsync();
-    }
-  }, [fontsLoaded, fontError]);
+    const fallbackTimer = setTimeout(() => {
+      void SplashScreen.hideAsync();
+    }, 2500);
 
-  if (!fontsLoaded && !fontError) return null;
+    if (fontsLoaded || fontError) {
+      void SplashScreen.hideAsync();
+    }
+
+    return () => clearTimeout(fallbackTimer);
+  }, [fontsLoaded, fontError]);
 
   if (!clerkPublishableKey) {
     return (
@@ -383,20 +427,27 @@ export default function RootLayout() {
   }
 
   return (
-    <ClerkProvider
-      publishableKey={clerkPublishableKey}
-      tokenCache={tokenCache}
-      proxyUrl={clerkProxyUrl}
+    <ErrorBoundary
+      FallbackComponent={StartupErrorFallback}
+      onError={(error, stackTrace) => {
+        console.error('Mobile startup error:', error, stackTrace);
+      }}
     >
-      <SafeAreaProvider>
-        <ErrorBoundary>
-          <QueryClientProvider client={queryClient}>
-            <GestureHandlerRootView style={{ flex: 1 }}>
-              <RootLayoutNav />
-            </GestureHandlerRootView>
-          </QueryClientProvider>
-        </ErrorBoundary>
-      </SafeAreaProvider>
-    </ClerkProvider>
+      <ClerkProvider
+        publishableKey={clerkPublishableKey}
+        tokenCache={tokenCache}
+        proxyUrl={clerkProxyUrl}
+      >
+        <SafeAreaProvider>
+          <ErrorBoundary>
+            <QueryClientProvider client={queryClient}>
+              <GestureHandlerRootView style={{ flex: 1 }}>
+                <RootLayoutNav />
+              </GestureHandlerRootView>
+            </QueryClientProvider>
+          </ErrorBoundary>
+        </SafeAreaProvider>
+      </ClerkProvider>
+    </ErrorBoundary>
   );
 }
