@@ -8,7 +8,7 @@ import {
   Alert,
   ActivityIndicator,
 } from 'react-native';
-import { useAuth } from '@clerk/clerk-expo';
+import { useAuth } from '@clerk/expo';
 import { Ionicons } from '@expo/vector-icons';
 import {
   useGetMe,
@@ -37,6 +37,7 @@ const SECTIONS: { title: string; rows: SettingsRow[] }[] = [
     rows: [
       { icon: 'people', label: 'Gerenciar equipe', href: '/equipes' },
       { icon: 'business', label: 'Dados da empresa', href: '/empresa' },
+      { icon: 'sparkles-outline', label: 'Materiais de divulgação', href: '/materiais-divulgacao' },
     ],
   },
   {

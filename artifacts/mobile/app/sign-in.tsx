@@ -11,8 +11,10 @@ import {
   ScrollView,
   Alert,
 } from 'react-native';
-import { useSignIn, useOAuth } from '@clerk/clerk-expo';
+import { useSSO } from '@clerk/expo';
+import { useSignIn } from '@clerk/expo/legacy';
 import * as AuthSession from 'expo-auth-session';
+import Constants from 'expo-constants';
 import * as WebBrowser from 'expo-web-browser';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
@@ -23,7 +25,7 @@ WebBrowser.maybeCompleteAuthSession();
 
 export default function SignInScreen() {
   const { signIn, setActive, isLoaded } = useSignIn();
-  const { startOAuthFlow } = useOAuth({ strategy: 'oauth_google' });
+  const { startSSOFlow } = useSSO();
   const router = useRouter();
 
   useEffect(() => {
@@ -70,12 +72,33 @@ export default function SignInScreen() {
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
     try {
-      const { createdSessionId, setActive: setActiveOAuth } = await startOAuthFlow({
-        redirectUrl: AuthSession.makeRedirectUri({ scheme: 'gestaoautonomos' }),
+      // Expo Go cannot receive a custom app scheme. Let AuthSession create its
+      // exp:// redirect there, while standalone Android/iOS builds use the
+      // scheme declared in app.json.
+      const isExpoGo = Constants.appOwnership === 'expo';
+      const redirectUrl = Platform.OS === 'web' || isExpoGo
+        ? AuthSession.makeRedirectUri()
+        : AuthSession.makeRedirectUri({
+            scheme: 'gestaoautonomos',
+            path: 'oauth-callback',
+          });
+      const { createdSessionId, setActive: setActiveOAuth, signIn, signUp } = await startSSOFlow({
+        strategy: 'oauth_google',
+        redirectUrl,
       });
       if (createdSessionId && setActiveOAuth) {
         await setActiveOAuth({ session: createdSessionId });
         router.replace('/(tabs)');
+      } else if (signUp?.status === 'missing_requirements' || signIn?.status === 'needs_second_factor') {
+        Alert.alert(
+          'Quase lá',
+          'O Google pediu uma etapa adicional. Complete a verificação e tente entrar novamente.',
+        );
+      } else {
+        Alert.alert(
+          'Login não concluído',
+          'O Google voltou sem criar uma sessão. Verifique o navegador e tente novamente.',
+        );
       }
     } catch (err: any) {
       const msg =

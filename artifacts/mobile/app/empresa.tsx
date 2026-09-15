@@ -151,6 +151,10 @@ export default function EmpresaScreen() {
   const [bankDetails, setBankDetails] = useState('');
   const [paymentInstructions, setPaymentInstructions] = useState('');
   const [additionalInfo, setAdditionalInfo] = useState('');
+  const [marketingHeadline, setMarketingHeadline] = useState('');
+  const [marketingAbout, setMarketingAbout] = useState('');
+  const [marketingServices, setMarketingServices] = useState('');
+  const [marketingDifferentials, setMarketingDifferentials] = useState('');
   const [visibility, setVisibility] = useState({
     phone: true, email: true, address: true, legalName: false, taxId: false,
     website: false, pixKey: false, bankDetails: false, paymentInstructions: false, additionalInfo: false,
@@ -171,6 +175,10 @@ export default function EmpresaScreen() {
       setBankDetails(company.bankDetails ?? '');
       setPaymentInstructions(company.paymentInstructions ?? '');
       setAdditionalInfo(company.additionalInfo ?? '');
+      setMarketingHeadline(company.marketingHeadline ?? '');
+      setMarketingAbout(company.marketingAbout ?? '');
+      setMarketingServices(company.marketingServices ?? '');
+      setMarketingDifferentials(company.marketingDifferentials ?? '');
       setVisibility({
         phone: company.showPhoneOnQuotes,
         email: company.showEmailOnQuotes,
@@ -288,6 +296,10 @@ export default function EmpresaScreen() {
           bankDetails: bankDetails.trim() || null,
           paymentInstructions: paymentInstructions.trim() || null,
           additionalInfo: additionalInfo.trim() || null,
+          marketingHeadline: marketingHeadline.trim() || null,
+          marketingAbout: marketingAbout.trim() || null,
+          marketingServices: marketingServices.trim() || null,
+          marketingDifferentials: marketingDifferentials.trim() || null,
           showPhoneOnQuotes: visibility.phone,
           showEmailOnQuotes: visibility.email,
           showAddressOnQuotes: visibility.address,
@@ -675,6 +687,34 @@ export default function EmpresaScreen() {
       <Field label="Instruções de pagamento" value={paymentInstructions} onChange={setPaymentInstructions} placeholder="Ex: 50% na aprovação e 50% na conclusão" icon="cash-outline" visibleOnQuotes={visibility.paymentInstructions} onVisibleChange={(value) => setVisibility((current) => ({ ...current, paymentInstructions: value }))} />
       <Field label="Outras informações" value={additionalInfo} onChange={setAdditionalInfo} placeholder="Informações relevantes para seus clientes" icon="information-circle-outline" visibleOnQuotes={visibility.additionalInfo} onVisibleChange={(value) => setVisibility((current) => ({ ...current, additionalInfo: value }))} />
 
+      <View style={[styles.marketingSection, { backgroundColor: theme.primary + '0d', borderColor: theme.primary + '2b' }]}>
+        <View style={styles.marketingHeading}>
+          <Ionicons name="sparkles-outline" size={19} color={theme.primary} />
+          <View style={styles.marketingHeadingCopy}>
+            <Text style={[styles.marketingTitle, { color: theme.foreground }]}>Conteúdo para divulgação</Text>
+            <Text style={[styles.marketingSubtitle, { color: theme.mutedForeground }]}>
+              Estes textos aparecem somente nos materiais de divulgação.
+            </Text>
+          </View>
+        </View>
+        <View style={styles.fieldGroup}>
+          <Text style={[styles.label, { color: theme.mutedForeground }]}>Frase principal</Text>
+          <TextInput style={[styles.textarea, { color: theme.foreground, borderColor: theme.border, backgroundColor: theme.card }]} value={marketingHeadline} onChangeText={setMarketingHeadline} placeholder="Ex: Reparos com segurança e capricho" placeholderTextColor={theme.mutedForeground} maxLength={120} />
+        </View>
+        <View style={styles.fieldGroup}>
+          <Text style={[styles.label, { color: theme.mutedForeground }]}>Quem somos</Text>
+          <TextInput style={[styles.textarea, { color: theme.foreground, borderColor: theme.border, backgroundColor: theme.card }]} value={marketingAbout} onChangeText={setMarketingAbout} placeholder="Conte sua experiência e o que valoriza em cada serviço." placeholderTextColor={theme.mutedForeground} multiline numberOfLines={4} maxLength={600} />
+        </View>
+        <View style={styles.fieldGroup}>
+          <Text style={[styles.label, { color: theme.mutedForeground }]}>Serviços</Text>
+          <TextInput style={[styles.textarea, { color: theme.foreground, borderColor: theme.border, backgroundColor: theme.card }]} value={marketingServices} onChangeText={setMarketingServices} placeholder="Ex.:\n• Instalações\n• Manutenção" placeholderTextColor={theme.mutedForeground} multiline numberOfLines={4} maxLength={400} />
+        </View>
+        <View style={[styles.fieldGroup, { marginBottom: 0 }]}>
+          <Text style={[styles.label, { color: theme.mutedForeground }]}>Diferenciais</Text>
+          <TextInput style={[styles.textarea, { color: theme.foreground, borderColor: theme.border, backgroundColor: theme.card }]} value={marketingDifferentials} onChangeText={setMarketingDifferentials} placeholder="Ex.:\n• Prazo combinado\n• Orçamento transparente" placeholderTextColor={theme.mutedForeground} multiline numberOfLines={4} maxLength={400} />
+        </View>
+      </View>
+
       <TouchableOpacity
         style={[styles.saveBtn, { backgroundColor: theme.primary }, isPending && { opacity: 0.6 }]}
         onPress={handleSave}
@@ -964,6 +1004,11 @@ const styles = StyleSheet.create({
     marginTop: 8,
   },
   saveBtnText: { fontSize: 16, fontFamily: 'PlusJakartaSans_600SemiBold', color: '#fff' },
+  marketingSection: { borderRadius: 14, borderWidth: 1, padding: 14, marginTop: 4 },
+  marketingHeading: { flexDirection: 'row', alignItems: 'flex-start', gap: 9, marginBottom: 14 },
+  marketingHeadingCopy: { flex: 1 },
+  marketingTitle: { fontSize: 16, fontFamily: 'PlusJakartaSans_700Bold' },
+  marketingSubtitle: { fontSize: 12, lineHeight: 17, fontFamily: 'PlusJakartaSans_400Regular', marginTop: 2 },
   documentsSection: { marginTop: 28 },
   sectionHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 },
   sectionHeaderText: { flex: 1, minWidth: 0 },
