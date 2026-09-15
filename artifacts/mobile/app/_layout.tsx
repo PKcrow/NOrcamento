@@ -1,5 +1,5 @@
 import React, { useEffect, useRef } from 'react';
-import { ClerkProvider, useAuth } from '@clerk/clerk-expo';
+import { ClerkProvider, useAuth } from '@clerk/expo';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -60,6 +60,9 @@ const tokenCache = {
 if (process.env.EXPO_PUBLIC_DOMAIN) {
   setBaseUrl(`https://${process.env.EXPO_PUBLIC_DOMAIN}`);
 }
+
+const clerkProxyUrl = process.env.EXPO_PUBLIC_CLERK_PROXY_URL || undefined;
+const clerkPublishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim();
 
 SplashScreen.preventAutoHideAsync();
 
@@ -301,6 +304,27 @@ function RootLayoutNav() {
 
 const styles = StyleSheet.create({
   rootContainer: { flex: 1 },
+  startupError: {
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+    flex: 1,
+    justifyContent: 'center',
+    padding: 28,
+  },
+  startupErrorTitle: {
+    color: '#0f172a',
+    fontFamily: 'PlusJakartaSans_700Bold',
+    fontSize: 20,
+    textAlign: 'center',
+  },
+  startupErrorText: {
+    color: '#475569',
+    fontFamily: 'PlusJakartaSans_400Regular',
+    fontSize: 15,
+    lineHeight: 23,
+    marginTop: 12,
+    textAlign: 'center',
+  },
   bottomNavigation: {
     borderTopWidth: 1,
     elevation: 10,
@@ -347,10 +371,22 @@ export default function RootLayout() {
 
   if (!fontsLoaded && !fontError) return null;
 
+  if (!clerkPublishableKey) {
+    return (
+      <View style={styles.startupError}>
+        <Text style={styles.startupErrorTitle}>Não foi possível iniciar o aplicativo</Text>
+        <Text style={styles.startupErrorText}>
+          A configuração de autenticação não foi incluída nesta versão. Instale uma versão atualizada.
+        </Text>
+      </View>
+    );
+  }
+
   return (
     <ClerkProvider
-      publishableKey={process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY ?? ''}
+      publishableKey={clerkPublishableKey}
       tokenCache={tokenCache}
+      proxyUrl={clerkProxyUrl}
     >
       <SafeAreaProvider>
         <ErrorBoundary>
