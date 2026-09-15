@@ -14,7 +14,8 @@
       "distribution": "store",
       "env": {
         "EXPO_PUBLIC_DOMAIN": "n-orcamento.replit.app",
-        "EXPO_PUBLIC_WEB_DOMAIN": "n-orcamento.replit.app"
+        "EXPO_PUBLIC_WEB_DOMAIN": "n-orcamento.replit.app",
+        "EXPO_PUBLIC_CLERK_PROXY_URL": "https://n-orcamento.replit.app/api/__clerk"
       },
       "android": {
         "buildType": "app-bundle",
