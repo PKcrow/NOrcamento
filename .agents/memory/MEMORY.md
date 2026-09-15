@@ -6,7 +6,12 @@
 - [Adding a field to a shared response shape](shared-response-field-fanout.md) — a field added to one entity (e.g. task.photos) must be backfilled into every route that independently re-shapes that entity, or Zod parsing 500s elsewhere.
 - [Large uploads: compress client-side, don't raise the cap](client-side-image-compression.md) — resize/re-encode phone photos in the browser before upload instead of raising the size limit.
 - [Native document sharing](native-document-sharing.md) — generate a real PDF and use Android Web Share with a file, falling back to download when unsupported.
+- [Workspace-targeted native dependencies](workspace-targeted-native-deps.md) — add Expo/native packages with the mobile workspace filter so pnpm does not modify the monorepo root.
 - [Expo Print web behavior](expo-print-web-behavior.md) — on Expo Web, printToFileAsync delegates to window.print instead of creating a PDF file.
 - [Destructive confirmations on Expo Web](expo-web-confirmations.md) — multi-button React Native alerts may not invoke actions; use browser confirmation on web.
 - [Expo native package compatibility](expo-native-package-compatibility.md) — native Expo modules must use the SDK-compatible version line, not the newest registry release.
+- [Clerk Expo Core 3 migration](clerk-expo-core-3.md) — use @clerk/expo with useSSO; password forms may need its explicit legacy adapter during Core 3 migration.
 - [Public web links from mobile](public-web-links.md) — customer links require the published app; preview links and data are development-only.
+- [EAS GitHub build source](eas-github-build-source.md) — Expo builds read the connected GitHub branch, so verify remote sync and the returned commit hash.
+- [Metro and image-size 2.x](metro-image-size-2.md) — Metro 0.83 must pass image bytes, not file paths, when using image-size 2.x.
+- [Security override version bounds](security-override-version-bounds.md) — pin the minimum patched version; avoid open-ended overrides that can cross API majors.
