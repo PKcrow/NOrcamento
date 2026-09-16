@@ -357,59 +357,149 @@ function MaterialPreview({
   differentials: string;
   selectedPhotos: SelectedPhoto[];
 }) {
-  const orange = '#e76622';
-  const ink = '#202a2d';
-  const cream = '#fbf6ed';
-  const contact = [company.phone, company.email, company.website].filter(Boolean).join('  •  ');
-  const bullets = splitItems(services || differentials);
-  const imageUri = getStorageUrl(selectedPhotos[0]?.url);
   const horizontal = kind === 'horizontal';
 
-  return (
-    <View style={[styles.material, horizontal ? { height: width * 0.56, flexDirection: 'row' } : { minHeight: width * 1.39 }]}>
-      <View style={[styles.materialAccent, horizontal ? { width: '39%' } : { height: 118, width: '100%' }, { backgroundColor: orange }]}>
-        <Text style={styles.materialEyebrow}>{horizontal ? 'SEU TRABALHO EM FOCO' : 'PORTFÓLIO DE SERVIÇOS'}</Text>
-        {!horizontal && <Text style={styles.materialCompany}>{company.name}</Text>}
-        {logoUrl ? <Image source={{ uri: logoUrl }} style={styles.materialLogo} contentFit="contain" /> : <View style={styles.materialInitial}><Text style={styles.materialInitialText}>{company.name.charAt(0).toUpperCase()}</Text></View>}
-        {horizontal && <Text style={styles.materialHeadline}>{headline.trim() || 'Trabalho bem feito, do seu jeito.'}</Text>}
-        {horizontal && <Text style={styles.materialAbout}>{about.trim() || 'Serviços cuidadosos, comunicação clara e compromisso com cada entrega.'}</Text>}
-        {horizontal && <Text style={styles.materialFooter}>{company.name}</Text>}
-      </View>
-      <View style={[styles.materialBody, !horizontal && { backgroundColor: ink }]}>
-        {imageUri ? (
-          <View>
-            <View style={{ position: 'relative' }}>
-              <Image source={{ uri: imageUri }} style={[styles.materialPhoto, horizontal ? { height: '64%' } : { height: width * 0.39 }]} contentFit="cover" />
-              {!!selectedPhotos[0]?.caption && <Text style={styles.materialCaption}>{selectedPhotos[0].caption}</Text>}
+  // ── Modern muted palette ──
+  const slate = '#334155';
+  const accent = '#6366f1';
+  const accentLight = '#eef2ff';
+  const bgLight = '#f8fafc';
+  const borderSubtle = '#e2e8f0';
+  const muted = '#64748b';
+  const heading = '#0f172a';
+
+  const contact = [company.phone, company.email, company.website].filter(Boolean);
+  const serviceBullets = splitItems(services || differentials);
+
+  // ── HORIZONTAL: Cartão de visitas (company info only, no photos) ──
+  if (horizontal) {
+    return (
+      <View style={[matStyles.card, { width, height: width * 0.56, backgroundColor: '#ffffff', borderColor: borderSubtle }]}>
+        {/* Top accent line */}
+        <View style={[matStyles.accentLine, { backgroundColor: accent }]} />
+
+        {/* Logo / initial */}
+        <View style={matStyles.cardHeader}>
+          {logoUrl ? (
+            <Image source={{ uri: logoUrl }} style={matStyles.logo} contentFit="contain" />
+          ) : (
+            <View style={[matStyles.logoPlaceholder, { backgroundColor: accentLight }]}>
+              <Text style={[matStyles.logoInitial, { color: accent }]}>{company.name.charAt(0).toUpperCase()}</Text>
             </View>
-            {selectedPhotos.length > 1 && (
-              <View style={styles.materialPhotoStrip}>
-                {selectedPhotos.slice(1, 3).map((photo) => {
-                  const uri = getStorageUrl(photo.url);
-                  return uri ? (
-                    <View key={photo.id} style={styles.materialPhotoTile}>
-                      <Image source={{ uri }} style={styles.materialPhotoSmall} contentFit="cover" />
-                      {!!photo.caption && <Text style={styles.materialCaptionSmall} numberOfLines={1}>{photo.caption}</Text>}
-                    </View>
-                  ) : null;
-                })}
-              </View>
+          )}
+          <View style={matStyles.cardHeaderCopy}>
+            <Text style={[matStyles.companyName, { color: heading }]} numberOfLines={1}>{company.name}</Text>
+            {(headline.trim() || 'Trabalho bem feito, do seu jeito.') && (
+              <Text style={[matStyles.tagline, { color: accent }]} numberOfLines={2}>
+                {headline.trim() || 'Trabalho bem feito, do seu jeito.'}
+              </Text>
             )}
           </View>
-        ) : <View style={[styles.materialPhotoEmpty, horizontal ? { height: '64%' } : { height: width * 0.39 }]}><Ionicons name="images-outline" size={24} color="#9aa6a2" /><Text style={styles.materialEmptyText}>Escolha uma foto de destaque</Text></View>}
-        {!horizontal && <Text style={styles.materialHeadlineVertical}>{headline.trim() || 'Serviços com cuidado e clareza.'}</Text>}
-        {!horizontal && <Text style={styles.materialAboutVertical}>{about.trim() || 'Conheça meu trabalho e vamos encontrar o melhor caminho.'}</Text>}
-        {!horizontal && (
-          <View style={styles.materialBullets}>
-            <Text style={styles.materialSectionLabel}>O QUE VOCÊ PODE ESPERAR</Text>
-            {(bullets.length ? bullets : ['Experiência prática', 'Orçamento transparente', 'Atenção aos detalhes']).slice(0, 3).map((bullet, index) => (
-              <Text key={`${bullet}-${index}`} style={styles.materialBullet}>✓ {bullet}</Text>
+        </View>
+
+        {/* About */}
+        <Text style={[matStyles.aboutText, { color: muted }]} numberOfLines={3}>
+          {about.trim() || 'Serviços cuidadosos, comunicação clara e compromisso com cada entrega.'}
+        </Text>
+
+        {/* Divider */}
+        <View style={[matStyles.divider, { backgroundColor: borderSubtle }]} />
+
+        {/* Contact */}
+        <View style={matStyles.contactBlock}>
+          {contact.map((item, i) => (
+            <Text key={`${item}-${i}`} style={[matStyles.contactLine, { color: slate }]} numberOfLines={1}>
+              {item}
+            </Text>
+          ))}
+          {company.address && (
+            <Text style={[matStyles.contactLine, { color: slate }]} numberOfLines={1}>
+              {company.address}
+            </Text>
+          )}
+        </View>
+      </View>
+    );
+  }
+
+  // ── VERTICAL: Apresentação (company info FIRST, photos LAST) ──
+  return (
+    <View style={[matStyles.presentation, { width, backgroundColor: '#ffffff', borderColor: borderSubtle }]}>
+      {/* Header */}
+      <View style={[matStyles.presHeader, { backgroundColor: accent }]}>
+        {logoUrl ? (
+          <Image source={{ uri: logoUrl }} style={matStyles.presLogo} contentFit="contain" />
+        ) : (
+          <View style={[matStyles.presLogoPlaceholder, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+            <Text style={matStyles.presLogoInitial}>{company.name.charAt(0).toUpperCase()}</Text>
+          </View>
+        )}
+        <Text style={matStyles.presCompanyName}>{company.name}</Text>
+      </View>
+
+      <View style={matStyles.presBody}>
+        {/* 1. Headline */}
+        <Text style={[matStyles.presHeadline, { color: heading }]}>
+          {headline.trim() || 'Serviços com cuidado e clareza.'}
+        </Text>
+
+        {/* 2. About / Quem somos */}
+        <View style={[matStyles.presSection, { borderBottomColor: borderSubtle }]}>
+          <Text style={[matStyles.presSectionLabel, { color: accent }]}>QUEM SOMOS</Text>
+          <Text style={[matStyles.presAboutText, { color: slate }]}>
+            {about.trim() || 'Conheça meu trabalho e vamos encontrar o melhor caminho juntos.'}
+          </Text>
+        </View>
+
+        {/* 3. Services / O que esperar */}
+        {(serviceBullets.length > 0 || true) && (
+          <View style={[matStyles.presSection, { borderBottomColor: borderSubtle }]}>
+            <Text style={[matStyles.presSectionLabel, { color: accent }]}>O QUE VOCÊ PODE ESPERAR</Text>
+            {(serviceBullets.length ? serviceBullets : ['Experiência prática', 'Orçamento transparente', 'Atenção aos detalhes']).slice(0, 4).map((bullet, index) => (
+              <View key={`${bullet}-${index}`} style={matStyles.presBulletRow}>
+                <View style={[matStyles.presBulletDot, { backgroundColor: accent }]} />
+                <Text style={[matStyles.presBulletText, { color: slate }]}>{bullet}</Text>
+              </View>
             ))}
           </View>
         )}
-        <Text style={styles.materialSectionLabel}>FALE COMIGO</Text>
-        <Text style={styles.materialContact}>{contact || 'Entre em contato para conversar.'}</Text>
-        {!horizontal && company.address && <Text style={styles.materialContact}>{company.address}</Text>}
+
+        {/* 4. Contact */}
+        <View style={[matStyles.presSection, selectedPhotos.length === 0 ? undefined : { borderBottomColor: borderSubtle }]}>
+          <Text style={[matStyles.presSectionLabel, { color: accent }]}>CONTATO</Text>
+          {contact.map((item, i) => (
+            <Text key={`c-${i}`} style={[matStyles.presContactLine, { color: slate }]}>{item}</Text>
+          ))}
+          {company.address && (
+            <Text style={[matStyles.presContactLine, { color: slate }]}>{company.address}</Text>
+          )}
+        </View>
+
+        {/* 5. Photos gallery (LAST, only if photos selected) */}
+        {selectedPhotos.length > 0 && (
+          <View style={matStyles.presPhotosSection}>
+            <Text style={[matStyles.presSectionLabel, { color: accent, marginBottom: 10 }]}>REGISTROS</Text>
+            {selectedPhotos.map((photo, index) => {
+              const uri = getStorageUrl(photo.url);
+              if (!uri) return null;
+              return (
+                <View key={photo.id} style={matStyles.presPhotoBlock}>
+                  <Image source={{ uri }} style={[matStyles.presPhoto, { height: width * 0.45 }]} contentFit="cover" />
+                  {!!photo.caption && (
+                    <Text style={[matStyles.presPhotoCaption, { color: muted }]}>{photo.caption}</Text>
+                  )}
+                </View>
+              );
+            })}
+          </View>
+        )}
+
+        {/* Footer */}
+        <View style={matStyles.presFooter}>
+          <Text style={[matStyles.presFooterText, { color: muted }]}>
+            {company.name} · {new Date().getFullYear()}
+          </Text>
+        </View>
       </View>
     </View>
   );
@@ -451,30 +541,194 @@ const styles = StyleSheet.create({
   segment: { flexDirection: 'row', alignSelf: 'flex-start', borderRadius: 9, borderWidth: 1, padding: 3 },
   segmentButton: { paddingHorizontal: 10, paddingVertical: 7, borderRadius: 7 },
   segmentText: { fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 11 },
-  material: { overflow: 'hidden', borderRadius: 13, backgroundColor: '#fbf6ed' },
-  materialAccent: { padding: 14, overflow: 'hidden' },
-  materialEyebrow: { color: '#ffe1ca', fontFamily: 'PlusJakartaSans_700Bold', fontSize: 8, letterSpacing: 1.1 },
-  materialCompany: { color: '#fff4ea', fontFamily: 'PlusJakartaSans_700Bold', fontSize: 18, marginTop: 10, maxWidth: '75%' },
-  materialLogo: { position: 'absolute', top: 13, right: 13, width: 38, height: 38, borderRadius: 9, backgroundColor: '#fff', padding: 3 },
-  materialInitial: { position: 'absolute', top: 13, right: 13, width: 38, height: 38, borderRadius: 9, backgroundColor: '#ffffff33', alignItems: 'center', justifyContent: 'center' },
-  materialInitialText: { color: '#fff', fontFamily: 'PlusJakartaSans_700Bold', fontSize: 17 },
-  materialHeadline: { color: '#fff4ea', fontFamily: 'PlusJakartaSans_700Bold', fontSize: 20, lineHeight: 24, marginTop: 25 },
-  materialAbout: { color: '#ffe4d0', fontFamily: 'PlusJakartaSans_400Regular', fontSize: 10, lineHeight: 14, marginTop: 8 },
-  materialFooter: { color: '#ffe1ca', fontFamily: 'PlusJakartaSans_700Bold', fontSize: 11, marginTop: 'auto' },
-  materialBody: { flex: 1, padding: 12, backgroundColor: '#fbf6ed' },
-  materialPhoto: { width: '100%', borderRadius: 10 },
-  materialCaption: { position: 'absolute', bottom: 7, left: 8, right: 8, color: '#fff', backgroundColor: '#202a2dcc', borderRadius: 5, paddingHorizontal: 6, paddingVertical: 4, fontFamily: 'PlusJakartaSans_400Regular', fontSize: 9 },
-  materialPhotoStrip: { flexDirection: 'row', gap: 6, marginTop: 6 },
-  materialPhotoTile: { flex: 1, position: 'relative' },
-  materialPhotoSmall: { width: '100%', height: 42, borderRadius: 7 },
-  materialCaptionSmall: { position: 'absolute', bottom: 3, left: 3, right: 3, color: '#fff', backgroundColor: '#202a2dcc', borderRadius: 3, paddingHorizontal: 3, paddingVertical: 2, fontFamily: 'PlusJakartaSans_400Regular', fontSize: 7 },
-  materialPhotoEmpty: { width: '100%', backgroundColor: '#eadfd2', borderRadius: 10, alignItems: 'center', justifyContent: 'center', gap: 5 },
-  materialEmptyText: { color: '#927e6c', fontFamily: 'PlusJakartaSans_400Regular', fontSize: 10 },
-  materialHeadlineVertical: { color: '#fff8ef', fontFamily: 'PlusJakartaSans_700Bold', fontSize: 20, lineHeight: 25, marginTop: 14 },
-  materialAboutVertical: { color: '#c8d0cd', fontFamily: 'PlusJakartaSans_400Regular', fontSize: 10, lineHeight: 15, marginTop: 7 },
-  materialBullets: { borderTopWidth: 1, borderTopColor: '#ffffff18', marginTop: 12, paddingTop: 10, gap: 5 },
-  materialSectionLabel: { color: '#e76622', fontFamily: 'PlusJakartaSans_700Bold', fontSize: 8, letterSpacing: 1, marginTop: 12 },
-  materialBullet: { color: '#e1e6e4', fontFamily: 'PlusJakartaSans_400Regular', fontSize: 10 },
-  materialContact: { color: '#d6ddda', fontFamily: 'PlusJakartaSans_400Regular', fontSize: 9, lineHeight: 14, marginTop: 4 },
   safeNote: { fontFamily: 'PlusJakartaSans_400Regular', fontSize: 10, lineHeight: 15, textAlign: 'center' },
+});
+
+// ── Modern preview styles ──
+const matStyles = StyleSheet.create({
+  // ── Horizontal card (Cartão de visitas) ──
+  card: {
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 0,
+    overflow: 'hidden',
+    flexDirection: 'column',
+  },
+  accentLine: {
+    height: 3,
+    width: '100%',
+  },
+  cardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingHorizontal: 18,
+    paddingTop: 16,
+  },
+  logo: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+  },
+  logoPlaceholder: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  logoInitial: {
+    fontFamily: 'PlusJakartaSans_700Bold',
+    fontSize: 16,
+  },
+  cardHeaderCopy: {
+    flex: 1,
+  },
+  companyName: {
+    fontFamily: 'PlusJakartaSans_700Bold',
+    fontSize: 15,
+    letterSpacing: -0.2,
+  },
+  tagline: {
+    fontFamily: 'PlusJakartaSans_500Medium',
+    fontSize: 10,
+    lineHeight: 14,
+    marginTop: 2,
+  },
+  aboutText: {
+    fontFamily: 'PlusJakartaSans_400Regular',
+    fontSize: 10,
+    lineHeight: 15,
+    paddingHorizontal: 18,
+    marginTop: 12,
+  },
+  divider: {
+    height: 1,
+    marginHorizontal: 18,
+    marginTop: 12,
+  },
+  contactBlock: {
+    paddingHorizontal: 18,
+    paddingTop: 10,
+    paddingBottom: 16,
+    gap: 3,
+  },
+  contactLine: {
+    fontFamily: 'PlusJakartaSans_400Regular',
+    fontSize: 9,
+    lineHeight: 13,
+  },
+
+  // ── Vertical presentation (Apresentação) ──
+  presentation: {
+    borderRadius: 12,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  presHeader: {
+    alignItems: 'center',
+    paddingVertical: 28,
+    paddingHorizontal: 20,
+    gap: 12,
+  },
+  presLogo: {
+    width: 52,
+    height: 52,
+    borderRadius: 12,
+    backgroundColor: '#ffffff',
+    padding: 4,
+  },
+  presLogoPlaceholder: {
+    width: 52,
+    height: 52,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  presLogoInitial: {
+    color: '#ffffff',
+    fontFamily: 'PlusJakartaSans_700Bold',
+    fontSize: 22,
+  },
+  presCompanyName: {
+    color: '#ffffff',
+    fontFamily: 'PlusJakartaSans_700Bold',
+    fontSize: 18,
+    letterSpacing: -0.3,
+  },
+  presBody: {
+    padding: 20,
+  },
+  presHeadline: {
+    fontFamily: 'PlusJakartaSans_700Bold',
+    fontSize: 17,
+    lineHeight: 23,
+    letterSpacing: -0.2,
+  },
+  presSection: {
+    paddingTop: 16,
+    paddingBottom: 16,
+    borderBottomWidth: 1,
+    marginTop: 4,
+  },
+  presSectionLabel: {
+    fontFamily: 'PlusJakartaSans_700Bold',
+    fontSize: 9,
+    letterSpacing: 1.2,
+    marginBottom: 8,
+  },
+  presAboutText: {
+    fontFamily: 'PlusJakartaSans_400Regular',
+    fontSize: 12,
+    lineHeight: 19,
+  },
+  presBulletRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 5,
+  },
+  presBulletDot: {
+    width: 5,
+    height: 5,
+    borderRadius: 2.5,
+    flexShrink: 0,
+  },
+  presBulletText: {
+    fontFamily: 'PlusJakartaSans_400Regular',
+    fontSize: 11,
+    lineHeight: 16,
+  },
+  presContactLine: {
+    fontFamily: 'PlusJakartaSans_400Regular',
+    fontSize: 11,
+    lineHeight: 16,
+    marginBottom: 2,
+  },
+  presPhotosSection: {
+    paddingTop: 16,
+  },
+  presPhotoBlock: {
+    marginBottom: 14,
+  },
+  presPhoto: {
+    width: '100%',
+    borderRadius: 8,
+  },
+  presPhotoCaption: {
+    fontFamily: 'PlusJakartaSans_400Regular',
+    fontSize: 10,
+    lineHeight: 14,
+    marginTop: 5,
+  },
+  presFooter: {
+    alignItems: 'center',
+    paddingTop: 16,
+    paddingBottom: 4,
+  },
+  presFooterText: {
+    fontFamily: 'PlusJakartaSans_500Medium',
+    fontSize: 9,
+    letterSpacing: 0.5,
+  },
 });

@@ -290,10 +290,10 @@ function RootLayoutNav() {
 
   if (!isLoaded) {
     return (
-      <View style={styles.startupError}>
-        <ActivityIndicator size="large" color="#f97316" />
-        <Text style={styles.startupErrorTitle}>Carregando autenticação</Text>
-        <Text style={styles.startupErrorText}>
+      <View style={styles.startupLoading}>
+        <ActivityIndicator size="large" color="#6366f1" />
+        <Text style={styles.startupLoadingTitle}>Carregando autenticação</Text>
+        <Text style={styles.startupLoadingText}>
           Aguarde enquanto conectamos sua conta com segurança.
         </Text>
       </View>
@@ -328,6 +328,7 @@ function RootLayoutNav() {
         <Stack.Screen name="produtos/index" options={{ title: 'Produtos e Serviços' }} />
         <Stack.Screen name="relatorios" options={{ title: 'Relatório Mensal' }} />
         <Stack.Screen name="politica-de-privacidade" options={{ title: 'Política de Privacidade' }} />
+        <Stack.Screen name="materiais-divulgacao" options={{ title: 'Materiais de Divulgação' }} />
       </Stack>
       {isSignedIn && me?.teamId ? <BottomNavigation /> : null}
     </View>
@@ -343,11 +344,37 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     padding: 28,
   },
+  startupLoading: {
+    alignItems: 'center',
+    backgroundColor: '#f8fafc',
+    flex: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 40,
+    paddingVertical: 28,
+  },
+  startupLoadingTitle: {
+    color: '#1e293b',
+    fontFamily: 'PlusJakartaSans_700Bold',
+    fontSize: 18,
+    textAlign: 'center',
+    marginTop: 16,
+    width: '100%',
+  },
+  startupLoadingText: {
+    color: '#64748b',
+    fontFamily: 'PlusJakartaSans_400Regular',
+    fontSize: 14,
+    lineHeight: 21,
+    marginTop: 8,
+    textAlign: 'center',
+    width: '100%',
+  },
   startupErrorTitle: {
     color: '#0f172a',
     fontFamily: 'PlusJakartaSans_700Bold',
     fontSize: 20,
     textAlign: 'center',
+    width: '100%',
   },
   startupErrorText: {
     color: '#475569',
@@ -356,6 +383,7 @@ const styles = StyleSheet.create({
     lineHeight: 23,
     marginTop: 12,
     textAlign: 'center',
+    width: '100%',
   },
   startupErrorDetails: {
     color: '#b91c1c',

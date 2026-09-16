@@ -569,10 +569,10 @@ const styles = StyleSheet.create({
     fontFamily: 'PlusJakartaSans_400Regular',
     paddingVertical: 0,
   },
-  filterRow: { maxHeight: 48, borderBottomWidth: 1 },
+  filterRow: { borderBottomWidth: 1 },
   filterContent: { paddingHorizontal: 12, paddingVertical: 8, gap: 6, alignItems: 'center' },
-  filterChip: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20 },
-  filterChipText: { fontSize: 12, fontFamily: 'PlusJakartaSans_500Medium' },
+  filterChip: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 20, flexShrink: 0 },
+  filterChipText: { fontSize: 13, fontFamily: 'PlusJakartaSans_500Medium' },
   dayHeader: {
     flexDirection: 'row',
     alignItems: 'center',

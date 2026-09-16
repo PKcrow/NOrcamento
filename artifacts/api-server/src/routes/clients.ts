@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
-import { and, desc, eq, or, sql, type Column } from "drizzle-orm";
-import { db, clientsTable, quotesTable, quoteItemsTable, tasksTable } from "@workspace/db";
+import { and, desc, eq, inArray, or, sql, type Column } from "drizzle-orm";
+import { db, clientsTable, quotesTable, quoteItemsTable, tasksTable, taskPhotosTable } from "@workspace/db";
 import {
   ListClientsQueryParams,
   ListClientsResponse,
@@ -155,7 +155,34 @@ router.delete("/clients/:id", requireAuth, requireTeam, async (req, res) => {
     return;
   }
 
-  await db.delete(clientsTable).where(eq(clientsTable.id, id));
+  // Cascade delete: taskPhotos → tasks → quoteItems → quotes → client
+  // tasks must go before quotes because tasks.quoteId → quotes.id has RESTRICT
+  await db.transaction(async (tx) => {
+    const clientTasks = await tx
+      .select({ id: tasksTable.id })
+      .from(tasksTable)
+      .where(eq(tasksTable.clientId, id));
+    const taskIds = clientTasks.map((t) => t.id);
+
+    if (taskIds.length > 0) {
+      await tx.delete(taskPhotosTable).where(inArray(taskPhotosTable.taskId, taskIds));
+      await tx.delete(tasksTable).where(inArray(tasksTable.id, taskIds));
+    }
+
+    const clientQuotes = await tx
+      .select({ id: quotesTable.id })
+      .from(quotesTable)
+      .where(eq(quotesTable.clientId, id));
+    const quoteIds = clientQuotes.map((q) => q.id);
+
+    if (quoteIds.length > 0) {
+      await tx.delete(quoteItemsTable).where(inArray(quoteItemsTable.quoteId, quoteIds));
+      await tx.delete(quotesTable).where(inArray(quotesTable.id, quoteIds));
+    }
+
+    await tx.delete(clientsTable).where(eq(clientsTable.id, id));
+  });
+
   res.status(204).send();
 });
 
