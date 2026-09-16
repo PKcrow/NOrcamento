@@ -402,10 +402,20 @@ export function ServiceTemplatesPage() {
         title: editingTemplate ? "Modelo atualizado." : "Modelo criado.",
       });
     };
+    const onError = (error: unknown) => {
+      toast({
+        title: "Não foi possível salvar o modelo.",
+        description:
+          error instanceof Error && error.message
+            ? error.message
+            : "Tente novamente.",
+        variant: "destructive",
+      });
+    };
     if (editingTemplate) {
-      updateTemplate.mutate({ id: editingTemplate.id, data }, { onSuccess });
+      updateTemplate.mutate({ id: editingTemplate.id, data }, { onSuccess, onError });
     } else {
-      createTemplate.mutate({ data }, { onSuccess });
+      createTemplate.mutate({ data }, { onSuccess, onError });
     }
   };
 

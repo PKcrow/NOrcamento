@@ -114,27 +114,31 @@ router.post("/service-templates", requireAuth, requireTeam, async (req, res) => 
     return;
   }
 
-  const [template] = await db
-    .insert(serviceTemplatesTable)
-    .values({
-      teamId,
-      name: body.name,
-      serviceScopeEnabled: body.serviceScopeEnabled ?? false,
-      serviceDescription: body.serviceDescription ?? null,
-      notes: body.notes ?? null,
-      laborCost: String(body.laborCost ?? 0),
-    })
-    .returning();
+  const template = await db.transaction(async (tx) => {
+    const [created] = await tx
+      .insert(serviceTemplatesTable)
+      .values({
+        teamId,
+        name: body.name,
+        serviceScopeEnabled: body.serviceScopeEnabled ?? false,
+        serviceDescription: body.serviceDescription ?? null,
+        notes: body.notes ?? null,
+        laborCost: String(body.laborCost ?? 0),
+      })
+      .returning();
 
-  await db.insert(serviceTemplateItemsTable).values(
-    body.items.map((item) => ({
-      serviceTemplateId: template.id,
-      productId: item.productId ?? null,
-      description: item.description,
-      quantity: String(item.quantity),
-      unitPrice: String(item.unitPrice),
-    })),
-  );
+    await tx.insert(serviceTemplateItemsTable).values(
+      body.items.map((item) => ({
+        serviceTemplateId: created.id,
+        productId: item.productId ?? null,
+        description: item.description,
+        quantity: String(item.quantity),
+        unitPrice: String(item.unitPrice),
+      })),
+    );
+
+    return created;
+  });
 
   const result = await loadServiceTemplate(template.id, teamId);
   res.status(201).json(CreateServiceTemplateResponse.parse(result));
@@ -176,37 +180,39 @@ router.patch(
       return;
     }
 
-    await db
-      .update(serviceTemplatesTable)
-      .set({
-        ...(body.name !== undefined ? { name: body.name } : {}),
-        ...(body.serviceScopeEnabled !== undefined
-          ? { serviceScopeEnabled: body.serviceScopeEnabled }
-          : {}),
-        ...(body.serviceDescription !== undefined
-          ? { serviceDescription: body.serviceDescription }
-          : {}),
-        ...(body.notes !== undefined ? { notes: body.notes } : {}),
-        ...(body.laborCost !== undefined
-          ? { laborCost: String(body.laborCost) }
-          : {}),
-      })
-      .where(eq(serviceTemplatesTable.id, id));
+    await db.transaction(async (tx) => {
+      await tx
+        .update(serviceTemplatesTable)
+        .set({
+          ...(body.name !== undefined ? { name: body.name } : {}),
+          ...(body.serviceScopeEnabled !== undefined
+            ? { serviceScopeEnabled: body.serviceScopeEnabled }
+            : {}),
+          ...(body.serviceDescription !== undefined
+            ? { serviceDescription: body.serviceDescription }
+            : {}),
+          ...(body.notes !== undefined ? { notes: body.notes } : {}),
+          ...(body.laborCost !== undefined
+            ? { laborCost: String(body.laborCost) }
+            : {}),
+        })
+        .where(eq(serviceTemplatesTable.id, id));
 
-    if (body.items !== undefined) {
-      await db
-        .delete(serviceTemplateItemsTable)
-        .where(eq(serviceTemplateItemsTable.serviceTemplateId, id));
-      await db.insert(serviceTemplateItemsTable).values(
-        body.items.map((item) => ({
-          serviceTemplateId: id,
-          productId: item.productId ?? null,
-          description: item.description,
-          quantity: String(item.quantity),
-          unitPrice: String(item.unitPrice),
-        })),
-      );
-    }
+      if (body.items !== undefined) {
+        await tx
+          .delete(serviceTemplateItemsTable)
+          .where(eq(serviceTemplateItemsTable.serviceTemplateId, id));
+        await tx.insert(serviceTemplateItemsTable).values(
+          body.items.map((item) => ({
+            serviceTemplateId: id,
+            productId: item.productId ?? null,
+            description: item.description,
+            quantity: String(item.quantity),
+            unitPrice: String(item.unitPrice),
+          })),
+        );
+      }
+    });
 
     const result = await loadServiceTemplate(id, teamId);
     res.json(UpdateServiceTemplateResponse.parse(result));

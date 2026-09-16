@@ -29,8 +29,6 @@ import {
   setBaseUrl,
   setAuthTokenGetter,
   getGetMeQueryKey,
-  getListTasksQueryKey,
-  useListTasks,
   useGetMe,
   useRegisterPushToken,
 } from '@workspace/api-client-react';
@@ -38,7 +36,6 @@ import {
   clearLocalTaskNotifications,
   requestNativePushRegistration,
   saveNativePushToken,
-  syncLocalTaskNotifications,
 } from '@/lib/pushNotifications';
 import Colors from '@/constants/colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -71,6 +68,8 @@ if (process.env.EXPO_PUBLIC_DOMAIN) {
 
 const clerkProxyUrl = process.env.EXPO_PUBLIC_CLERK_PROXY_URL || undefined;
 const clerkPublishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim();
+const pushRegistrationInFlight = new Set<string>();
+const registeredPushTeams = new Set<string>();
 
 SplashScreen.preventAutoHideAsync();
 
@@ -219,60 +218,41 @@ function RootLayoutNav() {
   }, [router]);
 
   useEffect(() => {
-    if (!isLoaded || !isSignedIn || !me?.teamId) return;
+    if (Platform.OS === 'web' || !isLoaded || !isSignedIn || !me?.teamId) return;
+    const teamId = me.teamId;
+    if (
+      registeredPushTeams.has(teamId) ||
+      pushRegistrationInFlight.has(teamId)
+    ) {
+      return;
+    }
+    pushRegistrationInFlight.add(teamId);
 
     let active = true;
     const syncPushRegistration = async () => {
-      const registration = await requestNativePushRegistration();
-      if (!registration || !active) return;
-
       try {
+        await clearLocalTaskNotifications();
+        const registration = await requestNativePushRegistration();
+        if (!registration || !active) return;
+
         await registerPushToken({ data: registration });
-        if (active) await saveNativePushToken(registration.token);
+        if (active) {
+          await saveNativePushToken(registration.token);
+          registeredPushTeams.add(teamId);
+        }
       } catch {
         // Network failures should not block sign-in or the rest of the app.
+      } finally {
+        pushRegistrationInFlight.delete(teamId);
       }
     };
 
     void syncPushRegistration();
-    // The native token can rotate while the app is installed. Re-register the
-    // Expo token instead of waiting for the person to sign out and back in.
-    const tokenSubscription = Notifications.addPushTokenListener(() => {
-      void syncPushRegistration();
-    });
 
     return () => {
       active = false;
-      tokenSubscription.remove();
     };
   }, [isLoaded, isSignedIn, me?.teamId, registerPushToken]);
-
-  const { data: tasks } = useListTasks(
-    {},
-    {
-      query: {
-        queryKey: getListTasksQueryKey({}),
-        enabled: isLoaded && Boolean(isSignedIn && me?.teamId),
-        refetchInterval: 15 * 60 * 1000,
-      },
-    },
-  );
-
-  useEffect(() => {
-    if (Platform.OS === 'web') return;
-    if (!isLoaded || !isSignedIn || !me?.teamId) {
-      void clearLocalTaskNotifications();
-      return;
-    }
-    void syncLocalTaskNotifications(
-      (tasks ?? []).map((task) => ({
-        id: task.id,
-        title: task.title,
-        dueAt: task.dueAt,
-        status: task.status,
-      })),
-    );
-  }, [isLoaded, isSignedIn, me?.teamId, tasks]);
 
   if (!isLoaded) {
     return (
@@ -313,6 +293,7 @@ function RootLayoutNav() {
         <Stack.Screen name="empresa" options={{ title: 'Dados da Empresa' }} />
         <Stack.Screen name="produtos/index" options={{ title: 'Produtos e Serviços' }} />
         <Stack.Screen name="relatorios" options={{ title: 'Relatório Mensal' }} />
+        <Stack.Screen name="notificacoes" options={{ title: 'Notificações' }} />
         <Stack.Screen name="politica-de-privacidade" options={{ title: 'Política de Privacidade' }} />
       </Stack>
       {isSignedIn && me?.teamId ? <BottomNavigation /> : null}
