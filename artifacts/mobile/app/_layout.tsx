@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ClerkProvider, useAuth } from '@clerk/expo';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -12,6 +12,7 @@ import {
 } from '@expo-google-fonts/plus-jakarta-sans';
 import { Stack, usePathname, useRouter } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import { reloadAppAsync } from 'expo';
 import * as Notifications from 'expo-notifications';
 import { Ionicons } from '@expo/vector-icons';
 import {
@@ -66,7 +67,12 @@ if (process.env.EXPO_PUBLIC_DOMAIN) {
   setBaseUrl(`https://${process.env.EXPO_PUBLIC_DOMAIN}`);
 }
 
-const clerkProxyUrl = process.env.EXPO_PUBLIC_CLERK_PROXY_URL || undefined;
+const clerkProxyUrl = __DEV__
+  ? undefined
+  : process.env.EXPO_PUBLIC_CLERK_PROXY_URL ||
+    (process.env.EXPO_PUBLIC_DOMAIN
+      ? `https://${process.env.EXPO_PUBLIC_DOMAIN}/api/__clerk`
+      : undefined);
 const clerkPublishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim();
 const pushRegistrationInFlight = new Set<string>();
 const registeredPushTeams = new Set<string>();
@@ -183,6 +189,7 @@ function BottomNavigation() {
 
 function RootLayoutNav() {
   const { isLoaded, isSignedIn, getToken } = useAuth();
+  const [authTimedOut, setAuthTimedOut] = useState(false);
   const router = useRouter();
   const { data: me } = useGetMe({
     query: {
@@ -191,6 +198,16 @@ function RootLayoutNav() {
     },
   });
   const { mutateAsync: registerPushToken } = useRegisterPushToken();
+
+  useEffect(() => {
+    if (isLoaded) {
+      setAuthTimedOut(false);
+      return;
+    }
+
+    const timeout = setTimeout(() => setAuthTimedOut(true), 15_000);
+    return () => clearTimeout(timeout);
+  }, [isLoaded]);
 
   useEffect(() => {
     setAuthTokenGetter(async () => {
@@ -254,6 +271,23 @@ function RootLayoutNav() {
     };
   }, [isLoaded, isSignedIn, me?.teamId, registerPushToken]);
 
+  if (!isLoaded && authTimedOut) {
+    return (
+      <View style={styles.startupError}>
+        <Text style={styles.startupErrorTitle}>Não foi possível conectar</Text>
+        <Text style={styles.startupErrorText}>
+          A autenticação demorou mais que o esperado. Verifique sua internet e tente abrir o aplicativo novamente.
+        </Text>
+        <Pressable
+          onPress={() => void reloadAppAsync()}
+          style={styles.startupRetryButton}
+        >
+          <Text style={styles.startupRetryButtonText}>Tentar novamente</Text>
+        </Pressable>
+      </View>
+    );
+  }
+
   if (!isLoaded) {
     return (
       <View style={styles.startupError}>
@@ -293,7 +327,6 @@ function RootLayoutNav() {
         <Stack.Screen name="empresa" options={{ title: 'Dados da Empresa' }} />
         <Stack.Screen name="produtos/index" options={{ title: 'Produtos e Serviços' }} />
         <Stack.Screen name="relatorios" options={{ title: 'Relatório Mensal' }} />
-        <Stack.Screen name="notificacoes" options={{ title: 'Notificações' }} />
         <Stack.Screen name="politica-de-privacidade" options={{ title: 'Política de Privacidade' }} />
       </Stack>
       {isSignedIn && me?.teamId ? <BottomNavigation /> : null}
@@ -331,6 +364,18 @@ const styles = StyleSheet.create({
     lineHeight: 18,
     marginTop: 18,
     textAlign: 'center',
+  },
+  startupRetryButton: {
+    backgroundColor: '#f97316',
+    borderRadius: 10,
+    marginTop: 22,
+    paddingHorizontal: 20,
+    paddingVertical: 13,
+  },
+  startupRetryButtonText: {
+    color: '#ffffff',
+    fontFamily: 'PlusJakartaSans_700Bold',
+    fontSize: 14,
   },
   bottomNavigation: {
     borderTopWidth: 1,
