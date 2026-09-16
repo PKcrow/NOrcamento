@@ -39,13 +39,35 @@ const allowedOrigins = [
   process.env.FRONTEND_URL,
   process.env.REPL_SLUG ? `https://${process.env.REPL_SLUG}.replit.app` : null,
   process.env.REPL_SLUG ? `https://${process.env.REPL_SLUG}--auth.repl.co` : null,
-].filter(Boolean);
+  process.env.REPLIT_EXPO_DEV_DOMAIN
+    ? `https://${process.env.REPLIT_EXPO_DEV_DOMAIN}`
+    : null,
+].filter((origin): origin is string => Boolean(origin));
+
+function isAllowedOrigin(origin: string | undefined): boolean {
+  if (!origin || allowedOrigins.includes(origin)) return true;
+
+  try {
+    const url = new URL(origin);
+    return (
+      url.protocol === "http:" &&
+      (url.hostname === "localhost" ||
+        url.hostname === "127.0.0.1" ||
+        url.hostname === "::1")
+    ) || (
+      url.protocol === "https:" &&
+      /\.expo\..*\.replit\.dev$/i.test(url.hostname)
+    );
+  } catch {
+    return false;
+  }
+}
 
 app.use(cors({
   credentials: true,
   origin: (origin, callback) => {
     // Allow requests with no origin (mobile apps, curl, etc.)
-    if (!origin || allowedOrigins.includes(origin)) {
+    if (isAllowedOrigin(origin)) {
       callback(null, true);
     } else {
       callback(new Error('CORS não permitido'));
