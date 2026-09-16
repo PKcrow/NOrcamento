@@ -382,6 +382,17 @@ router.patch("/quotes/:id", requireAuth, requireTeam, async (req, res) => {
   });
 
   const result = await loadQuote(id, teamId);
+
+  // Send push notification when a quote is approved or rejected internally
+  if (becameAnswered && result) {
+    void sendQuoteResponsePushNotification({
+      teamId,
+      quoteId: id,
+      clientName: result.clientName,
+      status: body.status as "approved" | "rejected",
+    });
+  }
+
   res.json(UpdateQuoteResponse.parse(result));
 });
 

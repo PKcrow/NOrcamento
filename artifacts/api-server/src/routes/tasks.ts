@@ -35,6 +35,7 @@ import {
   getScheduleRangeError,
   withTeamScheduleLock,
 } from "../lib/scheduling";
+import { sendTaskReminderPushNotification } from "../lib/expoPush";
 
 const router: IRouter = Router();
 
@@ -171,6 +172,16 @@ router.post("/tasks", requireAuth, requireTeam, async (req, res) => {
     return;
   }
 
+  // Notify team members about the new task
+  void sendTaskReminderPushNotification({
+    teamId,
+    taskId: task.id,
+    taskTitle: task.title,
+    dueAt: task.dueAt,
+    endAt: task.endAt,
+    action: "created",
+  });
+
   res.status(201).json(CreateTaskResponse.parse(await withClientNameSingle(task)));
 });
 
@@ -296,6 +307,22 @@ router.patch("/tasks/:id", requireAuth, requireTeam, async (req, res) => {
       .set(updateValues)
       .where(eq(tasksTable.id, id))
       .returning();
+  }
+
+  // Notify team members when the schedule changed (created/rescheduled)
+  const scheduleChanged =
+    body.dueAt !== undefined ||
+    body.endAt !== undefined ||
+    body.status === "scheduled";
+  if (scheduleChanged) {
+    void sendTaskReminderPushNotification({
+      teamId,
+      taskId: updated.id,
+      taskTitle: updated.title,
+      dueAt: updated.dueAt,
+      endAt: updated.endAt,
+      action: "rescheduled",
+    });
   }
 
   res.json(UpdateTaskResponse.parse(await withClientNameSingle(updated)));
