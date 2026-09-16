@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, desc, eq, ilike } from "drizzle-orm";
+import { and, desc, eq, sql, type Column } from "drizzle-orm";
 import {
   db,
   productsTable,
@@ -20,9 +20,10 @@ import { requireAuth, requireTeam } from "../middlewares/auth";
 
 const router: IRouter = Router();
 
-/** Escape LIKE wildcards so user input is treated as literal text. */
-function escapeLike(input: string): string {
-  return input.replace(/[%_]/g, (ch) => `\\${ch}`);
+/** Build a safe ILIKE pattern with ESCAPE clause so wildcards in user input
+ *  are treated as literal text. */
+function safeIlike(column: Column, pattern: string) {
+  return sql`${column} ILIKE ${pattern} ESCAPE '\\'`;
 }
 
 function toNumber(product: typeof productsTable.$inferSelect) {
@@ -35,7 +36,8 @@ router.get("/products", requireAuth, requireTeam, async (req, res) => {
 
   const conditions = [eq(productsTable.teamId, teamId)];
   if (search) {
-    conditions.push(ilike(productsTable.name, `%${escapeLike(search)}%`));
+    const term = `%${search.replace(/[%_]/g, '\\$&')}%`;
+    conditions.push(safeIlike(productsTable.name, term));
   }
 
   const products = await db

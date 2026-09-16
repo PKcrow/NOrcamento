@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, desc, eq, ilike, or } from "drizzle-orm";
+import { and, desc, eq, or, sql, type Column } from "drizzle-orm";
 import { db, clientsTable, quotesTable, quoteItemsTable, tasksTable } from "@workspace/db";
 import {
   ListClientsQueryParams,
@@ -18,9 +18,10 @@ import { quoteWithTotal } from "./quotes";
 
 const router: IRouter = Router();
 
-/** Escape LIKE wildcards so user input is treated as literal text. */
-function escapeLike(input: string): string {
-  return input.replace(/[%_]/g, (ch) => `\\${ch}`);
+/** Build a safe ILIKE pattern with ESCAPE clause so wildcards in user input
+ *  are treated as literal text. */
+function safeIlike(column: Column, pattern: string) {
+  return sql`${column} ILIKE ${pattern} ESCAPE '\\'`;
 }
 
 router.get("/clients", requireAuth, requireTeam, async (req, res) => {
@@ -29,12 +30,12 @@ router.get("/clients", requireAuth, requireTeam, async (req, res) => {
 
   const conditions = [eq(clientsTable.teamId, teamId)];
   if (search) {
-    const term = `%${escapeLike(search)}%`;
+    const term = `%${search.replace(/[%_]/g, '\\$&')}%`;
     conditions.push(
       or(
-        ilike(clientsTable.name, term),
-        ilike(clientsTable.email, term),
-        ilike(clientsTable.phone, term),
+        safeIlike(clientsTable.name, term),
+        safeIlike(clientsTable.email, term),
+        safeIlike(clientsTable.phone, term),
       )!,
     );
   }

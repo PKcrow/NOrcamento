@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { randomBytes } from "node:crypto";
-import { and, desc, eq, gt, ilike, inArray, isNull, or, sql } from "drizzle-orm";
+import { and, desc, eq, gt, inArray, isNull, or, sql } from "drizzle-orm";
 import {
   db,
   clientsTable,
@@ -45,10 +45,6 @@ import {
   getScheduleRangeError,
   withTeamScheduleLock,
 } from "../lib/scheduling";
-
-function escapeLike(input: string): string {
-  return input.replace(/[%_]/g, (ch) => `\\${ch}`);
-}
 
 const router: IRouter = Router();
 const PUBLIC_LINK_MIN_TTL_MS = 24 * 60 * 60 * 1000;
@@ -233,9 +229,9 @@ router.get("/quotes", requireAuth, requireTeam, async (req, res) => {
   if (status) conditions.push(eq(quotesTable.status, status));
   if (clientId) conditions.push(eq(quotesTable.clientId, clientId));
   if (search && search.trim()) {
-    const term = `%${escapeLike(search.trim())}%`;
+    const term = `%${search.trim().replace(/[%_]/g, '\\$&')}%`;
     const numeric = Number.parseInt(search.trim(), 10);
-    const searchConditions = [ilike(clientsTable.name, term)];
+    const searchConditions = [sql`${clientsTable.name} ILIKE ${term} ESCAPE '\\'`];
     if (!Number.isNaN(numeric)) {
       searchConditions.push(eq(quotesTable.id, numeric));
     }
