@@ -106,15 +106,16 @@ router.get('/storage/objects/*path', requireAuth, requireTeam, async (req: Reque
     const raw = req.params.path;
     const wildcardPath = Array.isArray(raw) ? raw.join('/') : raw;
     const objectPath = `/objects/${wildcardPath}`;
-    const objectFile =
-      await objectStorageService.getObjectEntityFile(objectPath);
 
-    // Verify the object belongs to the user's team
+    // Verify the object belongs to the user's team BEFORE accessing storage
     const teamId = req.localUser!.teamId;
     if (!objectPath.includes(`/${teamId}/`) || /\.\./.test(wildcardPath)) {
       res.status(403).json({ error: "Acesso negado: arquivo não pertence à sua equipe" });
       return;
     }
+
+    const objectFile =
+      await objectStorageService.getObjectEntityFile(objectPath);
 
     const response = await objectStorageService.downloadObject(objectFile);
 
