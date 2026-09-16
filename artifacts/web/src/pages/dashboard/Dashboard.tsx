@@ -241,7 +241,7 @@ export function Dashboard() {
             {data.recentQuotes.length > 0 ? (
               <div className="divide-y">
                 {data.recentQuotes.map((quote) => {
-                  const status = quoteStatusMap[quote.status];
+                  const status = quoteStatusMap[quote.status] ?? { label: quote.status, color: 'bg-gray-100 text-gray-800' };
                   return (
                     <Link key={quote.id} href={`/orcamentos/${quote.id}`} className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors">
                       <div>

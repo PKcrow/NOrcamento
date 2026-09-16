@@ -88,4 +88,15 @@ app.use(
 
 app.use("/api", router);
 
+// Global error handler — catches unhandled errors from async route handlers
+// and prevents HTTP requests from hanging indefinitely.
+app.use(
+  (err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
+    logger.error({ err }, "unhandled error");
+    if (!res.headersSent) {
+      res.status(500).json({ error: "Erro interno do servidor" });
+    }
+  },
+);
+
 export default app;

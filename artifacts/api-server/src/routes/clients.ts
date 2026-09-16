@@ -18,17 +18,23 @@ import { quoteWithTotal } from "./quotes";
 
 const router: IRouter = Router();
 
+/** Escape LIKE wildcards so user input is treated as literal text. */
+function escapeLike(input: string): string {
+  return input.replace(/[%_]/g, (ch) => `\\${ch}`);
+}
+
 router.get("/clients", requireAuth, requireTeam, async (req, res) => {
   const { search } = ListClientsQueryParams.parse(req.query);
   const teamId = req.localUser!.teamId!;
 
   const conditions = [eq(clientsTable.teamId, teamId)];
   if (search) {
+    const term = `%${escapeLike(search)}%`;
     conditions.push(
       or(
-        ilike(clientsTable.name, `%${search}%`),
-        ilike(clientsTable.email, `%${search}%`),
-        ilike(clientsTable.phone, `%${search}%`),
+        ilike(clientsTable.name, term),
+        ilike(clientsTable.email, term),
+        ilike(clientsTable.phone, term),
       )!,
     );
   }

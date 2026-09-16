@@ -102,7 +102,7 @@ export function QuotesList() {
               </TableRow>
             ) : (
               filtered.map((quote) => {
-                const status = quoteStatusMap[quote.status];
+                const status = quoteStatusMap[quote.status] ?? { label: quote.status, color: 'bg-gray-100 text-gray-800' };
                 return (
                   <TableRow key={quote.id} className="hover:bg-gray-50/50 cursor-pointer">
                     <TableCell className="font-mono text-sm text-gray-500">

@@ -154,7 +154,7 @@ export function QuoteDetail() {
       onSuccess: () => {
         queryClient.invalidateQueries({ queryKey: getGetQuoteQueryKey(quoteId) });
         queryClient.invalidateQueries({ queryKey: getGetDashboardSummaryQueryKey() });
-        toast({ title: `Status atualizado para ${quoteStatusMap[status].label}` });
+        toast({ title: `Status atualizado para ${quoteStatusMap[status]?.label ?? status}` });
       }
     });
   };
@@ -224,7 +224,7 @@ export function QuoteDetail() {
     );
   };
 
-  const statusInfo = quoteStatusMap[quote.status];
+  const statusInfo = quoteStatusMap[quote.status] ?? { label: quote.status, color: 'bg-gray-100 text-gray-800' };
   const publicLinkIsActive = Boolean(
     quote.publicToken &&
       !quote.publicLinkRevokedAt &&

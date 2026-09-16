@@ -15,6 +15,19 @@ import type { ApiError, PublicQuoteResponseInputAction } from "@workspace/api-cl
 
 export function PublicQuoteView() {
   const { token } = useParams<{ token: string }>();
+  if (!token) {
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-50 p-6">
+        <div className="max-w-md rounded-2xl border border-gray-200 bg-white p-8 text-center shadow-sm">
+          <AlertTriangle className="mx-auto h-10 w-10 text-amber-500" />
+          <h1 className="mt-4 text-xl font-bold text-gray-900">Link inválido</h1>
+          <p className="mt-2 text-sm text-gray-500">
+            O token do orçamento não foi encontrado na URL.
+          </p>
+        </div>
+      </div>
+    );
+  }
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
@@ -43,6 +56,7 @@ export function PublicQuoteView() {
           const status = (mutationError as ApiError | undefined)?.status;
           if (status === 409) {
             queryClient.invalidateQueries({ queryKey: getGetPublicQuoteQueryKey(token) });
+            setResponseLocked(false);
             return;
           }
           setResponseLocked(false);
@@ -107,7 +121,7 @@ export function PublicQuoteView() {
     );
   }
 
-  const statusInfo = quoteStatusMap[quote.status];
+  const statusInfo = quoteStatusMap[quote.status] ?? { label: quote.status, color: 'bg-gray-100 text-gray-800' };
   const canRespond = quote.status === "sent";
   const isApproved = quote.status === "approved";
   const isRejected = quote.status === "rejected";

@@ -20,6 +20,11 @@ import { requireAuth, requireTeam } from "../middlewares/auth";
 
 const router: IRouter = Router();
 
+/** Escape LIKE wildcards so user input is treated as literal text. */
+function escapeLike(input: string): string {
+  return input.replace(/[%_]/g, (ch) => `\\${ch}`);
+}
+
 function toNumber(product: typeof productsTable.$inferSelect) {
   return { ...product, price: Number(product.price) };
 }
@@ -30,7 +35,7 @@ router.get("/products", requireAuth, requireTeam, async (req, res) => {
 
   const conditions = [eq(productsTable.teamId, teamId)];
   if (search) {
-    conditions.push(ilike(productsTable.name, `%${search}%`));
+    conditions.push(ilike(productsTable.name, `%${escapeLike(search)}%`));
   }
 
   const products = await db

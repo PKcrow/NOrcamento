@@ -131,7 +131,7 @@ export default function DashboardScreen() {
         </View>
         {(summary?.priorities.length ?? 0) > 0 ? (
           summary!.priorities.map(priority => {
-            const meta = PRIORITY_META[priority.type];
+            const meta = PRIORITY_META[priority.type] ?? { label: priority.type, icon: 'alert-circle' as const, color: '#94a3b8' };
             return (
               <TouchableOpacity
                 key={`${priority.type}-${priority.targetId}`}

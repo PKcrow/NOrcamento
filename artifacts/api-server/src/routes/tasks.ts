@@ -391,7 +391,10 @@ router.delete("/tasks/:id", requireAuth, requireTeam, async (req, res) => {
     return;
   }
 
-  await db.delete(tasksTable).where(eq(tasksTable.id, id));
+  await db.transaction(async (tx) => {
+    await tx.delete(taskPhotosTable).where(eq(taskPhotosTable.taskId, id));
+    await tx.delete(tasksTable).where(eq(tasksTable.id, id));
+  });
   res.status(204).send();
 });
 

@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { randomBytes } from "node:crypto";
-import { and, desc, eq, gt, ilike, isNull, or, sql } from "drizzle-orm";
+import { and, desc, eq, gt, ilike, inArray, isNull, or, sql } from "drizzle-orm";
 import {
   db,
   clientsTable,
@@ -45,6 +45,10 @@ import {
   getScheduleRangeError,
   withTeamScheduleLock,
 } from "../lib/scheduling";
+
+function escapeLike(input: string): string {
+  return input.replace(/[%_]/g, (ch) => `\\${ch}`);
+}
 
 const router: IRouter = Router();
 const PUBLIC_LINK_MIN_TTL_MS = 24 * 60 * 60 * 1000;
@@ -229,7 +233,7 @@ router.get("/quotes", requireAuth, requireTeam, async (req, res) => {
   if (status) conditions.push(eq(quotesTable.status, status));
   if (clientId) conditions.push(eq(quotesTable.clientId, clientId));
   if (search && search.trim()) {
-    const term = `%${search.trim()}%`;
+    const term = `%${escapeLike(search.trim())}%`;
     const numeric = Number.parseInt(search.trim(), 10);
     const searchConditions = [ilike(clientsTable.name, term)];
     if (!Number.isNaN(numeric)) {
@@ -410,9 +414,23 @@ router.delete("/quotes/:id", requireAuth, requireTeam, async (req, res) => {
   }
 
   await db.transaction(async (tx) => {
+    // Delete task photos for linked tasks before deleting the tasks
+    const linkedTasks = await tx
+      .select({ id: tasksTable.id })
+      .from(tasksTable)
+      .where(and(eq(tasksTable.quoteId, id), eq(tasksTable.teamId, teamId)));
+    if (linkedTasks.length > 0) {
+      const taskIds = linkedTasks.map((t) => t.id);
+      await tx
+        .delete(taskPhotosTable)
+        .where(inArray(taskPhotosTable.taskId, taskIds));
+    }
     await tx
       .delete(tasksTable)
       .where(and(eq(tasksTable.quoteId, id), eq(tasksTable.teamId, teamId)));
+    await tx
+      .delete(quoteItemsTable)
+      .where(eq(quoteItemsTable.quoteId, id));
     await tx
       .delete(quotesTable)
       .where(and(eq(quotesTable.id, id), eq(quotesTable.teamId, teamId)));
@@ -638,7 +656,7 @@ router.post(
         res.status(409).json({ error: error.message });
         return;
       }
-      throw error;
+      res.status(500).json({ error: "Erro ao converter orçamento" });
     }
   },
 );

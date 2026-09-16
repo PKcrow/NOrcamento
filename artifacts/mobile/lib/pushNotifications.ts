@@ -85,9 +85,14 @@ export async function syncLocalTaskNotifications(tasks: TaskNotificationItem[]) 
   if (Platform.OS === 'web') return;
 
   const storedValue = await AsyncStorage.getItem(SCHEDULED_TASKS_STORAGE_KEY);
-  const scheduled: ScheduledTaskNotifications = storedValue
-    ? (JSON.parse(storedValue) as ScheduledTaskNotifications)
-    : {};
+  let scheduled: ScheduledTaskNotifications = {};
+  if (storedValue) {
+    try {
+      scheduled = JSON.parse(storedValue) as ScheduledTaskNotifications;
+    } catch {
+      scheduled = {};
+    }
+  }
   const activeKeys = new Set<string>();
   const now = Date.now();
 
@@ -135,9 +140,14 @@ export async function syncLocalTaskNotifications(tasks: TaskNotificationItem[]) 
 export async function clearLocalTaskNotifications() {
   if (Platform.OS !== 'web') {
     const storedValue = await AsyncStorage.getItem(SCHEDULED_TASKS_STORAGE_KEY);
-    const scheduled = storedValue
-      ? (JSON.parse(storedValue) as ScheduledTaskNotifications)
-      : {};
+    let scheduled: ScheduledTaskNotifications = {};
+    if (storedValue) {
+      try {
+        scheduled = JSON.parse(storedValue) as ScheduledTaskNotifications;
+      } catch {
+        scheduled = {};
+      }
+    }
     await Promise.all(
       Object.values(scheduled).map((notificationId) =>
         Notifications.cancelScheduledNotificationAsync(notificationId),

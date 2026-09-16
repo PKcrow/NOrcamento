@@ -131,7 +131,7 @@ export function ClientDetail() {
               {client.quotes.length > 0 ? (
                 <div className="divide-y">
                   {client.quotes.map(quote => {
-                    const status = quoteStatusMap[quote.status];
+                    const status = quoteStatusMap[quote.status] ?? { label: quote.status, color: 'bg-gray-100 text-gray-800' };
                     return (
                       <Link key={quote.id} href={`/orcamentos/${quote.id}`} className="flex items-center justify-between p-4 hover:bg-gray-50 transition-colors">
                         <div>
@@ -162,7 +162,7 @@ export function ClientDetail() {
               {client.tasks.length > 0 ? (
                 <div className="divide-y">
                   {client.tasks.map(task => {
-                    const status = taskStatusMap[task.status];
+                    const status = taskStatusMap[task.status] ?? { label: task.status, color: 'bg-gray-100 text-gray-800', nextLabel: null };
                     return (
                       <div key={task.id} className="flex items-center justify-between p-4">
                         <div>
