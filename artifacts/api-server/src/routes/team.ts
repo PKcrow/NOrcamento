@@ -103,7 +103,7 @@ router.post("/team/create", requireAuth, async (req, res) => {
     inviteCode = generateInviteCode();
   }
 
-  const result = await db.transaction(async (tx) => {
+  const teamId = await db.transaction(async (tx) => {
     const [team] = await tx
       .insert(teamsTable)
       .values({ name: body.name, inviteCode })
@@ -120,9 +120,10 @@ router.post("/team/create", requireAuth, async (req, res) => {
       .set({ teamId: team.id, role: "owner" })
       .where(eq(usersTable.id, user.id));
 
-    return teamWithMembers(team.id);
+    return team.id;
   });
 
+  const result = await teamWithMembers(teamId);
   res.status(201).json(CreateTeamResponse.parse(result));
 });
 
