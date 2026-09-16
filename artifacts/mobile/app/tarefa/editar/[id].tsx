@@ -49,7 +49,7 @@ export default function EditarTarefaScreen() {
   const taskId = Number(id);
   const router = useRouter();
   const colorScheme = useColorScheme();
-  const theme = Colors[colorScheme];
+  const theme = Colors[colorScheme ?? 'light'];
   const queryClient = useQueryClient();
 
   const { data: tasks, isLoading } = useListTasks({});
@@ -71,11 +71,11 @@ export default function EditarTarefaScreen() {
   useEffect(() => {
     if (task) {
       setTitle(task.title ?? '');
-      setDescription((task as any).description ?? '');
+      setDescription(task.description ?? '');
       setDueDate(toDisplayDate(task.dueAt));
       setDueTime(toDisplayTime(task.dueAt));
-      setEndDate(toDisplayDate((task as any).endAt) || toDisplayDate(task.dueAt));
-      setEndTime(toDisplayTime((task as any).endAt) || '17:00');
+      setEndDate(toDisplayDate(task.endAt) || toDisplayDate(task.dueAt));
+      setEndTime(toDisplayTime(task.endAt) || '17:00');
       setSelectedClientId(task.clientId ?? undefined);
     }
   }, [task]);
@@ -107,7 +107,7 @@ export default function EditarTarefaScreen() {
           clientId: selectedClientId ?? null,
           dueAt: start.toISOString(),
           endAt: end.toISOString(),
-        } as any,
+        },
       },
       {
         onSuccess: () => { queryClient.invalidateQueries(); router.back(); },

@@ -112,13 +112,18 @@ router.get("/dashboard/summary", requireAuth, requireTeam, async (req, res) => {
     ).values(),
   ];
 
+  const quoteIds = quotesNeeded.map((q) => q.id);
+  const allItems = quoteIds.length > 0
+    ? await db
+        .select()
+        .from(quoteItemsTable)
+        .where(inArray(quoteItemsTable.quoteId, quoteIds))
+    : [];
   const itemsByQuote = new Map<number, (typeof quoteItemsTable.$inferSelect)[]>();
-  for (const q of quotesNeeded) {
-    const items = await db
-      .select()
-      .from(quoteItemsTable)
-      .where(eq(quoteItemsTable.quoteId, q.id));
-    itemsByQuote.set(q.id, items);
+  for (const item of allItems) {
+    const list = itemsByQuote.get(item.quoteId) ?? [];
+    list.push(item);
+    itemsByQuote.set(item.quoteId, list);
   }
 
   const withTotal = (q: (typeof quotesNeeded)[number]) =>

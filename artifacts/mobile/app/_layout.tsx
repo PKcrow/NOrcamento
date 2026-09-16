@@ -109,7 +109,7 @@ function BottomNavigation() {
   const router = useRouter();
   const pathname = usePathname();
   const colorScheme = useColorScheme();
-  const theme = Colors[colorScheme];
+  const theme = Colors[colorScheme ?? 'light'];
   const insets = useSafeAreaInsets();
   const scrollRef = useRef<ScrollView>(null);
 

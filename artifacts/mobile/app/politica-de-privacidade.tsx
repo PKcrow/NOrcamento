@@ -39,7 +39,7 @@ const sections = [
 
 export default function PoliticaDePrivacidadeScreen() {
   const colorScheme = useColorScheme();
-  const theme = Colors[colorScheme];
+  const theme = Colors[colorScheme ?? 'light'];
 
   return (
     <ScrollView

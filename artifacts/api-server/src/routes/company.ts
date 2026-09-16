@@ -16,8 +16,10 @@ import {
   UpdateCompanyResponse,
 } from "@workspace/api-zod";
 import { requireAuth, requireTeam, requireTeamOwner } from "../middlewares/auth";
+import { ObjectStorageService } from "../lib/objectStorage";
 
 const router: IRouter = Router();
+const objectStorage = new ObjectStorageService();
 
 function toCompany(team: typeof teamsTable.$inferSelect) {
   return {
@@ -169,7 +171,7 @@ router.delete(
   async (req, res) => {
     const { id } = DeleteCompanyDocumentParams.parse(req.params);
     const [document] = await db
-      .select({ id: companyDocumentsTable.id })
+      .select({ id: companyDocumentsTable.id, objectPath: companyDocumentsTable.objectPath })
       .from(companyDocumentsTable)
       .where(
         and(
@@ -180,6 +182,16 @@ router.delete(
     if (!document) {
       res.status(404).json({ error: "Documento não encontrado" });
       return;
+    }
+
+    // Remove the file from object storage
+    try {
+      if (document.objectPath) {
+        const file = await objectStorage.getObjectEntityFile(document.objectPath);
+        await file.delete();
+      }
+    } catch {
+      // Log but don't fail the request if storage delete fails
     }
 
     await db.delete(companyDocumentsTable).where(eq(companyDocumentsTable.id, id));

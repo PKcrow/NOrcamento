@@ -101,7 +101,7 @@ router.get(
  * These are served from a separate path from /public-objects and can optionally
  * be protected with authentication or ACL checks based on the use case.
  */
-router.get('/storage/objects/*path', async (req: Request, res: Response) => {
+router.get('/storage/objects/*path', requireAuth, requireTeam, async (req: Request, res: Response) => {
   try {
     const raw = req.params.path;
     const wildcardPath = Array.isArray(raw) ? raw.join('/') : raw;
@@ -109,20 +109,12 @@ router.get('/storage/objects/*path', async (req: Request, res: Response) => {
     const objectFile =
       await objectStorageService.getObjectEntityFile(objectPath);
 
-    // --- Protected route example (uncomment when using replit-auth) ---
-    // if (!req.isAuthenticated()) {
-    //   res.status(401).json({ error: "Unauthorized" });
-    //   return;
-    // }
-    // const canAccess = await objectStorageService.canAccessObjectEntity({
-    //   userId: req.user.id,
-    //   objectFile,
-    //   requestedPermission: ObjectPermission.READ,
-    // });
-    // if (!canAccess) {
-    //   res.status(403).json({ error: "Forbidden" });
-    //   return;
-    // }
+    // Verify the object belongs to the user's team
+    const teamId = req.localUser!.teamId;
+    if (!objectPath.includes(`/${teamId}/`)) {
+      res.status(403).json({ error: "Acesso negado: arquivo não pertence à sua equipe" });
+      return;
+    }
 
     const response = await objectStorageService.downloadObject(objectFile);
 

@@ -51,7 +51,7 @@ function splitItems(value: string): string[] {
 export default function CompanyMaterialsScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
-  const theme = Colors[colorScheme];
+  const theme = Colors[colorScheme ?? 'light'];
   const { width } = Dimensions.get('window');
   const { data: company, isLoading: companyLoading } = useGetCompany();
   const { data: tasks, isLoading: tasksLoading } = useListTasks({});

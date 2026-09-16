@@ -29,7 +29,7 @@ const fmtDate = (d: Date | string) =>
 
 export default function RelatoriosScreen() {
   const colorScheme = useColorScheme();
-  const theme = Colors[colorScheme];
+  const theme = Colors[colorScheme ?? 'light'];
 
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());

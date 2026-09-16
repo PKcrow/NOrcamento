@@ -9,14 +9,21 @@ import {
   Alert,
   Share,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
-// Clipboard helper — uses Web API on browser, falls back gracefully on native
-const copyToClipboard = async (text: string) => {
-  if (typeof navigator !== 'undefined' && navigator.clipboard) {
-    await navigator.clipboard.writeText(text);
-  }
-};
 import { Ionicons } from '@expo/vector-icons';
+
+// Clipboard helper — uses expo-clipboard on native, falls back to Web API on browser
+const copyToClipboard = async (text: string) => {
+  if (Platform.OS === 'web') {
+    if (typeof navigator !== 'undefined' && navigator.clipboard) {
+      await navigator.clipboard.writeText(text);
+      return;
+    }
+  }
+  // On native, Share as a fallback (clipboard requires expo-clipboard)
+  await Share.share({ message: text, title: 'Copiar para área de transferência' });
+};
 import {
   useGetMe,
   useGetTeam,
@@ -33,7 +40,7 @@ import { useQueryClient } from '@tanstack/react-query';
 
 export default function EquipesScreen() {
   const colorScheme = useColorScheme();
-  const theme = Colors[colorScheme];
+  const theme = Colors[colorScheme ?? 'light'];
   const queryClient = useQueryClient();
 
   const [showCreateForm, setShowCreateForm] = useState(false);

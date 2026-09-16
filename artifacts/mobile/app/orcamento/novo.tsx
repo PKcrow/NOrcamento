@@ -139,10 +139,10 @@ export default function NovoOrcamentoScreen() {
             quantity: parseMoney(it.quantity) || 1,
             unitPrice: parseMoney(it.unitPrice),
           })),
-        } as any,
+        },
       },
       {
-        onSuccess: (quote: any) => {
+        onSuccess: (quote) => {
           queryClient.invalidateQueries();
           router.replace(`/orcamento/${quote.id}`);
         },

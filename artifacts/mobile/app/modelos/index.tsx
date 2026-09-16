@@ -306,7 +306,7 @@ export default function ModelosScreen() {
         quantity: parseNumber(item.quantity) || 1,
         unitPrice: parseNumber(item.unitPrice),
       })),
-    } as any;
+    };
     const onSuccess = () => {
       queryClient.invalidateQueries();
       setShowEditor(false);

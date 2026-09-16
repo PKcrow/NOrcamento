@@ -87,7 +87,7 @@ export default function TarefaDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const taskId = Number(id);
   const colorScheme = useColorScheme();
-  const theme = Colors[colorScheme];
+  const theme = Colors[colorScheme ?? 'light'];
   const queryClient = useQueryClient();
   const navigation = useNavigation();
   const router = useRouter();
@@ -128,7 +128,7 @@ export default function TarefaDetailScreen() {
 
   const handleMarkStatus = (newStatus: TaskStatus) => {
     updateTask(
-      { id: taskId, data: { status: newStatus } as any },
+      { id: taskId, data: { status: newStatus } },
       { onSuccess: () => queryClient.invalidateQueries() }
     );
   };
@@ -142,7 +142,7 @@ export default function TarefaDetailScreen() {
     updateTask(
       {
         id: taskId,
-        data: { status: 'paid', paidAmount: amount, paidAt: new Date().toISOString() } as any,
+        data: { status: 'paid', paidAmount: amount, paidAt: new Date().toISOString() },
       },
       { onSuccess: () => { queryClient.invalidateQueries(); setShowPayModal(false); } }
     );
@@ -167,7 +167,7 @@ export default function TarefaDetailScreen() {
       return;
     }
     updateTask(
-      { id: taskId, data: { paidAmount: amount, paidAt: date.toISOString(), status: 'paid' } as any },
+      { id: taskId, data: { paidAmount: amount, paidAt: date.toISOString(), status: 'paid' } },
       {
         onSuccess: () => {
           queryClient.invalidateQueries();
@@ -188,7 +188,7 @@ export default function TarefaDetailScreen() {
           text: 'Desfazer',
           style: 'destructive',
           onPress: () => updateTask(
-            { id: taskId, data: { status: 'completed', paidAmount: null, paidAt: null } as any },
+            { id: taskId, data: { status: 'completed', paidAmount: null, paidAt: null } },
             {
               onSuccess: () => queryClient.invalidateQueries(),
               onError: () => Alert.alert('Erro', 'Não foi possível desfazer o pagamento.'),
@@ -283,7 +283,7 @@ export default function TarefaDetailScreen() {
       return;
     }
     updateTask(
-      { id: taskId, data: { status: newStatus } as any },
+      { id: taskId, data: { status: newStatus } },
       {
         onSuccess: () => queryClient.invalidateQueries(),
         onError: () => Alert.alert('Erro', 'Não foi possível alterar o status da O.S.'),

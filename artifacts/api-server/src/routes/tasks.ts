@@ -1,6 +1,6 @@
 import { Router, type IRouter } from "express";
 import { randomBytes } from "node:crypto";
-import { and, asc, eq, ilike, isNull, or } from "drizzle-orm";
+import { and, asc, eq, ilike, inArray, isNull, or } from "drizzle-orm";
 import {
   db,
   clientsTable,
@@ -38,28 +38,32 @@ import {
 
 const router: IRouter = Router();
 
-async function withClientName(task: typeof tasksTable.$inferSelect) {
+async function withClientNameSingle(task: typeof tasksTable.$inferSelect) {
   const photos = await db
     .select()
     .from(taskPhotosTable)
     .where(eq(taskPhotosTable.taskId, task.id));
-
-  if (!task.clientId) {
-    return {
-      ...task,
-      paidAmount: task.paidAmount ? Number(task.paidAmount) : null,
-      clientName: null,
-      photos,
-    };
+  let clientName: string | null = null;
+  if (task.clientId) {
+    const [client] = await db
+      .select({ name: clientsTable.name })
+      .from(clientsTable)
+      .where(eq(clientsTable.id, task.clientId));
+    clientName = client?.name ?? null;
   }
-  const [client] = await db
-    .select()
-    .from(clientsTable)
-    .where(eq(clientsTable.id, task.clientId));
   return {
     ...task,
     paidAmount: task.paidAmount ? Number(task.paidAmount) : null,
-    clientName: client?.name ?? null,
+    clientName,
+    photos,
+  };
+}
+
+function enrichTaskWithClientName(task: typeof tasksTable.$inferSelect, photos: (typeof taskPhotosTable.$inferSelect)[], clientMap: Map<number, string>) {
+  return {
+    ...task,
+    paidAmount: task.paidAmount ? Number(task.paidAmount) : null,
+    clientName: task.clientId ? (clientMap.get(task.clientId) ?? null) : null,
     photos,
   };
 }
@@ -77,8 +81,27 @@ router.get("/tasks", requireAuth, requireTeam, async (req, res) => {
     .where(and(...conditions))
     .orderBy(asc(tasksTable.dueAt));
 
-  // Client-side search filtering (join clientName after fetch)
-  let results = await Promise.all(tasks.map(withClientName));
+  // Batch-fetch photos and client names to avoid N+1 queries
+  const taskIds = tasks.map((t) => t.id);
+  const allPhotos = taskIds.length > 0
+    ? await db.select().from(taskPhotosTable).where(inArray(taskPhotosTable.taskId, taskIds))
+    : [];
+  const photosByTask = new Map<number, (typeof taskPhotosTable.$inferSelect)[]>();
+  for (const photo of allPhotos) {
+    const list = photosByTask.get(photo.taskId) ?? [];
+    list.push(photo);
+    photosByTask.set(photo.taskId, list);
+  }
+
+  const clientIds = [...new Set(tasks.map((t) => t.clientId).filter((id): id is number => id != null))];
+  const clientRows = clientIds.length > 0
+    ? await db.select({ id: clientsTable.id, name: clientsTable.name }).from(clientsTable).where(inArray(clientsTable.id, clientIds))
+    : [];
+  const clientMap = new Map(clientRows.map((c) => [c.id, c.name]));
+
+  let results = tasks.map((task) =>
+    enrichTaskWithClientName(task, photosByTask.get(task.id) ?? [], clientMap)
+  );
 
   if (search) {
     const term = search.toLowerCase();
@@ -117,7 +140,10 @@ router.post("/tasks", requireAuth, requireTeam, async (req, res) => {
     res.status(400).json({ error: rangeError });
     return;
   }
-  if (!endAt) return;
+  if (!endAt) {
+    res.status(400).json({ error: "Data de término é obrigatória" });
+    return;
+  }
 
   let task: typeof tasksTable.$inferSelect;
   try {
@@ -145,7 +171,7 @@ router.post("/tasks", requireAuth, requireTeam, async (req, res) => {
     return;
   }
 
-  res.status(201).json(CreateTaskResponse.parse(await withClientName(task)));
+  res.status(201).json(CreateTaskResponse.parse(await withClientNameSingle(task)));
 });
 
 router.patch("/tasks/:id", requireAuth, requireTeam, async (req, res) => {
@@ -193,7 +219,10 @@ router.patch("/tasks/:id", requireAuth, requireTeam, async (req, res) => {
       res.status(400).json({ error: rangeError });
       return;
     }
-    if (!effectiveEndAt) return;
+    if (!effectiveEndAt) {
+      res.status(400).json({ error: "Data de término é obrigatória" });
+      return;
+    }
   }
 
   // Auto-set paidAt when marking as paid; clear payment info when un-paying
@@ -269,7 +298,7 @@ router.patch("/tasks/:id", requireAuth, requireTeam, async (req, res) => {
       .returning();
   }
 
-  res.json(UpdateTaskResponse.parse(await withClientName(updated)));
+  res.json(UpdateTaskResponse.parse(await withClientNameSingle(updated)));
 });
 
 router.post(

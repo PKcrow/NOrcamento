@@ -40,10 +40,10 @@ export default function NovoClienteScreen() {
           phone: phone.trim() || undefined,
           email: email.trim() || undefined,
           notes: notes.trim() || undefined,
-        } as any,
+        },
       },
       {
-        onSuccess: (client: any) => {
+        onSuccess: (client) => {
           queryClient.invalidateQueries();
           router.replace(`/cliente/${client.id}`);
         },

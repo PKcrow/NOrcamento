@@ -53,7 +53,7 @@ export default function OrcamentoDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const quoteId = Number(id);
   const colorScheme = useColorScheme();
-  const theme = Colors[colorScheme];
+  const theme = Colors[colorScheme ?? 'light'];
   const queryClient = useQueryClient();
   const navigation = useNavigation();
   const router = useRouter();
@@ -95,7 +95,7 @@ export default function OrcamentoDetailScreen() {
     shareQuote(
       { id: quoteId },
       {
-        onSuccess: async (data: any) => {
+        onSuccess: async (data) => {
           const token = data?.publicToken ?? quote?.publicToken;
           if (!token) {
             Alert.alert('Erro', 'Não foi possível gerar o link de aprovação.');
@@ -162,7 +162,7 @@ export default function OrcamentoDetailScreen() {
 
   const handleStatusChange = (newStatus: QuoteStatus) => {
     updateQuote(
-      { id: quoteId, data: { status: newStatus } as any },
+      { id: quoteId, data: { status: newStatus } },
       { onSuccess: () => queryClient.invalidateQueries() }
     );
   };
@@ -249,7 +249,7 @@ export default function OrcamentoDetailScreen() {
             ],
           );
         },
-        onError: (error: any) => {
+        onError: (error) => {
           Alert.alert(
             'Não foi possível agendar',
             error?.message ?? 'Verifique se não há conflito na agenda e tente novamente.',

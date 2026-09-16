@@ -46,7 +46,7 @@ export default function ClienteDetailScreen() {
   const router = useRouter();
   const navigation = useNavigation();
   const colorScheme = useColorScheme();
-  const theme = Colors[colorScheme];
+  const theme = Colors[colorScheme ?? 'light'];
   const queryClient = useQueryClient();
 
   const { data: client, isLoading } = useGetClient(clientId);

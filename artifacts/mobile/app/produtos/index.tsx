@@ -41,7 +41,7 @@ function ProductForm({
   loading: boolean;
 }) {
   const colorScheme = useColorScheme();
-  const theme = Colors[colorScheme];
+  const theme = Colors[colorScheme ?? 'light'];
   const [name, setName] = useState(initial?.name ?? '');
   const [description, setDescription] = useState(initial?.description ?? '');
   const [price, setPrice] = useState(initial?.price != null ? String(initial.price) : '');
@@ -118,7 +118,7 @@ function ProductForm({
 
 export default function ProdutosScreen() {
   const colorScheme = useColorScheme();
-  const theme = Colors[colorScheme];
+  const theme = Colors[colorScheme ?? 'light'];
   const queryClient = useQueryClient();
 
   const [search, setSearch] = useState('');
@@ -140,7 +140,7 @@ export default function ProdutosScreen() {
       name: name.trim(),
       ...(description.trim() ? { description: description.trim() } : {}),
       price: parsedPrice,
-    } as any;
+    };
 
     if (editingProduct) {
       updateProduct(

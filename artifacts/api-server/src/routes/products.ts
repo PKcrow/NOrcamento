@@ -103,15 +103,17 @@ router.delete("/products/:id", requireAuth, requireTeam, async (req, res) => {
 
   // Keep historical quote/template lines intact while removing the catalog
   // association, so a product can be deleted after it has been used.
-  await db
-    .update(quoteItemsTable)
-    .set({ productId: null })
-    .where(eq(quoteItemsTable.productId, id));
-  await db
-    .update(serviceTemplateItemsTable)
-    .set({ productId: null })
-    .where(eq(serviceTemplateItemsTable.productId, id));
-  await db.delete(productsTable).where(eq(productsTable.id, id));
+  await db.transaction(async (tx) => {
+    await tx
+      .update(quoteItemsTable)
+      .set({ productId: null })
+      .where(eq(quoteItemsTable.productId, id));
+    await tx
+      .update(serviceTemplateItemsTable)
+      .set({ productId: null })
+      .where(eq(serviceTemplateItemsTable.productId, id));
+    await tx.delete(productsTable).where(eq(productsTable.id, id));
+  });
   res.status(204).send();
 });
 

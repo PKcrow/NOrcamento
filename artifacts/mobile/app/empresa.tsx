@@ -125,7 +125,7 @@ async function uploadLogoFile(uploadURL: string, fileUri: string, contentType: s
 
 export default function EmpresaScreen() {
   const colorScheme = useColorScheme();
-  const theme = Colors[colorScheme];
+  const theme = Colors[colorScheme ?? 'light'];
   const queryClient = useQueryClient();
 
   const { data: company, isLoading } = useGetCompany();
@@ -310,7 +310,7 @@ export default function EmpresaScreen() {
           showBankDetailsOnQuotes: visibility.bankDetails,
           showPaymentInstructionsOnQuotes: visibility.paymentInstructions,
           showAdditionalInfoOnQuotes: visibility.additionalInfo,
-        } as any,
+        },
       },
       {
         onSuccess: () => {

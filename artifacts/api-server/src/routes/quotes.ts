@@ -344,40 +344,42 @@ router.patch("/quotes/:id", requireAuth, requireTeam, async (req, res) => {
     (body.status === "approved" || body.status === "rejected") &&
     body.status !== existing.status;
 
-  await db
-    .update(quotesTable)
-    .set({
-      ...(body.clientId !== undefined ? { clientId: body.clientId } : {}),
-      ...(body.status !== undefined ? { status: body.status } : {}),
-      ...(body.serviceScopeEnabled !== undefined
-        ? { serviceScopeEnabled: body.serviceScopeEnabled }
-        : {}),
-      ...(body.serviceDescription !== undefined
-        ? { serviceDescription: body.serviceDescription }
-        : {}),
-      ...(body.notes !== undefined ? { notes: body.notes } : {}),
-      ...(body.laborCost !== undefined
-        ? { laborCost: String(body.laborCost) }
-        : {}),
-      ...(becameSent ? { sentAt: new Date() } : {}),
-      ...(becameAnswered ? { respondedAt: new Date() } : {}),
-    })
-    .where(eq(quotesTable.id, id));
+  await db.transaction(async (tx) => {
+    await tx
+      .update(quotesTable)
+      .set({
+        ...(body.clientId !== undefined ? { clientId: body.clientId } : {}),
+        ...(body.status !== undefined ? { status: body.status } : {}),
+        ...(body.serviceScopeEnabled !== undefined
+          ? { serviceScopeEnabled: body.serviceScopeEnabled }
+          : {}),
+        ...(body.serviceDescription !== undefined
+          ? { serviceDescription: body.serviceDescription }
+          : {}),
+        ...(body.notes !== undefined ? { notes: body.notes } : {}),
+        ...(body.laborCost !== undefined
+          ? { laborCost: String(body.laborCost) }
+          : {}),
+        ...(becameSent ? { sentAt: new Date() } : {}),
+        ...(becameAnswered ? { respondedAt: new Date() } : {}),
+      })
+      .where(eq(quotesTable.id, id));
 
-  if (body.items !== undefined) {
-    await db.delete(quoteItemsTable).where(eq(quoteItemsTable.quoteId, id));
-    if (body.items.length > 0) {
-      await db.insert(quoteItemsTable).values(
-        body.items.map((item) => ({
-          quoteId: id,
-          productId: item.productId ?? null,
-          description: item.description,
-          quantity: String(item.quantity),
-          unitPrice: String(item.unitPrice),
-        })),
-      );
+    if (body.items !== undefined) {
+      await tx.delete(quoteItemsTable).where(eq(quoteItemsTable.quoteId, id));
+      if (body.items.length > 0) {
+        await tx.insert(quoteItemsTable).values(
+          body.items.map((item) => ({
+            quoteId: id,
+            productId: item.productId ?? null,
+            description: item.description,
+            quantity: String(item.quantity),
+            unitPrice: String(item.unitPrice),
+          })),
+        );
+      }
     }
-  }
+  });
 
   const result = await loadQuote(id, teamId);
   res.json(UpdateQuoteResponse.parse(result));

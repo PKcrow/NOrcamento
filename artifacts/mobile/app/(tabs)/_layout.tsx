@@ -20,7 +20,7 @@ function TabBarIcon({
 export default function TabsLayout() {
   const { isLoaded, isSignedIn } = useAuth();
   const colorScheme = useColorScheme();
-  const theme = Colors[colorScheme];
+  const theme = Colors[colorScheme ?? 'light'];
 
   const { data: me, isLoading: meLoading } = useGetMe();
 

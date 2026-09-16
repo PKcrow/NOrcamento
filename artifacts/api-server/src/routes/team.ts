@@ -25,7 +25,7 @@ import { requireAuth } from "../middlewares/auth";
 const router: IRouter = Router();
 
 function generateInviteCode(): string {
-  return randomBytes(4).toString("hex").toUpperCase();
+  return randomBytes(8).toString("hex").toUpperCase();
 }
 
 async function teamWithMembers(teamId: string, options?: { maskInvite?: boolean }) {
@@ -103,23 +103,26 @@ router.post("/team/create", requireAuth, async (req, res) => {
     inviteCode = generateInviteCode();
   }
 
-  const [team] = await db
-    .insert(teamsTable)
-    .values({ name: body.name, inviteCode })
-    .returning();
+  const result = await db.transaction(async (tx) => {
+    const [team] = await tx
+      .insert(teamsTable)
+      .values({ name: body.name, inviteCode })
+      .returning();
 
-  // Add membership row
-  await db
-    .insert(teamMembershipsTable)
-    .values({ userId: user.id, teamId: team.id, role: "owner" });
+    // Add membership row
+    await tx
+      .insert(teamMembershipsTable)
+      .values({ userId: user.id, teamId: team.id, role: "owner" });
 
-  // Switch active team to the newly created one
-  await db
-    .update(usersTable)
-    .set({ teamId: team.id, role: "owner" })
-    .where(eq(usersTable.id, user.id));
+    // Switch active team to the newly created one
+    await tx
+      .update(usersTable)
+      .set({ teamId: team.id, role: "owner" })
+      .where(eq(usersTable.id, user.id));
 
-  const result = await teamWithMembers(team.id);
+    return teamWithMembers(team.id);
+  });
+
   res.status(201).json(CreateTeamResponse.parse(result));
 });
 
@@ -138,42 +141,49 @@ router.post("/team/join", requireAuth, async (req, res) => {
     return;
   }
 
-  // Check if already a member
-  const [existing] = await db
-    .select()
-    .from(teamMembershipsTable)
-    .where(
-      and(
-        eq(teamMembershipsTable.userId, user.id),
-        eq(teamMembershipsTable.teamId, team.id),
-      ),
-    );
+  const result = await db.transaction(async (tx) => {
+    // Check if already a member (atomic check + insert)
+    const [existing] = await tx
+      .select()
+      .from(teamMembershipsTable)
+      .where(
+        and(
+          eq(teamMembershipsTable.userId, user.id),
+          eq(teamMembershipsTable.teamId, team.id),
+        ),
+      );
 
-  if (existing) {
-    // Already a member — just switch active team
-    await db
+    if (existing) {
+      // Already a member — just switch active team
+      await tx
+        .update(usersTable)
+        .set({ teamId: team.id, role: existing.role })
+        .where(eq(usersTable.id, user.id));
+      return { team, alreadyMember: true, role: existing.role };
+    }
+
+    // New membership
+    await tx
+      .insert(teamMembershipsTable)
+      .values({ userId: user.id, teamId: team.id, role: "member" });
+
+    await tx
       .update(usersTable)
-      .set({ teamId: team.id, role: existing.role })
+      .set({ teamId: team.id, role: "member" })
       .where(eq(usersTable.id, user.id));
-    const result = await teamWithMembers(team.id, {
-      maskInvite: existing.role !== "owner",
+
+    return { team, alreadyMember: false, role: "member" as const };
+  });
+
+  if (result.alreadyMember) {
+    const teamResult = await teamWithMembers(result.team.id, {
+      maskInvite: result.role !== "owner",
     });
-    res.json(JoinTeamResponse.parse(result));
-    return;
+    res.json(JoinTeamResponse.parse(teamResult));
+  } else {
+    const teamResult = await teamWithMembers(result.team.id, { maskInvite: true });
+    res.json(JoinTeamResponse.parse(teamResult));
   }
-
-  // New membership
-  await db
-    .insert(teamMembershipsTable)
-    .values({ userId: user.id, teamId: team.id, role: "member" });
-
-  await db
-    .update(usersTable)
-    .set({ teamId: team.id, role: "member" })
-    .where(eq(usersTable.id, user.id));
-
-  const result = await teamWithMembers(team.id, { maskInvite: true });
-  res.json(JoinTeamResponse.parse(result));
 });
 
 // POST /team/switch — change active team (must be a member)

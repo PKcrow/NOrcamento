@@ -21,7 +21,7 @@ export default function EditarClienteScreen() {
   const clientId = Number(id);
   const router = useRouter();
   const colorScheme = useColorScheme();
-  const theme = Colors[colorScheme];
+  const theme = Colors[colorScheme ?? 'light'];
   const queryClient = useQueryClient();
 
   const { data: client, isLoading } = useGetClient(clientId);
@@ -37,7 +37,7 @@ export default function EditarClienteScreen() {
       setName(client.name ?? '');
       setPhone(client.phone ?? '');
       setEmail(client.email ?? '');
-      setNotes((client as any).notes ?? '');
+      setNotes(client.notes ?? '');
     }
   }, [client]);
 
@@ -51,7 +51,7 @@ export default function EditarClienteScreen() {
           phone: phone.trim() || null,
           email: email.trim() || null,
           notes: notes.trim() || null,
-        } as any,
+        },
       },
       {
         onSuccess: () => { queryClient.invalidateQueries(); router.back(); },

@@ -17,7 +17,7 @@ import {
 import Colors from '@/constants/colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useQueryClient } from '@tanstack/react-query';
-import { useRouter } from 'expo-router';
+import { useRouter, type Href } from 'expo-router';
 import {
   clearSavedNativePushToken,
   clearLocalTaskNotifications,
@@ -61,7 +61,7 @@ export default function MaisScreen() {
   const { signOut } = useAuth();
   const router = useRouter();
   const colorScheme = useColorScheme();
-  const theme = Colors[colorScheme];
+  const theme = Colors[colorScheme ?? 'light'];
   const queryClient = useQueryClient();
   const { mutateAsync: unregisterPushToken } = useUnregisterPushToken();
 
@@ -140,7 +140,7 @@ export default function MaisScreen() {
                   styles.settingsRow,
                   i < section.rows.length - 1 && { borderBottomWidth: 1, borderBottomColor: theme.border },
                 ]}
-                onPress={() => router.push(row.href as any)}
+                onPress={() => router.push(row.href as Href)}
               >
                 <View style={[styles.rowIcon, { backgroundColor: (row.color ?? theme.primary) + '18' }]}>
                   <Ionicons name={row.icon} size={18} color={row.color ?? theme.primary} />

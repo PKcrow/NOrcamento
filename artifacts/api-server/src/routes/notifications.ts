@@ -92,7 +92,13 @@ router.get("/notifications", requireAuth, requireTeam, async (req, res) => {
     .where(eq(clientsTable.teamId, teamId));
   const clientById = new Map(clients.map((c) => [c.id, c.name]));
 
-  const photos = await db.select().from(taskPhotosTable);
+  const pendingTaskIds = pending.map((t) => t.id);
+  const photos = pendingTaskIds.length > 0
+    ? await db
+        .select()
+        .from(taskPhotosTable)
+        .where(inArray(taskPhotosTable.taskId, pendingTaskIds))
+    : [];
   const photosByTask = new Map<number, (typeof photos)[number][]>();
   for (const p of photos) {
     photosByTask.set(p.taskId, [...(photosByTask.get(p.taskId) ?? []), p]);

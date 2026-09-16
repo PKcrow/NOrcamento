@@ -61,10 +61,10 @@ export default function NovaTarefaScreen() {
           name: newClientName.trim(),
           phone: newClientPhone.trim() || undefined,
           email: newClientEmail.trim() || undefined,
-        } as any,
+        },
       },
       {
-        onSuccess: (client: any) => {
+        onSuccess: (client) => {
           queryClient.invalidateQueries({ queryKey: getListClientsQueryKey() });
           setSelectedClientId(client.id);
           setShowNewClientForm(false);
@@ -109,10 +109,10 @@ export default function NovaTarefaScreen() {
           clientId: selectedClientId,
           dueAt: parsedDate.toISOString(),
           endAt: parsedEnd.toISOString(),
-        } as any,
+        },
       },
       {
-        onSuccess: (task: any) => {
+        onSuccess: (task) => {
           queryClient.invalidateQueries();
           router.replace(`/tarefa/${task.id}`);
         },

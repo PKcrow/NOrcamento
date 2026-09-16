@@ -34,7 +34,7 @@ export default function EditarOrcamentoScreen() {
   const quoteId = Number(id);
   const router = useRouter();
   const colorScheme = useColorScheme();
-  const theme = Colors[colorScheme];
+  const theme = Colors[colorScheme ?? 'light'];
   const queryClient = useQueryClient();
 
   const { data: quote, isLoading } = useGetQuote(quoteId);
@@ -121,7 +121,7 @@ export default function EditarOrcamentoScreen() {
       {
         id: quoteId,
         data: {
-          clientId: selectedClientId ?? null,
+          clientId: selectedClientId ?? undefined,
           notes: notes.trim() || null,
           laborCost: labor,
           items: validItems.map(i => ({
@@ -130,7 +130,7 @@ export default function EditarOrcamentoScreen() {
             quantity: parseFloat(i.quantity) || 1,
             unitPrice: parseFloat(i.unitPrice.replace(',', '.')) || 0,
           })),
-        } as any,
+        },
       },
       {
         onSuccess: () => {

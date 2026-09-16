@@ -233,7 +233,7 @@ function MonthCalendar({
 export default function TarefasScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
-  const theme = Colors[colorScheme];
+  const theme = Colors[colorScheme ?? 'light'];
 
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('list');
   const [status, setStatus] = useState<TaskStatus | undefined>(undefined);
