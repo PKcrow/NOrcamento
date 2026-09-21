@@ -611,6 +611,8 @@ export interface QuoteResponseNotification {
 export interface NotificationsResponse {
   overdueTasks: Task[];
   dueSoonTasks: Task[];
+  /** Completed tasks that have not been paid yet. */
+  pendingPaymentTasks: Task[];
   quoteResponses: QuoteResponseNotification[];
 }
 
