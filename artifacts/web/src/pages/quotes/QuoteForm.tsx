@@ -28,22 +28,29 @@ export function QuoteForm({ id }: QuoteFormProps) {
   const initialClientId = searchParams.get('client');
   const initialTemplateId = searchParams.get('modelo');
   const queryId = searchParams.get('id');
+  const duplicateQueryId = searchParams.get('duplicar');
   const parsedQueryId = queryId ? Number(queryId) : undefined;
+  const parsedDuplicateId = duplicateQueryId ? Number(duplicateQueryId) : undefined;
+  const isDuplicating =
+    parsedDuplicateId !== undefined &&
+    Number.isInteger(parsedDuplicateId) &&
+    parsedDuplicateId > 0;
   const quoteId =
-    id ?? (parsedQueryId && Number.isInteger(parsedQueryId) && parsedQueryId > 0
+    id ?? (!isDuplicating && parsedQueryId && Number.isInteger(parsedQueryId) && parsedQueryId > 0
       ? parsedQueryId
       : undefined);
   const isEditing = quoteId !== undefined;
+  const sourceQuoteId = isDuplicating ? parsedDuplicateId : quoteId;
   
   const { data: clients } = useListClients();
   const { data: products } = useListProducts();
   const { data: serviceTemplates } = useListServiceTemplates();
   
-  // If id provided, fetch existing quote data
-  const { data: existingQuote, isLoading: isLoadingQuote } = useGetQuote(quoteId ?? 0, {
+  // Fetch the existing quote for editing or as the source for a duplicate.
+  const { data: existingQuote, isLoading: isLoadingQuote } = useGetQuote(sourceQuoteId ?? 0, {
     query: {
-      enabled: isEditing,
-      queryKey: getGetQuoteQueryKey(quoteId ?? 0),
+      enabled: sourceQuoteId !== undefined,
+      queryKey: getGetQuoteQueryKey(sourceQuoteId ?? 0),
     },
   });
   
@@ -56,7 +63,7 @@ export function QuoteForm({ id }: QuoteFormProps) {
   const [clientOpen, setClientOpen] = useState(false);
   const [isQuickCreateOpen, setIsQuickCreateOpen] = useState(false);
 
-  const [clientId, setClientId] = useState<string>(isEditing ? "" : initialClientId || "");
+  const [clientId, setClientId] = useState<string>(isEditing || isDuplicating ? "" : initialClientId || "");
   const [notes, setNotes] = useState("");
   const [laborCost, setLaborCost] = useState<number>(0);
   const [serviceScopeEnabled, setServiceScopeEnabled] = useState(false);
@@ -225,8 +232,12 @@ export function QuoteForm({ id }: QuoteFormProps) {
     }
   };
 
-  if (isEditing && isLoadingQuote) {
+  if (sourceQuoteId !== undefined && isLoadingQuote) {
     return <div className="p-8 text-center">Carregando orçamento...</div>;
+  }
+
+  if (isDuplicating && !existingQuote) {
+    return <div className="p-8 text-center">Orçamento de origem não encontrado.</div>;
   }
 
   const isPending = createMutation.isPending || updateMutation.isPending;
@@ -239,7 +250,11 @@ export function QuoteForm({ id }: QuoteFormProps) {
         </Button>
         <div>
           <h1 className="text-3xl font-bold tracking-tight text-gray-900">
-            {isEditing ? `Editar Orçamento #${quoteId.toString().padStart(4, '0')}` : 'Novo Orçamento'}
+            {isDuplicating
+              ? `Novo orçamento a partir do #${sourceQuoteId?.toString().padStart(4, '0')}`
+              : isEditing
+                ? `Editar Orçamento #${quoteId.toString().padStart(4, '0')}`
+                : 'Novo Orçamento'}
           </h1>
         </div>
       </div>
