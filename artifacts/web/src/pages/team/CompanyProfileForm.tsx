@@ -13,11 +13,40 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/com
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useFileUpload, ACCEPTED_IMAGE_TYPES, MAX_ORIGINAL_SIZE_BYTES } from "@/hooks/use-file-upload";
 import { normalizeStoredObjectUrl } from "@/lib/objectUrl";
-import { Building2, FileText, ImagePlus, Loader2, Share2, Trash2, Upload } from "lucide-react";
+import { Building2, FileText, ImagePlus, Loader2, Search, Share2, Trash2, Upload } from "lucide-react";
+
+type DocumentTypeFilter = "all" | "pdf" | "image" | "document" | "other";
+
+const DOCUMENT_TYPE_FILTERS: Array<{ value: DocumentTypeFilter; label: string }> = [
+  { value: "all", label: "Todos os tipos" },
+  { value: "pdf", label: "PDF" },
+  { value: "image", label: "Imagens" },
+  { value: "document", label: "Documentos" },
+  { value: "other", label: "Outros" },
+];
+
+function getDocumentTypeFilter(contentType: string | null | undefined, fileName: string | null | undefined): Exclude<DocumentTypeFilter, "all"> {
+  const normalizedType = (contentType ?? "").toLowerCase();
+  const normalizedName = (fileName ?? "").toLowerCase();
+  if (normalizedType === "application/pdf" || normalizedName.endsWith(".pdf")) return "pdf";
+  if (normalizedType.startsWith("image/")) return "image";
+  if (
+    normalizedType.startsWith("text/") ||
+    normalizedType.includes("word") ||
+    normalizedType.includes("excel") ||
+    normalizedType.includes("spreadsheet") ||
+    normalizedType.includes("presentation") ||
+    normalizedType.includes("opendocument")
+  ) {
+    return "document";
+  }
+  return "other";
+}
 
 export function CompanyProfileForm() {
   const { data: company, isLoading } = useGetCompany();
@@ -33,6 +62,8 @@ export function CompanyProfileForm() {
   const [logoUrl, setLogoUrl] = useState<string | null | undefined>(undefined);
   const documentInputRef = useRef<HTMLInputElement>(null);
   const [isUploadingDocument, setIsUploadingDocument] = useState(false);
+  const [documentSearch, setDocumentSearch] = useState("");
+  const [documentTypeFilter, setDocumentTypeFilter] = useState<DocumentTypeFilter>("all");
 
   if (isLoading) {
     return (
@@ -47,6 +78,17 @@ export function CompanyProfileForm() {
   const effectiveLogoUrl = normalizeStoredObjectUrl(
     logoUrl !== undefined ? logoUrl ?? "" : company.logoUrl ?? "",
   );
+  const normalizedDocumentSearch = documentSearch.trim().toLowerCase();
+  const filteredDocuments = (documents ?? []).filter((document) => {
+    const matchesSearch =
+      !normalizedDocumentSearch ||
+      document.name.toLowerCase().includes(normalizedDocumentSearch) ||
+      document.fileName.toLowerCase().includes(normalizedDocumentSearch);
+    const matchesType =
+      documentTypeFilter === "all" ||
+      getDocumentTypeFilter(document.contentType, document.fileName) === documentTypeFilter;
+    return matchesSearch && matchesType;
+  });
 
   const invalidate = () => {
     queryClient.invalidateQueries({ queryKey: getGetCompanyQueryKey() });
@@ -342,34 +384,63 @@ export function CompanyProfileForm() {
         </CardHeader>
         <CardContent>
           {documents?.length ? (
-            <div className="divide-y rounded-lg border">
-              {documents.map((document) => (
-                <div key={document.id} className="flex items-center gap-3 p-3">
-                  <FileText className="h-5 w-5 shrink-0 text-primary" />
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-semibold">{document.name}</p>
-                    <p className="truncate text-xs text-gray-500">{document.fileName}</p>
-                  </div>
-                  <Button type="button" variant="ghost" size="icon" title="Compartilhar" onClick={() => handleShareDocument(document)}>
-                    <Share2 className="h-4 w-4" />
-                  </Button>
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    title="Excluir"
-                    className="text-gray-400 hover:text-destructive"
-                    onClick={async () => {
-                      if (!window.confirm(`Remover "${document.name}"?`)) return;
-                      await deleteDocument.mutateAsync({ id: document.id });
-                      queryClient.invalidateQueries();
-                    }}
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+            <>
+              <div className="mb-4 flex flex-col gap-3 sm:flex-row">
+                <div className="relative flex-1">
+                  <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+                  <Input
+                    value={documentSearch}
+                    onChange={(event) => setDocumentSearch(event.target.value)}
+                    placeholder="Buscar por nome ou arquivo"
+                    className="pl-9"
+                  />
                 </div>
-              ))}
-            </div>
+                <Select value={documentTypeFilter} onValueChange={(value) => setDocumentTypeFilter(value as DocumentTypeFilter)}>
+                  <SelectTrigger className="w-full sm:w-52">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {DOCUMENT_TYPE_FILTERS.map((filter) => (
+                      <SelectItem key={filter.value} value={filter.value}>{filter.label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              {filteredDocuments.length ? (
+                <div className="divide-y rounded-lg border">
+                  {filteredDocuments.map((document) => (
+                    <div key={document.id} className="flex items-center gap-3 p-3">
+                      <FileText className="h-5 w-5 shrink-0 text-primary" />
+                      <div className="min-w-0 flex-1">
+                        <p className="truncate text-sm font-semibold">{document.name}</p>
+                        <p className="truncate text-xs text-gray-500">{document.fileName}</p>
+                      </div>
+                      <Button type="button" variant="ghost" size="icon" title="Compartilhar" onClick={() => handleShareDocument(document)}>
+                        <Share2 className="h-4 w-4" />
+                      </Button>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon"
+                        title="Excluir"
+                        className="text-gray-400 hover:text-destructive"
+                        onClick={async () => {
+                          if (!window.confirm(`Remover "${document.name}"?`)) return;
+                          await deleteDocument.mutateAsync({ id: document.id });
+                          queryClient.invalidateQueries();
+                        }}
+                      >
+                        <Trash2 className="h-4 w-4" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <p className="rounded-lg border border-dashed p-6 text-center text-sm text-gray-500">
+                  Nenhum documento encontrado para essa busca.
+                </p>
+              )}
+            </>
           ) : (
             <p className="rounded-lg border border-dashed p-6 text-center text-sm text-gray-500">
               Nenhum documento salvo ainda.
