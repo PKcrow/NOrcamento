@@ -3227,7 +3227,7 @@ export const getGetNotificationsUrl = () => {
 }
 
 /**
- * @summary Get task reminders and recent quote responses as notifications
+ * @summary Get task reminders, pending payments, and recent quote responses as notifications
  */
 export const getNotifications = async ( options?: RequestInit): Promise<NotificationsResponse> => {
 
@@ -3274,7 +3274,7 @@ export type GetNotificationsQueryError = ErrorType<unknown>
 
 
 /**
- * @summary Get task reminders and recent quote responses as notifications
+ * @summary Get task reminders, pending payments, and recent quote responses as notifications
  */
 
 export function useGetNotifications<TData = Awaited<ReturnType<typeof getNotifications>>, TError = ErrorType<unknown>>(
