@@ -1,5 +1,5 @@
 import { Router, type IRouter } from "express";
-import { and, asc, desc, eq, gte, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, gte, inArray, isNull } from "drizzle-orm";
 import {
   db,
   clientsTable,
@@ -86,13 +86,27 @@ router.get("/notifications", requireAuth, requireTeam, async (req, res) => {
     )
     .orderBy(asc(tasksTable.dueAt));
 
+  const pendingPayment = await db
+    .select()
+    .from(tasksTable)
+    .where(
+      and(
+        eq(tasksTable.teamId, teamId),
+        eq(tasksTable.status, "completed"),
+        isNull(tasksTable.paidAt),
+      ),
+    )
+    .orderBy(asc(tasksTable.dueAt));
+
+  const notificationTasks = [...pending, ...pendingPayment];
+
   const clients = await db
     .select()
     .from(clientsTable)
     .where(eq(clientsTable.teamId, teamId));
   const clientById = new Map(clients.map((c) => [c.id, c.name]));
 
-  const pendingTaskIds = pending.map((t) => t.id);
+  const pendingTaskIds = notificationTasks.map((t) => t.id);
   const photos = pendingTaskIds.length > 0
     ? await db
         .select()
@@ -104,7 +118,7 @@ router.get("/notifications", requireAuth, requireTeam, async (req, res) => {
     photosByTask.set(p.taskId, [...(photosByTask.get(p.taskId) ?? []), p]);
   }
 
-  const withClientName = (t: (typeof pending)[number]) => ({
+  const withClientName = (t: (typeof notificationTasks)[number]) => ({
     ...t,
     clientName: t.clientId ? clientById.get(t.clientId) ?? null : null,
     photos: photosByTask.get(t.id) ?? [],
@@ -121,6 +135,8 @@ router.get("/notifications", requireAuth, requireTeam, async (req, res) => {
         t.dueAt.getTime() <= dueSoonThreshold.getTime(),
     )
     .map(withClientName);
+
+  const pendingPaymentTasks = pendingPayment.map(withClientName);
 
   const quoteResponses = await db
     .select({
@@ -145,6 +161,7 @@ router.get("/notifications", requireAuth, requireTeam, async (req, res) => {
     GetNotificationsResponse.parse({
       overdueTasks,
       dueSoonTasks,
+      pendingPaymentTasks,
       quoteResponses,
     }),
   );
