@@ -30,13 +30,16 @@ import {
   setBaseUrl,
   setAuthTokenGetter,
   getGetMeQueryKey,
+  getListTasksQueryKey,
   useGetMe,
+  useListTasks,
   useRegisterPushToken,
 } from '@workspace/api-client-react';
 import {
   clearLocalTaskNotifications,
   requestNativePushRegistration,
   saveNativePushToken,
+  syncLocalTaskNotifications,
 } from '@/lib/pushNotifications';
 import Colors from '@/constants/colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -67,12 +70,7 @@ if (process.env.EXPO_PUBLIC_DOMAIN) {
   setBaseUrl(`https://${process.env.EXPO_PUBLIC_DOMAIN}`);
 }
 
-const clerkProxyUrl = __DEV__
-  ? undefined
-  : process.env.EXPO_PUBLIC_CLERK_PROXY_URL ||
-    (process.env.EXPO_PUBLIC_DOMAIN
-      ? `https://${process.env.EXPO_PUBLIC_DOMAIN}/api/__clerk`
-      : undefined);
+const clerkProxyUrl = process.env.EXPO_PUBLIC_CLERK_PROXY_URL || undefined;
 const clerkPublishableKey = process.env.EXPO_PUBLIC_CLERK_PUBLISHABLE_KEY?.trim();
 const pushRegistrationInFlight = new Set<string>();
 const registeredPushTeams = new Set<string>();
@@ -191,10 +189,19 @@ function RootLayoutNav() {
   const { isLoaded, isSignedIn, getToken } = useAuth();
   const [authTimedOut, setAuthTimedOut] = useState(false);
   const router = useRouter();
+  const colorScheme = useColorScheme();
+  const theme = Colors[colorScheme ?? 'light'];
   const { data: me } = useGetMe({
     query: {
       queryKey: getGetMeQueryKey(),
       enabled: isLoaded && Boolean(isSignedIn),
+    },
+  });
+  const { data: tasks } = useListTasks(undefined, {
+    query: {
+      queryKey: getListTasksQueryKey(),
+      enabled: isLoaded && Boolean(isSignedIn && me?.teamId),
+      refetchInterval: 60_000,
     },
   });
   const { mutateAsync: registerPushToken } = useRegisterPushToken();
@@ -248,7 +255,6 @@ function RootLayoutNav() {
     let active = true;
     const syncPushRegistration = async () => {
       try {
-        await clearLocalTaskNotifications();
         const registration = await requestNativePushRegistration();
         if (!registration || !active) return;
 
@@ -270,6 +276,32 @@ function RootLayoutNav() {
       active = false;
     };
   }, [isLoaded, isSignedIn, me?.teamId, registerPushToken]);
+
+  useEffect(() => {
+    if (
+      Platform.OS === 'web' ||
+      !isLoaded ||
+      !isSignedIn ||
+      !me?.teamId ||
+      !tasks
+    ) {
+      return;
+    }
+
+    void syncLocalTaskNotifications(
+      tasks.map((task) => ({
+        id: task.id,
+        title: task.title,
+        dueAt: task.dueAt,
+        status: task.status,
+      })),
+    );
+  }, [isLoaded, isSignedIn, me?.teamId, tasks]);
+
+  useEffect(() => {
+    if (Platform.OS === 'web' || !isLoaded || isSignedIn) return;
+    void clearLocalTaskNotifications();
+  }, [isLoaded, isSignedIn]);
 
   if (!isLoaded && authTimedOut) {
     return (
