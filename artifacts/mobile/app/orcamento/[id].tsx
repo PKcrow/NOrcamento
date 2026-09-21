@@ -410,6 +410,14 @@ export default function OrcamentoDetailScreen() {
           </Text>
         </TouchableOpacity>
 
+        <TouchableOpacity
+          style={[styles.secondaryBtn, { borderColor: theme.primary }]}
+          onPress={() => router.push(`/orcamento/novo?duplicar=${quoteId}`)}
+        >
+          <Ionicons name="copy-outline" size={20} color={theme.primary} />
+          <Text style={[styles.secondaryBtnText, { color: theme.primary }]}>Duplicar orçamento</Text>
+        </TouchableOpacity>
+
         {/* Share link */}
         {(st === 'draft' || st === 'sent') && (
           <TouchableOpacity
