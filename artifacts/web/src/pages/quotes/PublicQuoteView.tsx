@@ -127,7 +127,7 @@ export function PublicQuoteView() {
   const isRejected = quote.status === "rejected";
 
   return (
-    <div className="public-quote-print min-h-screen bg-gray-50 py-8 px-4 print:bg-white print:py-0">
+    <div className="quote-brand public-quote-print min-h-screen bg-gray-50 py-8 px-4 print:bg-white print:py-0">
       <div className="mx-auto max-w-3xl space-y-6">
         {/* Document card */}
         <div className="public-quote-document overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-sm print:border-none print:shadow-none print:overflow-visible">
