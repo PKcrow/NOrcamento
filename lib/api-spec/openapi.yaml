@@ -911,7 +911,7 @@ paths:
     get:
       operationId: getNotifications
       tags: [tasks]
-      summary: Get task reminders and recent quote responses as notifications
+      summary: Get task reminders, pending payments, and recent quote responses as notifications
       responses:
         "200":
           description: Notification buckets
@@ -2026,7 +2026,7 @@ components:
 
     NotificationsResponse:
       type: object
-      required: [overdueTasks, dueSoonTasks, quoteResponses]
+      required: [overdueTasks, dueSoonTasks, pendingPaymentTasks, quoteResponses]
       properties:
         overdueTasks:
           type: array
@@ -2034,6 +2034,11 @@ components:
             $ref: "#/components/schemas/Task"
         dueSoonTasks:
           type: array
+          items:
+            $ref: "#/components/schemas/Task"
+        pendingPaymentTasks:
+          type: array
+          description: Completed tasks that have not been paid yet.
           items:
             $ref: "#/components/schemas/Task"
         quoteResponses:
@@ -2078,7 +2083,7 @@ components:
 
     Company:
       type: object
-      required: [id, name, logoUrl, phone, email, address, legalName, taxId, website, pixKey, bankDetails, paymentInstructions, additionalInfo, showPhoneOnQuotes, showEmailOnQuotes, showAddressOnQuotes, showLegalNameOnQuotes, showTaxIdOnQuotes, showWebsiteOnQuotes, showPixKeyOnQuotes, showBankDetailsOnQuotes, showPaymentInstructionsOnQuotes, showAdditionalInfoOnQuotes, createdAt]
+      required: [id, name, logoUrl, phone, email, address, legalName, taxId, website, pixKey, bankDetails, paymentInstructions, additionalInfo, marketingHeadline, marketingAbout, marketingServices, marketingDifferentials, showPhoneOnQuotes, showEmailOnQuotes, showAddressOnQuotes, showLegalNameOnQuotes, showTaxIdOnQuotes, showWebsiteOnQuotes, showPixKeyOnQuotes, showBankDetailsOnQuotes, showPaymentInstructionsOnQuotes, showAdditionalInfoOnQuotes, createdAt]
       properties:
         id:
           type: string
@@ -2105,6 +2110,14 @@ components:
         paymentInstructions:
           type: ["string", "null"]
         additionalInfo:
+          type: ["string", "null"]
+        marketingHeadline:
+          type: ["string", "null"]
+        marketingAbout:
+          type: ["string", "null"]
+        marketingServices:
+          type: ["string", "null"]
+        marketingDifferentials:
           type: ["string", "null"]
         showPhoneOnQuotes:
           type: boolean
@@ -2157,6 +2170,14 @@ components:
         paymentInstructions:
           type: ["string", "null"]
         additionalInfo:
+          type: ["string", "null"]
+        marketingHeadline:
+          type: ["string", "null"]
+        marketingAbout:
+          type: ["string", "null"]
+        marketingServices:
+          type: ["string", "null"]
+        marketingDifferentials:
           type: ["string", "null"]
         showPhoneOnQuotes:
           type: boolean
