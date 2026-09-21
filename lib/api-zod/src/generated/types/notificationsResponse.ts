@@ -11,5 +11,7 @@ import type { Task } from './task';
 export interface NotificationsResponse {
   overdueTasks: Task[];
   dueSoonTasks: Task[];
+  /** Completed tasks that have not been paid yet. */
+  pendingPaymentTasks: Task[];
   quoteResponses: QuoteResponseNotification[];
 }
