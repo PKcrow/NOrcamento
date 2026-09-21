@@ -1,0 +1,46 @@
+From: <Saved by Blink>
+Snapshot-Content-Location: https://1bfa134a-702c-4bdf-81c3-40ba521b65b2-00-2nprlc1y48egc.expo.worf.replit.dev/?nativeBrowserPresentationStyle=fullScreen
+Subject: =?utf-8?Q?Gest=C3=A3o=20de=20Aut=C3=B4nomos?=
+Date: Thu, 27 Aug 2026 08:52:03 -0300
+MIME-Version: 1.0
+Content-Type: multipart/related;
+	type="text/html";
+	boundary="----MultipartBoundary--R7wS1mb1ZXCvXFjFoc3qqlEmS10o0Nl2J3sCgnxFiL----"
+
+
+------MultipartBoundary--R7wS1mb1ZXCvXFjFoc3qqlEmS10o0Nl2J3sCgnxFiL----
+Content-Type: text/html
+Content-ID: <frame-EAD47C21E61FDE958F83DBD997DAF813@mhtml.blink>
+Content-Transfer-Encoding: binary
+Content-Location: https://1bfa134a-702c-4bdf-81c3-40ba521b65b2-00-2nprlc1y48egc.expo.worf.replit.dev/?nativeBrowserPresentationStyle=fullScreen
+
+<!DOCTYPE html><html lang="en"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><link rel="stylesheet" type="text/css" href="cid:css-c4a93dc4-cffe-4020-a853-1eb7a17e9a8e@mhtml.blink" />
+    
+    <meta httpequiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <title>Gestão de Autônomos</title>
+    <!-- The `react-native-web` recommended style reset: https://necolas.github.io/react-native-web/docs/setup/#root-element -->
+    
+  </head>
+
+  <body>
+    <!-- Use static rendering with Expo Router to support running without JavaScript. -->
+    
+    <!-- The root element for your Expo app. -->
+    <div id="root"></div>
+  
+
+</body></html>
+------MultipartBoundary--R7wS1mb1ZXCvXFjFoc3qqlEmS10o0Nl2J3sCgnxFiL----
+Content-Type: text/css
+Content-Transfer-Encoding: binary
+Content-Location: cid:css-c4a93dc4-cffe-4020-a853-1eb7a17e9a8e@mhtml.blink
+
+@charset "utf-8";
+
+html, body { height: 100%; }
+
+body { overflow: hidden; }
+
+#root { display: flex; height: 100%; flex: 1 1 0%; }
+------MultipartBoundary--R7wS1mb1ZXCvXFjFoc3qqlEmS10o0Nl2J3sCgnxFiL------
