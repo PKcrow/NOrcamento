@@ -14,6 +14,7 @@ import {
 } from "@workspace/db";
 import { authState } from "./helpers";
 import app from "../app";
+import { sendTaskReminderPushNotification } from "../lib/expoPush";
 
 const OWNER_ID = "test_owner_user";
 const MEMBER_ID = "test_member_user";
@@ -156,6 +157,220 @@ describe("team isolation", () => {
   });
 });
 
+describe("quote duplication", () => {
+  const duplicateableQuote = {
+    clientId: 0,
+    serviceScopeEnabled: true,
+    serviceDescription: "Instalação, testes e acabamento inclusos.",
+    notes: "Pagamento em duas etapas.",
+    laborCost: 275.5,
+    items: [
+      {
+        productId: null,
+        description: "Kit de instalação",
+        quantity: 2,
+        unitPrice: 180,
+      },
+      {
+        productId: null,
+        description: "Deslocamento",
+        quantity: 1,
+        unitPrice: 65.5,
+      },
+    ],
+  };
+
+  async function createSourceQuote() {
+    const created = await request(app)
+      .post("/api/quotes")
+      .send({ ...duplicateableQuote, clientId: clientAId });
+    expect(created.status).toBe(201);
+    return created.body;
+  }
+
+  async function sendQuote(quoteId: number) {
+    const shared = await request(app).post(`/api/quotes/${quoteId}/share`);
+    expect(shared.status).toBe(200);
+    expect(shared.body.publicToken).toBeTruthy();
+    return shared.body;
+  }
+
+  async function approveQuote(publicToken: string) {
+    const response = await request(app)
+      .post(`/api/public/quotes/${publicToken}/respond`)
+      .send({
+        action: "approved",
+        note: "Aprovado pelo cliente para execução.",
+      });
+    expect(response.status).toBe(200);
+    return response.body.quote;
+  }
+
+  async function duplicateAndEdit(source: {
+    id: number;
+    status: string;
+    publicToken: string | null;
+    publicLinkExpiresAt: string | null;
+    publicLinkRevokedAt: string | null;
+    clientResponseNote: string | null;
+    respondedAt: string | null;
+    convertedTaskId: number | null;
+    clientId: number;
+    serviceScopeEnabled: boolean;
+    serviceDescription: string | null;
+    notes: string | null;
+    laborCost: number;
+    items: Array<{
+      productId: number | null;
+      description: string;
+      quantity: number;
+      unitPrice: number;
+    }>;
+  }) {
+    const duplicatePayload = {
+      clientId: source.clientId,
+      serviceScopeEnabled: source.serviceScopeEnabled,
+      serviceDescription: source.serviceDescription,
+      notes: source.notes,
+      laborCost: source.laborCost,
+      items: source.items.map((item) => ({
+        productId: item.productId,
+        description: item.description,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+      })),
+    };
+
+    const duplicated = await request(app)
+      .post("/api/quotes")
+      .send(duplicatePayload);
+    expect(duplicated.status).toBe(201);
+    expect(duplicated.body.id).not.toBe(source.id);
+    expect(duplicated.body.status).toBe("draft");
+    expect(duplicated.body.publicToken).toBeNull();
+    expect(duplicated.body.publicLinkExpiresAt).toBeNull();
+    expect(duplicated.body.publicLinkRevokedAt).toBeNull();
+    expect(duplicated.body.clientResponseNote).toBeNull();
+    expect(duplicated.body.respondedAt).toBeNull();
+    expect(duplicated.body.convertedTaskId).toBeNull();
+    expect(duplicated.body).toMatchObject({
+      clientId: duplicatePayload.clientId,
+      serviceScopeEnabled: duplicatePayload.serviceScopeEnabled,
+      serviceDescription: duplicatePayload.serviceDescription,
+      notes: duplicatePayload.notes,
+      laborCost: duplicatePayload.laborCost,
+    });
+    expect(duplicated.body.items).toEqual(
+      duplicatePayload.items.map((item, index) => ({
+        id: duplicated.body.items[index].id,
+        ...item,
+        total: item.quantity * item.unitPrice,
+      })),
+    );
+
+    const updatedDuplicate = await request(app)
+      .patch(`/api/quotes/${duplicated.body.id}`)
+      .send({
+        notes: "Condição ajustada somente na cópia.",
+        laborCost: 999,
+        serviceDescription: "Escopo ajustado somente na cópia.",
+        items: [
+          {
+            productId: null,
+            description: "Item alterado na cópia",
+            quantity: 1,
+            unitPrice: 42,
+          },
+        ],
+      });
+    expect(updatedDuplicate.status).toBe(200);
+    expect(updatedDuplicate.body.notes).toBe("Condição ajustada somente na cópia.");
+    expect(updatedDuplicate.body.laborCost).toBe(999);
+
+    const sourceAfterEdit = await request(app).get(`/api/quotes/${source.id}`);
+    expect(sourceAfterEdit.status).toBe(200);
+    expect(sourceAfterEdit.body).toMatchObject({
+      id: source.id,
+      clientId: source.clientId,
+      status: source.status,
+      publicToken: source.publicToken,
+      publicLinkExpiresAt: source.publicLinkExpiresAt,
+      publicLinkRevokedAt: source.publicLinkRevokedAt,
+      clientResponseNote: source.clientResponseNote,
+      respondedAt: source.respondedAt,
+      convertedTaskId: source.convertedTaskId,
+      serviceScopeEnabled: source.serviceScopeEnabled,
+      serviceDescription: source.serviceDescription,
+      notes: source.notes,
+      laborCost: source.laborCost,
+    });
+    expect(sourceAfterEdit.body.items).toEqual(
+      source.items.map((item, index) => ({
+        id: sourceAfterEdit.body.items[index].id,
+        productId: item.productId,
+        description: item.description,
+        quantity: item.quantity,
+        unitPrice: item.unitPrice,
+        total: item.quantity * item.unitPrice,
+      })),
+    );
+  }
+
+  it("copies editable fields but isolates lifecycle state for sent, approved, and converted quotes", async () => {
+    as(OWNER_ID);
+
+    const sentSource = await createSourceQuote();
+    const sentWithLink = await sendQuote(sentSource.id);
+    const sent = await request(app).get(`/api/quotes/${sentSource.id}`);
+    expect(sent.status).toBe(200);
+    expect(sent.body.status).toBe("sent");
+    expect(sent.body.publicToken).toBe(sentWithLink.publicToken);
+    await duplicateAndEdit(sent.body);
+
+    const approvedSource = await createSourceQuote();
+    const approvedWithLink = await sendQuote(approvedSource.id);
+    await approveQuote(approvedWithLink.publicToken);
+    const approved = await request(app).get(`/api/quotes/${approvedSource.id}`);
+    expect(approved.status).toBe(200);
+    expect(approved.body.status).toBe("approved");
+    expect(approved.body.respondedAt).toBeTruthy();
+    expect(approved.body.clientResponseNote).toBe(
+      "Aprovado pelo cliente para execução.",
+    );
+    await duplicateAndEdit(approved.body);
+
+    const convertedSource = await createSourceQuote();
+    const convertedWithLink = await sendQuote(convertedSource.id);
+    await approveQuote(convertedWithLink.publicToken);
+    const converted = await request(app).get(`/api/quotes/${convertedSource.id}`);
+    expect(converted.status).toBe(200);
+    expect(converted.body.status).toBe("approved");
+
+    const task = await request(app)
+      .post(`/api/quotes/${convertedSource.id}/convert-to-task`)
+      .send({
+        dueAt: new Date("2032-06-10T12:00:00Z").toISOString(),
+        endAt: new Date("2032-06-10T14:00:00Z").toISOString(),
+      });
+    expect(task.status).toBe(201);
+
+    const convertedWithTask = await request(app).get(
+      `/api/quotes/${convertedSource.id}`,
+    );
+    expect(convertedWithTask.status).toBe(200);
+    expect(convertedWithTask.body.convertedTaskId).toBe(task.body.id);
+    await duplicateAndEdit(convertedWithTask.body);
+
+    const sourceTasks = await request(app).get("/api/tasks");
+    expect(sourceTasks.status).toBe(200);
+    expect(
+      sourceTasks.body.filter(
+        (entry: { quoteId: number }) => entry.quoteId === convertedSource.id,
+      ),
+    ).toHaveLength(1);
+  });
+});
+
 describe("service templates", () => {
   let templateId: number;
 
@@ -283,6 +498,17 @@ describe("tasks: status flow and payments", () => {
     expect(res.status).toBe(200);
     expect(res.body.paidAt).toBeTruthy();
     expect(res.body.paidAmount).toBe(350.5);
+  });
+
+  it("rejects invalid paid amounts", async () => {
+    as(OWNER_ID);
+    for (const paidAmount of [0, -25]) {
+      const res = await request(app)
+        .patch(`/api/tasks/${taskId}`)
+        .send({ status: "paid", paidAmount });
+      expect(res.status).toBe(400);
+      expect(res.body.error).toContain("valor pago");
+    }
   });
 
   it("clears payment info when un-paying", async () => {
@@ -925,21 +1151,91 @@ describe("notifications", () => {
     ).toBe(true);
   });
 
-  it("includes recent quote approvals and rejections with a linkable quote id", async () => {
+  it("includes completed unpaid tasks without removing scheduled reminders", async () => {
     as(OWNER_ID);
-    const created = await request(app).post("/api/quotes").send({
-      clientId: clientAId,
-      items: [{ description: "Resposta avisada", quantity: 1, unitPrice: 80 }],
+    const completed = await request(app).post("/api/tasks").send({
+      title: "OS aguardando pagamento na central",
+      dueAt: new Date("1990-02-01T10:00:00Z").toISOString(),
+      endAt: new Date("1990-02-01T11:00:00Z").toISOString(),
     });
-    const shared = await request(app).post(
-      `/api/quotes/${created.body.id}/share`,
+    const paid = await request(app).post("/api/tasks").send({
+      title: "OS já paga não aparece",
+      dueAt: new Date("1990-02-02T10:00:00Z").toISOString(),
+      endAt: new Date("1990-02-02T11:00:00Z").toISOString(),
+    });
+    expect(completed.status).toBe(201);
+    expect(paid.status).toBe(201);
+
+    const completedUpdate = await request(app)
+      .patch(`/api/tasks/${completed.body.id}`)
+      .send({ status: "completed" });
+    const invalidPayment = await request(app)
+      .patch(`/api/tasks/${completed.body.id}`)
+      .send({ status: "paid", paidAmount: -1 });
+    const paidUpdate = await request(app)
+      .patch(`/api/tasks/${paid.body.id}`)
+      .send({ status: "paid", paidAmount: 250 });
+    expect(completedUpdate.status).toBe(200);
+    expect(invalidPayment.status).toBe(400);
+    expect(paidUpdate.status).toBe(200);
+
+    const scheduled = await request(app).post("/api/tasks").send({
+      title: "OS ainda agendada",
+      dueAt: new Date(Date.now() + 24 * 3600 * 1000).toISOString(),
+      endAt: new Date(Date.now() + 25 * 3600 * 1000).toISOString(),
+    });
+    expect(scheduled.status).toBe(201);
+
+    const res = await request(app).get("/api/notifications");
+    expect(res.status).toBe(200);
+    expect(res.body.pendingPaymentTasks).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          id: completed.body.id,
+          title: "OS aguardando pagamento na central",
+          status: "completed",
+          paidAt: null,
+        }),
+      ]),
+    );
+    expect(
+      res.body.pendingPaymentTasks.some(
+        (task: { id: number }) => task.id === paid.body.id,
+      ),
+    ).toBe(false);
+    expect(
+      res.body.dueSoonTasks.some(
+        (task: { id: number }) => task.id === scheduled.body.id,
+      ),
+    ).toBe(true);
+  });
+
+  it("includes recent quote approvals and rejections with linkable quote ids", async () => {
+    as(OWNER_ID);
+    const rejectedQuote = await request(app).post("/api/quotes").send({
+      clientId: clientAId,
+      items: [{ description: "Resposta recusada", quantity: 1, unitPrice: 80 }],
+    });
+    const rejectedLink = await request(app).post(
+      `/api/quotes/${rejectedQuote.body.id}/share`,
+    );
+    const approvedQuote = await request(app).post("/api/quotes").send({
+      clientId: clientAId,
+      items: [{ description: "Resposta aprovada", quantity: 1, unitPrice: 120 }],
+    });
+    const approvedLink = await request(app).post(
+      `/api/quotes/${approvedQuote.body.id}/share`,
     );
 
     as(null);
-    const response = await request(app)
-      .post(`/api/public/quotes/${shared.body.publicToken}/respond`)
+    const rejectedResponse = await request(app)
+      .post(`/api/public/quotes/${rejectedLink.body.publicToken}/respond`)
       .send({ action: "rejected", note: "Vou adiar." });
-    expect(response.status).toBe(200);
+    const approvedResponse = await request(app)
+      .post(`/api/public/quotes/${approvedLink.body.publicToken}/respond`)
+      .send({ action: "approved", note: "Pode começar." });
+    expect(rejectedResponse.status).toBe(200);
+    expect(approvedResponse.status).toBe(200);
 
     as(OWNER_ID);
     const notifications = await request(app).get("/api/notifications");
@@ -947,11 +1243,31 @@ describe("notifications", () => {
     expect(
       notifications.body.quoteResponses.some(
         (quote: { id: number; status: string; clientName: string }) =>
-          quote.id === created.body.id &&
+          quote.id === rejectedQuote.body.id &&
           quote.status === "rejected" &&
           quote.clientName === "Cliente Teste Isolamento",
       ),
     ).toBe(true);
+    expect(
+      notifications.body.quoteResponses.some(
+        (quote: { id: number; status: string; clientName: string }) =>
+          quote.id === approvedQuote.body.id &&
+          quote.status === "approved" &&
+          quote.clientName === "Cliente Teste Isolamento",
+      ),
+    ).toBe(true);
+  });
+
+  it("returns empty sections for a team without pending notifications", async () => {
+    as(OUTSIDER_ID);
+    const notifications = await request(app).get("/api/notifications");
+    expect(notifications.status).toBe(200);
+    expect(notifications.body).toEqual({
+      overdueTasks: [],
+      dueSoonTasks: [],
+      pendingPaymentTasks: [],
+      quoteResponses: [],
+    });
   });
 
   it("sends a push for a public response and discards invalid device tokens", async () => {
@@ -1016,6 +1332,213 @@ describe("notifications", () => {
           .where(eq(pushTokensTable.expoPushToken, token));
         expect(remaining).toHaveLength(0);
       });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("sends task status pushes while the app can be closed", async () => {
+    const ticketId = "task-status-ticket";
+    const fetchMock = vi.fn((input: string | URL, init?: RequestInit) => {
+      if (String(input).endsWith("/push/getReceipts")) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({ data: { [ticketId]: { status: "ok" } } }),
+            { status: 200 },
+          ),
+        );
+      }
+      void init;
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({ data: [{ status: "ok", id: ticketId }] }),
+          { status: 200 },
+        ),
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      as(OWNER_ID);
+      await db
+        .delete(pushTokensTable)
+        .where(eq(pushTokensTable.teamId, teamAId));
+      const created = await request(app).post("/api/tasks").send({
+        title: "O.S. aguardando pagamento",
+        dueAt: new Date(Date.now() + 3 * 24 * 3600 * 1000).toISOString(),
+        endAt: new Date(Date.now() + 3 * 24 * 3600 * 1000 + 3600 * 1000).toISOString(),
+      });
+      expect(created.status).toBe(201);
+
+      const token = "ExponentPushToken[task-status-device]";
+      const registration = await request(app).post("/api/push-tokens").send({
+        token,
+        platform: "android",
+      });
+      expect(registration.status).toBe(204);
+      fetchMock.mockClear();
+
+      const completed = await request(app)
+        .patch(`/api/tasks/${created.body.id}`)
+        .send({ status: "completed" });
+      expect(completed.status).toBe(200);
+
+       await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1));
+      const [, requestOptions] = fetchMock.mock.calls[0] ?? [];
+      const completedMessages = JSON.parse(String(requestOptions?.body));
+      expect(completedMessages[0]).toMatchObject({
+        to: token,
+        title: "Pagamento pendente",
+        data: {
+          taskId: String(created.body.id),
+          notificationType: "payment_pending",
+        },
+      });
+
+      fetchMock.mockClear();
+      const paid = await request(app)
+        .patch(`/api/tasks/${created.body.id}`)
+        .send({ status: "paid", paidAmount: 150 });
+      expect(paid.status).toBe(200);
+
+       await vi.waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(2));
+      const [, paidRequestOptions] = fetchMock.mock.calls[0] ?? [];
+      const paidMessages = JSON.parse(String(paidRequestOptions?.body));
+      expect(paidMessages[0]).toMatchObject({
+        to: token,
+        priority: "high",
+        _contentAvailable: true,
+        collapseId: `gestao-autonomos:payment:${created.body.id}`,
+        data: {
+          taskId: String(created.body.id),
+          notificationType: "payment_recorded",
+          notificationId: `gestao-autonomos:payment:${created.body.id}`,
+        },
+      });
+      expect(paidMessages[0]).not.toHaveProperty("title");
+      expect(paidMessages[0]).not.toHaveProperty("body");
+
+      const pushBodies = fetchMock.mock.calls
+        .filter(([input]) => !String(input).endsWith("/push/getReceipts"))
+        .map(([, requestOptions]) =>
+          JSON.parse(String(requestOptions?.body)) as Record<string, unknown>[],
+        );
+      expect(pushBodies).toHaveLength(1);
+      expect(pushBodies[0]?.[0]).toMatchObject({
+        data: { notificationType: "payment_recorded" },
+      });
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+
+  it("retries unconfirmed payment cleanup with a stable identifier and allows resend", async () => {
+    const token = "ExponentPushToken[payment-retry-device]";
+    let sendAttempts = 0;
+    let failFirstPaymentAttempt = true;
+    const sendBodies: Array<Record<string, unknown>[]> = [];
+    const fetchMock = vi.fn((input: string | URL, init?: RequestInit) => {
+      if (String(input).endsWith("/push/getReceipts")) {
+        const receiptRequest = JSON.parse(
+          String(init?.body),
+        ) as { ids?: string[] };
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              data: Object.fromEntries(
+                (receiptRequest.ids ?? []).map((id) => [
+                  id,
+                  { status: "ok" },
+                ]),
+              ),
+            }),
+            { status: 200 },
+          ),
+        );
+      }
+
+      const body = JSON.parse(String(init?.body)) as Record<string, unknown>[];
+      if (!body.some((message) => message.to === token)) {
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              data: body.map(() => ({ status: "ok" })),
+            }),
+            { status: 200 },
+          ),
+        );
+      }
+      sendAttempts += 1;
+      sendBodies.push(body);
+      const shouldFail = failFirstPaymentAttempt;
+      failFirstPaymentAttempt = false;
+      return Promise.resolve(
+        new Response(
+          JSON.stringify({
+            data: body.map((_, index) =>
+              shouldFail
+                ? {
+                    status: "error",
+                    details: { error: "MessageRateExceeded" },
+                  }
+                : {
+                    status: "ok",
+                    id: `payment-ticket-success-${index}`,
+                  },
+            ),
+          }),
+          { status: 200 },
+        ),
+      );
+    });
+    vi.stubGlobal("fetch", fetchMock);
+
+    try {
+      as(OWNER_ID);
+      const created = await request(app).post("/api/tasks").send({
+        title: "O.S. com retry de limpeza",
+        dueAt: new Date(Date.now() + 5 * 24 * 3600 * 1000).toISOString(),
+        endAt: new Date(
+          Date.now() + 5 * 24 * 3600 * 1000 + 3600 * 1000,
+        ).toISOString(),
+      });
+      expect(created.status).toBe(201);
+
+      const registration = await request(app).post("/api/push-tokens").send({
+        token,
+        platform: "android",
+      });
+      expect(registration.status).toBe(204);
+
+      await sendTaskReminderPushNotification({
+        teamId: teamAId,
+        taskId: created.body.id,
+        taskTitle: created.body.title,
+        dueAt: new Date(created.body.dueAt),
+        endAt: new Date(created.body.endAt),
+        action: "payment_recorded",
+      });
+
+      const paymentIdentifier = `gestao-autonomos:payment:${created.body.id}`;
+      expect(sendBodies).toHaveLength(2);
+      expect(
+        sendBodies.map((messages) => messages[0]?.collapseId),
+      ).toEqual([paymentIdentifier, paymentIdentifier]);
+
+      sendAttempts = 0;
+      sendBodies.length = 0;
+      fetchMock.mockClear();
+
+      await sendTaskReminderPushNotification({
+        teamId: teamAId,
+        taskId: created.body.id,
+        taskTitle: created.body.title,
+        dueAt: new Date(created.body.dueAt),
+        endAt: new Date(created.body.endAt),
+        action: "payment_recorded",
+      });
+      expect(sendAttempts).toBe(1);
+      expect(sendBodies[0]?.[0]?.collapseId).toBe(paymentIdentifier);
     } finally {
       vi.unstubAllGlobals();
     }
