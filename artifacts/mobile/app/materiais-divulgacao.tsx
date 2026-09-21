@@ -29,6 +29,16 @@ import { useColorScheme } from '@/hooks/useColorScheme';
 type PreviewKind = 'horizontal' | 'vertical';
 type SelectedPhoto = TaskPhoto & { caption: string };
 
+const MATERIAL_PALETTE = {
+  ink: '#111827',
+  accent: '#374151',
+  accentSoft: '#f3f4f6',
+  surface: '#f8f8f8',
+  border: '#d1d5db',
+  muted: '#6b7280',
+  white: '#ffffff',
+};
+
 function getStorageUrl(value: string | null | undefined): string | null {
   if (!value) return null;
   if (/^https?:\/\//i.test(value)) return value;
@@ -51,7 +61,23 @@ function splitItems(value: string): string[] {
 export default function CompanyMaterialsScreen() {
   const router = useRouter();
   const colorScheme = useColorScheme();
-  const theme = Colors[colorScheme ?? 'light'];
+  const theme = {
+    ...Colors[colorScheme ?? 'light'],
+    background: MATERIAL_PALETTE.surface,
+    foreground: MATERIAL_PALETTE.ink,
+    card: MATERIAL_PALETTE.white,
+    cardForeground: MATERIAL_PALETTE.ink,
+    primary: MATERIAL_PALETTE.accent,
+    primaryForeground: MATERIAL_PALETTE.white,
+    secondary: MATERIAL_PALETTE.accentSoft,
+    secondaryForeground: MATERIAL_PALETTE.ink,
+    muted: MATERIAL_PALETTE.accentSoft,
+    mutedForeground: MATERIAL_PALETTE.muted,
+    accent: MATERIAL_PALETTE.accentSoft,
+    accentForeground: MATERIAL_PALETTE.ink,
+    border: MATERIAL_PALETTE.border,
+    input: MATERIAL_PALETTE.border,
+  };
   const { width } = Dimensions.get('window');
   const { data: company, isLoading: companyLoading } = useGetCompany();
   const { data: tasks, isLoading: tasksLoading } = useListTasks({});
@@ -169,12 +195,12 @@ export default function CompanyMaterialsScreen() {
         <Text style={[styles.backText, { color: theme.foreground }]}>Voltar</Text>
       </TouchableOpacity>
 
-      <View style={[styles.hero, { backgroundColor: theme.foreground }]}>
-        <View style={[styles.heroOrb, { backgroundColor: theme.primary }]} />
-        <Text style={[styles.eyebrow, { color: '#ffd9bd' }]}>APRESENTE SEU TRABALHO</Text>
-        <Text style={styles.heroTitle}>Materiais para abrir novas conversas.</Text>
+      <View style={[styles.hero, { backgroundColor: MATERIAL_PALETTE.ink }]}>
+        <View style={[styles.heroOrb, { backgroundColor: MATERIAL_PALETTE.accent }]} />
+        <Text style={[styles.eyebrow, { color: '#b8d2c9' }]}>MATERIAIS DE DIVULGAÇÃO</Text>
+        <Text style={styles.heroTitle}>Apresente seu trabalho com clareza.</Text>
         <Text style={styles.heroDescription}>
-          Use seus dados seguros e fotos escolhidas por você. Nada de nomes, endereços ou pagamentos de clientes.
+          Crie um cartão direto ou uma apresentação completa, sempre com seus dados seguros e sem informações de clientes.
         </Text>
       </View>
 
@@ -197,19 +223,21 @@ export default function CompanyMaterialsScreen() {
         <MarketingField label="Diferenciais" value={differentials} onChangeText={setDifferentials} placeholder="Ex.:\n• Prazo combinado\n• Orçamento transparente" multiline theme={theme} />
 
         <TouchableOpacity style={[styles.primaryButton, { backgroundColor: theme.primary }]} onPress={saveTexts} disabled={updateCompany.isPending}>
-          {updateCompany.isPending ? <ActivityIndicator color="#fff" /> : <Ionicons name="checkmark-circle-outline" size={19} color="#fff" />}
-          <Text style={styles.primaryButtonText}>{updateCompany.isPending ? 'Salvando...' : 'Salvar textos'}</Text>
+          {updateCompany.isPending ? <ActivityIndicator color={theme.primaryForeground} /> : <Ionicons name="checkmark-circle-outline" size={19} color={theme.primaryForeground} />}
+          <Text style={[styles.primaryButtonText, { color: theme.primaryForeground }]}>{updateCompany.isPending ? 'Salvando...' : 'Salvar textos'}</Text>
         </TouchableOpacity>
       </View>
 
       <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
         <View style={styles.sectionHeading}>
-          <View style={[styles.iconBubble, { backgroundColor: '#e5f0eb' }]}>
-            <Ionicons name="images-outline" size={20} color="#3f7664" />
+          <View style={[styles.iconBubble, { backgroundColor: theme.accent }]}>
+            <Ionicons name="images-outline" size={20} color={theme.primary} />
           </View>
           <View style={styles.headingCopy}>
-            <Text style={[styles.cardTitle, { color: theme.foreground }]}>Fotos reais do trabalho</Text>
-            <Text style={[styles.cardSubtitle, { color: theme.mutedForeground }]}>Escolha até três fotos das suas O.S.</Text>
+            <Text style={[styles.cardTitle, { color: theme.foreground }]}>Fotos de apoio</Text>
+            <Text style={[styles.cardSubtitle, { color: theme.mutedForeground }]}>
+              Escolha até três fotos de O.S. para o final da apresentação. O cartão não usa fotos.
+            </Text>
           </View>
           <Text style={[styles.counter, { color: theme.primary }]}>{selectedPhotos.length}/3</Text>
         </View>
@@ -269,11 +297,11 @@ export default function CompanyMaterialsScreen() {
             <Text style={[styles.cardSubtitle, { color: theme.mutedForeground }]}>A imagem usa contatos preenchidos automaticamente.</Text>
           </View>
           <View style={[styles.segment, { backgroundColor: theme.background, borderColor: theme.border }]}>
-            <TouchableOpacity onPress={() => setPreviewKind('horizontal')} style={[styles.segmentButton, previewKind === 'horizontal' && { backgroundColor: theme.foreground }]}>
-              <Text style={[styles.segmentText, { color: previewKind === 'horizontal' ? '#fff' : theme.mutedForeground }]}>Cartão</Text>
+            <TouchableOpacity onPress={() => setPreviewKind('horizontal')} style={[styles.segmentButton, previewKind === 'horizontal' && { backgroundColor: theme.primary }]}>
+              <Text style={[styles.segmentText, { color: previewKind === 'horizontal' ? theme.primaryForeground : theme.mutedForeground }]}>Cartão</Text>
             </TouchableOpacity>
-            <TouchableOpacity onPress={() => setPreviewKind('vertical')} style={[styles.segmentButton, previewKind === 'vertical' && { backgroundColor: theme.foreground }]}>
-              <Text style={[styles.segmentText, { color: previewKind === 'vertical' ? '#fff' : theme.mutedForeground }]}>Apresentação</Text>
+            <TouchableOpacity onPress={() => setPreviewKind('vertical')} style={[styles.segmentButton, previewKind === 'vertical' && { backgroundColor: theme.primary }]}>
+              <Text style={[styles.segmentText, { color: previewKind === 'vertical' ? theme.primaryForeground : theme.mutedForeground }]}>Apresentação</Text>
             </TouchableOpacity>
           </View>
         </View>
@@ -293,8 +321,8 @@ export default function CompanyMaterialsScreen() {
         </View>
 
         <TouchableOpacity style={[styles.primaryButton, { backgroundColor: theme.primary }]} onPress={sharePng} disabled={isSharing}>
-          {isSharing ? <ActivityIndicator color="#fff" /> : <Ionicons name="share-outline" size={19} color="#fff" />}
-          <Text style={styles.primaryButtonText}>{isSharing ? 'Preparando imagem...' : 'Compartilhar PNG'}</Text>
+          {isSharing ? <ActivityIndicator color={theme.primaryForeground} /> : <Ionicons name="share-outline" size={19} color={theme.primaryForeground} />}
+          <Text style={[styles.primaryButtonText, { color: theme.primaryForeground }]}>{isSharing ? 'Preparando imagem...' : 'Compartilhar PNG'}</Text>
         </TouchableOpacity>
         <Text style={[styles.safeNote, { color: theme.mutedForeground }]}>O PNG não inclui Pix, dados bancários ou informações de clientes.</Text>
       </View>
@@ -359,17 +387,16 @@ function MaterialPreview({
 }) {
   const horizontal = kind === 'horizontal';
 
-  // ── Modern muted palette ──
-  const slate = '#334155';
-  const accent = '#6366f1';
-  const accentLight = '#eef2ff';
-  const bgLight = '#f8fafc';
-  const borderSubtle = '#e2e8f0';
-  const muted = '#64748b';
-  const heading = '#0f172a';
+  const slate = MATERIAL_PALETTE.ink;
+  const accent = MATERIAL_PALETTE.accent;
+  const accentLight = MATERIAL_PALETTE.accentSoft;
+  const borderSubtle = MATERIAL_PALETTE.border;
+  const muted = MATERIAL_PALETTE.muted;
+  const heading = MATERIAL_PALETTE.ink;
 
   const contact = [company.phone, company.email, company.website].filter(Boolean);
-  const serviceBullets = splitItems(services || differentials);
+  const serviceBullets = splitItems(services);
+  const differentialBullets = splitItems(differentials);
 
   // ── HORIZONTAL: Cartão de visitas (company info only, no photos) ──
   if (horizontal) {
@@ -424,13 +451,13 @@ function MaterialPreview({
 
   // ── VERTICAL: Apresentação (company info FIRST, photos LAST) ──
   return (
-    <View style={[matStyles.presentation, { width, backgroundColor: '#ffffff', borderColor: borderSubtle }]}>
+      <View style={[matStyles.presentation, { width, backgroundColor: MATERIAL_PALETTE.white, borderColor: borderSubtle }]}>
       {/* Header */}
-      <View style={[matStyles.presHeader, { backgroundColor: accent }]}>
+        <View style={[matStyles.presHeader, { backgroundColor: heading }]}>
         {logoUrl ? (
           <Image source={{ uri: logoUrl }} style={matStyles.presLogo} contentFit="contain" />
         ) : (
-          <View style={[matStyles.presLogoPlaceholder, { backgroundColor: 'rgba(255,255,255,0.2)' }]}>
+            <View style={[matStyles.presLogoPlaceholder, { backgroundColor: accent }]}>
             <Text style={matStyles.presLogoInitial}>{company.name.charAt(0).toUpperCase()}</Text>
           </View>
         )}
@@ -451,20 +478,29 @@ function MaterialPreview({
           </Text>
         </View>
 
-        {/* 3. Services / O que esperar */}
-        {(serviceBullets.length > 0 || true) && (
-          <View style={[matStyles.presSection, { borderBottomColor: borderSubtle }]}>
-            <Text style={[matStyles.presSectionLabel, { color: accent }]}>O QUE VOCÊ PODE ESPERAR</Text>
-            {(serviceBullets.length ? serviceBullets : ['Experiência prática', 'Orçamento transparente', 'Atenção aos detalhes']).slice(0, 4).map((bullet, index) => (
-              <View key={`${bullet}-${index}`} style={matStyles.presBulletRow}>
-                <View style={[matStyles.presBulletDot, { backgroundColor: accent }]} />
-                <Text style={[matStyles.presBulletText, { color: slate }]}>{bullet}</Text>
-              </View>
-            ))}
-          </View>
-        )}
+        {/* 3. Services */}
+        <View style={[matStyles.presSection, { borderBottomColor: borderSubtle }]}>
+          <Text style={[matStyles.presSectionLabel, { color: accent }]}>SERVIÇOS</Text>
+          {(serviceBullets.length ? serviceBullets : ['Atendimento sob medida', 'Execução cuidadosa']).slice(0, 4).map((bullet, index) => (
+            <View key={`${bullet}-${index}`} style={matStyles.presBulletRow}>
+              <View style={[matStyles.presBulletDot, { backgroundColor: accent }]} />
+              <Text style={[matStyles.presBulletText, { color: slate }]}>{bullet}</Text>
+            </View>
+          ))}
+        </View>
 
-        {/* 4. Contact */}
+        {/* 4. Differentials */}
+        <View style={[matStyles.presSection, { borderBottomColor: borderSubtle }]}>
+          <Text style={[matStyles.presSectionLabel, { color: accent }]}>DIFERENCIAIS</Text>
+          {(differentialBullets.length ? differentialBullets : ['Orçamento transparente', 'Atenção aos detalhes']).slice(0, 4).map((bullet, index) => (
+            <View key={`${bullet}-${index}`} style={matStyles.presBulletRow}>
+              <View style={[matStyles.presBulletDot, { backgroundColor: accent }]} />
+              <Text style={[matStyles.presBulletText, { color: slate }]}>{bullet}</Text>
+            </View>
+          ))}
+        </View>
+
+        {/* 5. Contact */}
         <View style={[matStyles.presSection, selectedPhotos.length === 0 ? undefined : { borderBottomColor: borderSubtle }]}>
           <Text style={[matStyles.presSectionLabel, { color: accent }]}>CONTATO</Text>
           {contact.map((item, i) => (
@@ -475,22 +511,25 @@ function MaterialPreview({
           )}
         </View>
 
-        {/* 5. Photos gallery (LAST, only if photos selected) */}
+        {/* 6. Compact supporting photos, only in the presentation */}
         {selectedPhotos.length > 0 && (
           <View style={matStyles.presPhotosSection}>
-            <Text style={[matStyles.presSectionLabel, { color: accent, marginBottom: 10 }]}>REGISTROS</Text>
-            {selectedPhotos.map((photo, index) => {
-              const uri = getStorageUrl(photo.url);
-              if (!uri) return null;
-              return (
-                <View key={photo.id} style={matStyles.presPhotoBlock}>
-                  <Image source={{ uri }} style={[matStyles.presPhoto, { height: width * 0.45 }]} contentFit="cover" />
-                  {!!photo.caption && (
-                    <Text style={[matStyles.presPhotoCaption, { color: muted }]}>{photo.caption}</Text>
-                  )}
-                </View>
-              );
-            })}
+            <Text style={[matStyles.presSectionLabel, { color: accent, marginBottom: 3 }]}>TRABALHOS REALIZADOS</Text>
+            <Text style={[matStyles.presPhotosIntro, { color: muted }]}>Registros selecionados de ordens de serviço.</Text>
+            <View style={matStyles.presPhotoGrid}>
+              {selectedPhotos.map((photo) => {
+                const uri = getStorageUrl(photo.url);
+                if (!uri) return null;
+                return (
+                  <View key={photo.id} style={matStyles.presPhotoBlock}>
+                    <Image source={{ uri }} style={[matStyles.presPhoto, { height: Math.min(86, width * 0.2) }]} contentFit="cover" />
+                    {!!photo.caption && (
+                      <Text style={[matStyles.presPhotoCaption, { color: muted }]} numberOfLines={2}>{photo.caption}</Text>
+                    )}
+                  </View>
+                );
+              })}
+            </View>
           </View>
         )}
 
@@ -510,12 +549,12 @@ const styles = StyleSheet.create({
   content: { padding: 16, paddingBottom: 40, gap: 16 },
   backButton: { flexDirection: 'row', alignItems: 'center', gap: 7, paddingVertical: 4 },
   backText: { fontFamily: 'PlusJakartaSans_600SemiBold', fontSize: 14 },
-  hero: { borderRadius: 18, padding: 22, overflow: 'hidden' },
-  heroOrb: { position: 'absolute', width: 150, height: 150, borderRadius: 75, right: -50, top: -65, opacity: 0.8 },
+  hero: { borderRadius: 20, padding: 24, overflow: 'hidden' },
+  heroOrb: { position: 'absolute', width: 170, height: 170, borderRadius: 85, right: -72, top: -88, opacity: 0.72 },
   eyebrow: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 10, letterSpacing: 1.4, marginBottom: 12 },
-  heroTitle: { color: '#fff8ef', fontFamily: 'PlusJakartaSans_700Bold', fontSize: 25, lineHeight: 31, maxWidth: 310 },
+  heroTitle: { color: '#f4f8f6', fontFamily: 'PlusJakartaSans_700Bold', fontSize: 25, lineHeight: 31, maxWidth: 310 },
   heroDescription: { color: '#d8dfdc', fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13, lineHeight: 20, marginTop: 10 },
-  card: { borderRadius: 16, borderWidth: 1, padding: 16, gap: 14 },
+  card: { borderRadius: 18, borderWidth: 1, padding: 17, gap: 15 },
   sectionHeading: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   iconBubble: { width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
   headingCopy: { flex: 1 },
@@ -527,7 +566,7 @@ const styles = StyleSheet.create({
   input: { minHeight: 46, borderRadius: 9, borderWidth: 1, paddingHorizontal: 12, fontFamily: 'PlusJakartaSans_400Regular', fontSize: 14 },
   textarea: { minHeight: 88, borderRadius: 9, borderWidth: 1, paddingHorizontal: 12, paddingTop: 11, fontFamily: 'PlusJakartaSans_400Regular', fontSize: 14, textAlignVertical: 'top' },
   primaryButton: { minHeight: 46, borderRadius: 10, alignItems: 'center', justifyContent: 'center', flexDirection: 'row', gap: 8, paddingHorizontal: 16 },
-  primaryButtonText: { color: '#fff', fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13 },
+  primaryButtonText: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 13 },
   photoGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   photoChoice: { width: '31.8%', aspectRatio: 1.15, borderRadius: 10, overflow: 'hidden', borderWidth: 1, borderColor: 'transparent' },
   photoImage: { width: '100%', height: '100%' },
@@ -708,8 +747,19 @@ const matStyles = StyleSheet.create({
   presPhotosSection: {
     paddingTop: 16,
   },
+  presPhotosIntro: {
+    fontFamily: 'PlusJakartaSans_400Regular',
+    fontSize: 9,
+    lineHeight: 13,
+    marginBottom: 9,
+  },
+  presPhotoGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
   presPhotoBlock: {
-    marginBottom: 14,
+    width: '31.5%',
   },
   presPhoto: {
     width: '100%',
@@ -717,9 +767,9 @@ const matStyles = StyleSheet.create({
   },
   presPhotoCaption: {
     fontFamily: 'PlusJakartaSans_400Regular',
-    fontSize: 10,
-    lineHeight: 14,
-    marginTop: 5,
+    fontSize: 8,
+    lineHeight: 11,
+    marginTop: 4,
   },
   presFooter: {
     alignItems: 'center',
