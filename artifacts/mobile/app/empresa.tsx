@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -18,6 +18,7 @@ import * as DocumentPicker from 'expo-document-picker';
 import * as ImagePicker from 'expo-image-picker';
 import * as FileSystem from 'expo-file-system/legacy';
 import * as Sharing from 'expo-sharing';
+import * as Crypto from 'expo-crypto';
 import { Image } from 'expo-image';
 import JSZip from 'jszip';
 import {
@@ -43,6 +44,34 @@ type ShareProgress = {
   percent: number;
   etaSeconds: number | null;
 };
+
+type DocumentTypeFilter = 'all' | 'pdf' | 'image' | 'document' | 'other';
+
+const DOCUMENT_TYPE_FILTERS: Array<{ value: DocumentTypeFilter; label: string }> = [
+  { value: 'all', label: 'Todos' },
+  { value: 'pdf', label: 'PDF' },
+  { value: 'image', label: 'Imagens' },
+  { value: 'document', label: 'Documentos' },
+  { value: 'other', label: 'Outros' },
+];
+
+function getDocumentTypeFilter(contentType: string | null | undefined, fileName: string | null | undefined): Exclude<DocumentTypeFilter, 'all'> {
+  const normalizedType = (contentType ?? '').toLowerCase();
+  const normalizedName = (fileName ?? '').toLowerCase();
+  if (normalizedType === 'application/pdf' || normalizedName.endsWith('.pdf')) return 'pdf';
+  if (normalizedType.startsWith('image/')) return 'image';
+  if (
+    normalizedType.startsWith('text/') ||
+    normalizedType.includes('word') ||
+    normalizedType.includes('excel') ||
+    normalizedType.includes('spreadsheet') ||
+    normalizedType.includes('presentation') ||
+    normalizedType.includes('opendocument')
+  ) {
+    return 'document';
+  }
+  return 'other';
+}
 
 function decodeBase64(value: string): number[] {
   const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
@@ -81,6 +110,27 @@ function formatEta(seconds: number | null): string {
   const minutes = Math.floor(seconds / 60);
   const remainingSeconds = seconds % 60;
   return `Aproximadamente ${minutes}min${remainingSeconds ? ` ${remainingSeconds}s` : ''} restantes`;
+}
+
+function sanitizeFileNamePart(value: string | null | undefined, fallback: string): string {
+  const sanitized = (value ?? '')
+    .trim()
+    .replace(/[<>:"/\\|?*\u0000-\u001F]/g, '-')
+    .replace(/\s+/g, ' ')
+    .replace(/^[. ]+|[. ]+$/g, '');
+  return sanitized || fallback;
+}
+
+function formatFileDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+async function createSecureFileSuffix(): Promise<string> {
+  const bytes = await Crypto.getRandomBytesAsync(12);
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, '0')).join('');
 }
 
 function getStorageUrl(value: string | null | undefined): string | null {
@@ -139,6 +189,8 @@ export default function EmpresaScreen() {
   const [selectedDocumentIds, setSelectedDocumentIds] = useState<number[]>([]);
   const [isSharingDocuments, setIsSharingDocuments] = useState(false);
   const [shareProgress, setShareProgress] = useState<ShareProgress | null>(null);
+  const [documentSearch, setDocumentSearch] = useState('');
+  const [documentTypeFilter, setDocumentTypeFilter] = useState<DocumentTypeFilter>('all');
 
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
@@ -196,6 +248,20 @@ export default function EmpresaScreen() {
 
   const effectiveLogoUri =
     logoPreviewUri !== undefined ? logoPreviewUri : getStorageUrl(company?.logoUrl);
+
+  const filteredDocuments = useMemo(() => {
+    const normalizedSearch = documentSearch.trim().toLowerCase();
+    return (documents ?? []).filter((document) => {
+      const matchesSearch =
+        !normalizedSearch ||
+        document.name.toLowerCase().includes(normalizedSearch) ||
+        document.fileName.toLowerCase().includes(normalizedSearch);
+      const matchesType =
+        documentTypeFilter === 'all' ||
+        getDocumentTypeFilter(document.contentType, document.fileName) === documentTypeFilter;
+      return matchesSearch && matchesType;
+    });
+  }, [documents, documentSearch, documentTypeFilter]);
 
   const handleSelectLogo = async () => {
     if (isUploadingLogo || isPending) return;
@@ -398,9 +464,12 @@ export default function EmpresaScreen() {
   };
 
   const handleSelectAllDocuments = () => {
-    if (!documents?.length) return;
+    if (!filteredDocuments.length) return;
+    const visibleIds = new Set(filteredDocuments.map((document) => document.id));
     setSelectedDocumentIds((current) =>
-      current.length === documents.length ? [] : documents.map((document) => document.id),
+      filteredDocuments.every((document) => current.includes(document.id))
+        ? current.filter((id) => !visibleIds.has(id))
+        : Array.from(new Set([...current, ...visibleIds])),
     );
   };
 
@@ -493,7 +562,11 @@ export default function EmpresaScreen() {
         );
       }
 
-      const zipUri = `${FileSystem.cacheDirectory}norcamento-documentos-${Date.now()}.zip`;
+      const companyName = sanitizeFileNamePart(company?.name, 'empresa');
+      const date = formatFileDate(new Date());
+      const secureSuffix = await createSecureFileSuffix();
+      const zipFileName = `${companyName}-documentos-${date}-${secureSuffix}.zip`;
+      const zipUri = `${FileSystem.cacheDirectory}${zipFileName}`;
       publishProgress('Compactando ZIP', 'Preparando os arquivos selecionados...', 0.4, true);
       const zipBase64 = await createZipBase64(entries, (progress) => {
         publishProgress('Compactando ZIP', 'Gerando o arquivo ZIP...', 0.4 + progress * 0.55);
@@ -773,6 +846,46 @@ export default function EmpresaScreen() {
           <ActivityIndicator color={theme.primary} style={styles.documentsLoader} />
         ) : documents?.length ? (
           <>
+            <View style={styles.documentFilters}>
+              <View style={[styles.documentSearchRow, { borderColor: theme.border, backgroundColor: theme.card }]}>
+                <Ionicons name="search-outline" size={18} color={theme.mutedForeground} />
+                <TextInput
+                  style={[styles.documentSearchInput, { color: theme.foreground }]}
+                  value={documentSearch}
+                  onChangeText={setDocumentSearch}
+                  placeholder="Buscar por nome ou arquivo"
+                  placeholderTextColor={theme.mutedForeground}
+                  returnKeyType="search"
+                />
+                {!!documentSearch && (
+                  <TouchableOpacity onPress={() => setDocumentSearch('')} accessibilityLabel="Limpar busca">
+                    <Ionicons name="close-circle" size={18} color={theme.mutedForeground} />
+                  </TouchableOpacity>
+                )}
+              </View>
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.documentFilterRow}>
+                {DOCUMENT_TYPE_FILTERS.map((filter) => {
+                  const isActive = documentTypeFilter === filter.value;
+                  return (
+                    <TouchableOpacity
+                      key={filter.value}
+                      style={[
+                        styles.documentFilterChip,
+                        { borderColor: theme.border, backgroundColor: theme.card },
+                        isActive && { borderColor: theme.primary, backgroundColor: theme.primary + '16' },
+                      ]}
+                      onPress={() => setDocumentTypeFilter(filter.value)}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: isActive }}
+                    >
+                      <Text style={[styles.documentFilterChipText, { color: isActive ? theme.primary : theme.mutedForeground }]}>
+                        {filter.label}
+                      </Text>
+                    </TouchableOpacity>
+                  );
+                })}
+              </ScrollView>
+            </View>
             {isSelectionMode && (
               <View style={styles.bulkActions}>
                 <TouchableOpacity
@@ -781,12 +894,16 @@ export default function EmpresaScreen() {
                   disabled={isSharingDocuments}
                 >
                   <Ionicons
-                    name={selectedDocumentIds.length === documents.length ? 'checkmark-circle' : 'ellipse-outline'}
+                    name={filteredDocuments.length > 0 && filteredDocuments.every((document) => selectedDocumentIds.includes(document.id))
+                      ? 'checkmark-circle'
+                      : 'ellipse-outline'}
                     size={18}
                     color={theme.primary}
                   />
                   <Text style={[styles.selectAllText, { color: theme.primary }]}>
-                    {selectedDocumentIds.length === documents.length ? 'Desmarcar todos' : 'Selecionar todos'}
+                    {filteredDocuments.length > 0 && filteredDocuments.every((document) => selectedDocumentIds.includes(document.id))
+                      ? 'Desmarcar visíveis'
+                      : 'Selecionar visíveis'}
                   </Text>
                 </TouchableOpacity>
                 {selectedDocumentIds.length > 0 && (
@@ -812,8 +929,9 @@ export default function EmpresaScreen() {
                 )}
               </View>
             )}
-            <View style={[styles.documentsCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
-              {documents.map((document) => {
+            {filteredDocuments.length ? (
+              <View style={[styles.documentsCard, { backgroundColor: theme.card, borderColor: theme.border }]}>
+                {filteredDocuments.map((document) => {
                 const isSelected = selectedDocumentIds.includes(document.id);
                 return (
                   <TouchableOpacity
@@ -863,8 +981,16 @@ export default function EmpresaScreen() {
                     </TouchableOpacity>
                   </TouchableOpacity>
                 );
-              })}
-            </View>
+                })}
+              </View>
+            ) : (
+              <View style={[styles.emptyDocuments, { borderColor: theme.border }]}>
+                <Ionicons name="search-outline" size={24} color={theme.mutedForeground} />
+                <Text style={[styles.emptyDocumentsText, { color: theme.mutedForeground }]}>
+                  Nenhum documento encontrado para essa busca.
+                </Text>
+              </View>
+            )}
           </>
         ) : (
           <View style={[styles.emptyDocuments, { borderColor: theme.border }]}>
@@ -1010,6 +1136,30 @@ const styles = StyleSheet.create({
   marketingTitle: { fontSize: 16, fontFamily: 'PlusJakartaSans_700Bold' },
   marketingSubtitle: { fontSize: 12, lineHeight: 17, fontFamily: 'PlusJakartaSans_400Regular', marginTop: 2 },
   documentsSection: { marginTop: 28 },
+  documentFilters: { gap: 10, marginBottom: 12 },
+  documentSearchRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    borderWidth: 1,
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    minHeight: 42,
+  },
+  documentSearchInput: {
+    flex: 1,
+    fontSize: 13,
+    fontFamily: 'PlusJakartaSans_400Regular',
+    paddingVertical: 9,
+  },
+  documentFilterRow: { gap: 8, paddingRight: 4 },
+  documentFilterChip: {
+    borderWidth: 1,
+    borderRadius: 16,
+    paddingHorizontal: 11,
+    paddingVertical: 7,
+  },
+  documentFilterChipText: { fontSize: 12, fontFamily: 'PlusJakartaSans_600SemiBold' },
   sectionHeader: { flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 },
   sectionHeaderText: { flex: 1, minWidth: 0 },
   sectionTitle: { fontSize: 18, fontFamily: 'PlusJakartaSans_700Bold' },
