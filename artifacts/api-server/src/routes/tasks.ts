@@ -199,6 +199,15 @@ router.patch("/tasks/:id", requireAuth, requireTeam, async (req, res) => {
     return;
   }
 
+  if (
+    body.paidAmount !== undefined &&
+    body.paidAmount !== null &&
+    (!Number.isFinite(body.paidAmount) || body.paidAmount <= 0)
+  ) {
+    res.status(400).json({ error: "O valor pago deve ser maior que zero" });
+    return;
+  }
+
   if (body.clientId) {
     const [client] = await db
       .select()
@@ -322,6 +331,25 @@ router.patch("/tasks/:id", requireAuth, requireTeam, async (req, res) => {
       dueAt: updated.dueAt,
       endAt: updated.endAt,
       action: "rescheduled",
+    });
+  }
+
+  const paymentPendingStatusChanged =
+    effectiveStatus === "completed" && existing.status !== "completed";
+  const paymentRecordedRequested =
+    effectiveStatus === "paid" &&
+    (existing.status !== "paid" || body.status === "paid");
+  if (paymentPendingStatusChanged || paymentRecordedRequested) {
+    void sendTaskReminderPushNotification({
+      teamId,
+      taskId: updated.id,
+      taskTitle: updated.title,
+      dueAt: updated.dueAt,
+      endAt: updated.endAt,
+      action:
+        paymentPendingStatusChanged
+          ? "payment_pending"
+          : "payment_recorded",
     });
   }
 
