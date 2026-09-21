@@ -31,16 +31,16 @@ function baseHtml(title: string, body: string): string {
         <style>
           @page { margin: 28px; }
           body { font-family: Arial, sans-serif; color: #172033; font-size: 12px; line-height: 1.5; }
-          h1 { color: #0f766e; font-size: 23px; margin: 0 0 4px; }
+          h1 { color: #374151; font-size: 23px; margin: 0 0 4px; }
           h2 { font-size: 14px; color: #475569; margin: 22px 0 8px; text-transform: uppercase; letter-spacing: .08em; }
           .muted { color: #64748b; }
-          .header { border-bottom: 2px solid #0f766e; padding-bottom: 15px; margin-bottom: 20px; }
+          .header { border-bottom: 2px solid #374151; padding-bottom: 15px; margin-bottom: 20px; }
           .meta { display: flex; justify-content: space-between; gap: 20px; }
           .card { border: 1px solid #dbe3ec; border-radius: 8px; padding: 12px; margin-top: 8px; }
           table { width: 100%; border-collapse: collapse; margin-top: 8px; }
           th, td { border-bottom: 1px solid #e2e8f0; padding: 8px 4px; text-align: left; }
           th:last-child, td:last-child { text-align: right; }
-          .total { font-size: 18px; font-weight: bold; color: #0f766e; text-align: right; margin-top: 14px; }
+          .total { font-size: 18px; font-weight: bold; color: #374151; text-align: right; margin-top: 14px; }
           .footer { color: #94a3b8; font-size: 10px; margin-top: 28px; }
         </style>
       </head>
