@@ -31,6 +31,11 @@ import Colors from '@/constants/colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useQueryClient } from '@tanstack/react-query';
 import { sharePdfDocument, taskPdfHtml } from '@/lib/nativePdf';
+import {
+  formatPaymentDate,
+  formatPaymentDateInput,
+  parsePaymentDate,
+} from '@/lib/payment';
 
 type TaskStatus = 'scheduled' | 'in_progress' | 'completed' | 'paid';
 
@@ -59,28 +64,6 @@ function getStorageUrl(value: string | null | undefined): string | null {
     ? `/api/storage${value}`
     : value.startsWith('/') ? value : `/${value}`;
   return `https://${domain}${path}`;
-}
-
-function formatPaymentDate(value: string | null | undefined): string {
-  if (!value) return '';
-  const date = new Date(value);
-  return Number.isNaN(date.getTime())
-    ? ''
-    : date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-}
-
-function parsePaymentDate(value: string): Date | null {
-  const parts = value.split('/');
-  if (parts.length !== 3) return null;
-  const date = new Date(Number(parts[2]), Number(parts[1]) - 1, Number(parts[0]));
-  return Number.isNaN(date.getTime()) ? null : date;
-}
-
-function formatPaymentDateInput(value: string): string {
-  const digits = value.replace(/\D/g, '').slice(0, 8);
-  if (digits.length <= 2) return digits;
-  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
-  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
 }
 
 export default function TarefaDetailScreen() {
