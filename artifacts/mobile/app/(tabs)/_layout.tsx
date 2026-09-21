@@ -127,6 +127,13 @@ export default function TabsLayout() {
           tabBarIcon: ({ color }) => <TabBarIcon name="person-circle" color={color} />,
         }}
       />
+      <Tabs.Screen
+        name="notificacoes"
+        options={{
+          title: 'Notificações',
+          href: null,
+        }}
+      />
     </Tabs>
   );
 }
