@@ -36,9 +36,9 @@ async function imageUrlToDataUrl(url: string | null | undefined): Promise<string
 function addCompanyHeader(doc: jsPDF, company: PdfCompany, logoDataUrl: string | null) {
   const pageWidth = doc.internal.pageSize.getWidth();
   const margin = 18;
-  const orange = [239, 115, 31] as [number, number, number];
+  const brandAccent = [55, 65, 81] as [number, number, number];
 
-  doc.setFillColor(...orange);
+  doc.setFillColor(...brandAccent);
   doc.rect(0, 0, pageWidth, 5, "F");
 
   if (logoDataUrl) {
@@ -176,7 +176,7 @@ export async function generateQuotePdf(quote: Quote, company?: PdfCompany): Prom
   pdf.setTextColor(50, 50, 50);
   pdf.text("VALOR TOTAL", pageWidth - margin - 66, totalY + 8);
   pdf.setFontSize(13);
-  pdf.setTextColor(239, 115, 31);
+  pdf.setTextColor(79, 113, 107);
   pdf.text(formatCurrency(quote.total), pageWidth - margin - 6, totalY + 8, { align: "right" });
 
   const paymentRows = [
