@@ -19,6 +19,14 @@ import * as WebBrowser from 'expo-web-browser';
 import { useRouter } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { Ionicons } from '@expo/vector-icons';
+import {
+  getAuthErrorDetails,
+  getGoogleAuthErrorMessage,
+  getGoogleButtonLabel,
+  getGoogleCooldownSeconds,
+  getGoogleRetryAt,
+  isGoogleButtonDisabled,
+} from '../lib/googleAuth';
 
 // Required for OAuth redirect handling on web/Android
 WebBrowser.maybeCompleteAuthSession();
@@ -41,6 +49,27 @@ export default function SignInScreen() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
+  const [googleRetryAt, setGoogleRetryAt] = useState<number | null>(null);
+  const [googleCooldownSeconds, setGoogleCooldownSeconds] = useState(0);
+
+  useEffect(() => {
+    if (googleRetryAt === null) {
+      setGoogleCooldownSeconds(0);
+      return;
+    }
+
+    const updateCooldown = () => {
+      const seconds = getGoogleCooldownSeconds(googleRetryAt, Date.now());
+      setGoogleCooldownSeconds(seconds);
+      if (seconds === 0) {
+        setGoogleRetryAt(null);
+      }
+    };
+
+    updateCooldown();
+    const interval = setInterval(updateCooldown, 250);
+    return () => clearInterval(interval);
+  }, [googleRetryAt]);
 
   const handleSignIn = async () => {
     if (!isLoaded || !email.trim() || !password) return;
@@ -70,6 +99,8 @@ export default function SignInScreen() {
   };
 
   const handleGoogleSignIn = async () => {
+    if (isGoogleButtonDisabled(googleLoading, googleCooldownSeconds)) return;
+
     setGoogleLoading(true);
     try {
       // Expo Go cannot receive a custom app scheme. Let AuthSession create its
@@ -101,15 +132,33 @@ export default function SignInScreen() {
         );
       }
     } catch (err: any) {
-      const msg =
-        err?.errors?.[0]?.longMessage ??
-        err?.errors?.[0]?.message ??
-        'Não foi possível entrar com o Google. Tente novamente.';
-      Alert.alert('Erro ao entrar com Google', msg);
+      const details = getAuthErrorDetails(err);
+      const retryAt = getGoogleRetryAt(details, Date.now());
+      if (retryAt !== null) {
+        console.warn('Google OAuth request was rate limited', {
+          status: details.status,
+          code: details.code,
+        });
+        setGoogleRetryAt(retryAt);
+        Alert.alert(
+          'Muitas tentativas',
+          'O login com Google foi temporariamente limitado. Aguarde alguns segundos antes de tentar novamente.',
+        );
+      } else {
+        Alert.alert(
+          'Erro ao entrar com Google',
+          getGoogleAuthErrorMessage(details),
+        );
+      }
     } finally {
       setGoogleLoading(false);
     }
   };
+
+  const googleButtonDisabled = isGoogleButtonDisabled(
+    googleLoading,
+    googleCooldownSeconds,
+  );
 
   return (
     <KeyboardAvoidingView
@@ -133,12 +182,19 @@ export default function SignInScreen() {
 
           {/* Google button */}
           <TouchableOpacity
-            style={[styles.googleBtn, googleLoading && styles.btnDisabled]}
+            style={[
+              styles.googleBtn,
+              googleButtonDisabled && styles.btnDisabled,
+            ]}
             onPress={handleGoogleSignIn}
-            disabled={googleLoading}
+            disabled={googleButtonDisabled}
           >
             {googleLoading ? (
               <ActivityIndicator color="#1e293b" size="small" />
+            ) : googleCooldownSeconds > 0 ? (
+              <Text style={styles.googleBtnText}>
+                {getGoogleButtonLabel(googleCooldownSeconds)}
+              </Text>
             ) : (
               <>
                 <GoogleIcon />
