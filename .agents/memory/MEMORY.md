@@ -15,3 +15,8 @@
 - [EAS GitHub build source](eas-github-build-source.md) — Expo builds read the connected GitHub branch, so verify remote sync and the returned commit hash.
 - [Metro and image-size 2.x](metro-image-size-2.md) — Metro 0.83 must pass image bytes, not file paths, when using image-size 2.x.
 - [Security override version bounds](security-override-version-bounds.md) — pin the minimum patched version; avoid open-ended overrides that can cross API majors.
+- [GitHub workspace sync](github-workspace-sync.md) — compare trees before applying a GitHub branch because Replit and GitHub histories may be unrelated.
+- [Mobile auth startup](mobile-auth-startup.md) — gate `/api/me` on Clerk readiness and show recovery UI instead of an unbounded startup spinner.
+- [Android headless notification cleanup](android-headless-notifications.md) — Expo cannot cancel local alerts remotely; use a stable task ID plus a headless data push and background task.
+- [Expo authenticated E2E isolation](expo-authenticated-e2e.md) — keep Clerk browser tests on a dedicated account/team and fixture only domain data, not authentication.
+- [Expo Playwright host compatibility](expo-playwright-host.md) — current Expo CLI accepts `localhost` for the web test server host, not `0.0.0.0`.
