@@ -17,6 +17,8 @@ import {
   useListProducts,
   useListServiceTemplates,
   useCreateQuote,
+  useGetQuote,
+  getGetQuoteQueryKey,
 } from '@workspace/api-client-react';
 import Colors from '@/constants/colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
@@ -33,13 +35,21 @@ const parseMoney = (s: string) => parseFloat(s.replace(',', '.')) || 0;
 
 export default function NovoOrcamentoScreen() {
   const router = useRouter();
-  const params = useLocalSearchParams<{ clientId?: string }>();
+  const params = useLocalSearchParams<{ clientId?: string; duplicar?: string }>();
   const colorScheme = useColorScheme();
   const theme = Colors[colorScheme ?? 'light'];
   const queryClient = useQueryClient();
+  const duplicateParam = Array.isArray(params.duplicar) ? params.duplicar[0] : params.duplicar;
+  const parsedDuplicateId = duplicateParam ? Number(duplicateParam) : undefined;
+  const duplicateQuoteId =
+    parsedDuplicateId !== undefined &&
+    Number.isInteger(parsedDuplicateId) &&
+    parsedDuplicateId > 0
+      ? parsedDuplicateId
+      : undefined;
 
   const [selectedClientId, setSelectedClientId] = useState<number | null>(
-    params.clientId ? Number(params.clientId) : null
+    duplicateQuoteId === undefined && params.clientId ? Number(params.clientId) : null
   );
   const [showClientPicker, setShowClientPicker] = useState(false);
   const [clientSearch, setClientSearch] = useState('');
@@ -61,9 +71,34 @@ export default function NovoOrcamentoScreen() {
   } = useListProducts();
   const { data: serviceTemplates } = useListServiceTemplates();
   const { mutate: createQuote, isPending } = useCreateQuote();
+  const { data: duplicateQuote, isLoading: isLoadingDuplicate } = useGetQuote(duplicateQuoteId ?? 0, {
+    query: {
+      enabled: duplicateQuoteId !== undefined,
+      queryKey: getGetQuoteQueryKey(duplicateQuoteId ?? 0),
+    },
+  });
   const [openProductIndex, setOpenProductIndex] = useState<number | null>(null);
 
   const selectedClient = clients?.find(c => c.id === selectedClientId);
+
+  useEffect(() => {
+    if (!duplicateQuote) return;
+    setSelectedClientId(duplicateQuote.clientId);
+    setNotes(duplicateQuote.notes ?? '');
+    setLaborCost(duplicateQuote.laborCost ? String(duplicateQuote.laborCost) : '');
+    setServiceScopeEnabled(duplicateQuote.serviceScopeEnabled);
+    setServiceDescription(duplicateQuote.serviceDescription ?? '');
+    setItems(
+      duplicateQuote.items.length
+        ? duplicateQuote.items.map((item) => ({
+            productId: item.productId,
+            description: item.description,
+            quantity: String(item.quantity),
+            unitPrice: String(item.unitPrice),
+          }))
+        : [{ productId: null, description: '', quantity: '1', unitPrice: '' }],
+    );
+  }, [duplicateQuote]);
 
   const itemTotal = items.reduce(
     (sum, it) => sum + parseMoney(it.quantity) * parseMoney(it.unitPrice),
@@ -152,6 +187,22 @@ export default function NovoOrcamentoScreen() {
       }
     );
   };
+
+  if (duplicateQuoteId !== undefined && isLoadingDuplicate) {
+    return (
+      <View style={[styles.loading, { backgroundColor: theme.background }]}>
+        <ActivityIndicator color={theme.primary} />
+      </View>
+    );
+  }
+
+  if (duplicateQuoteId !== undefined && !duplicateQuote) {
+    return (
+      <View style={[styles.loading, { backgroundColor: theme.background }]}>
+        <Text style={{ color: theme.mutedForeground }}>Orçamento de origem não encontrado.</Text>
+      </View>
+    );
+  }
 
   return (
     <ScrollView
@@ -487,6 +538,7 @@ export default function NovoOrcamentoScreen() {
 
 const styles = StyleSheet.create({
   container: { flex: 1 },
+  loading: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   content: { padding: 16, paddingBottom: 40 },
   section: { marginBottom: 20 },
   sectionHeader: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 },
