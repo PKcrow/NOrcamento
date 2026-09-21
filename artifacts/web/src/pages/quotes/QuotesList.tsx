@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Search, FileText, ArrowRight } from "lucide-react";
+import { Plus, Search, FileText, ArrowRight, Copy } from "lucide-react";
 import { formatCurrency, formatDate, quoteStatusMap } from "@/lib/format";
 import { Badge } from "@/components/ui/badge";
 import type { QuoteStatus } from "@workspace/api-client-react";
@@ -78,7 +78,7 @@ export function QuotesList() {
               <TableHead>Data</TableHead>
               <TableHead>Status</TableHead>
               <TableHead className="text-right">Valor Total</TableHead>
-              <TableHead className="w-[80px]"></TableHead>
+              <TableHead className="w-[120px]"></TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -117,11 +117,30 @@ export function QuotesList() {
                       {formatCurrency(quote.total)}
                     </TableCell>
                     <TableCell className="text-right pr-4">
-                      <Link href={`/orcamentos/${quote.id}`}>
-                        <Button variant="ghost" size="icon" className="h-8 w-8">
-                          <ArrowRight className="w-4 h-4" />
-                        </Button>
-                      </Link>
+                      <div className="flex items-center justify-end gap-1">
+                        <Link href={`/orcamentos/novo?duplicar=${quote.id}`}>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            aria-label={`Duplicar orçamento de ${quote.clientName}`}
+                            title="Duplicar orçamento"
+                          >
+                            <Copy className="w-4 h-4" />
+                          </Button>
+                        </Link>
+                        <Link href={`/orcamentos/${quote.id}`}>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            aria-label={`Abrir orçamento de ${quote.clientName}`}
+                            title="Abrir orçamento"
+                          >
+                            <ArrowRight className="w-4 h-4" />
+                          </Button>
+                        </Link>
+                      </div>
                     </TableCell>
                   </TableRow>
                 );
