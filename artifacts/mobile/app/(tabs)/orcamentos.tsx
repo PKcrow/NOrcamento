@@ -100,29 +100,44 @@ export default function OrcamentosScreen() {
         }
         contentContainerStyle={styles.listContent}
         renderItem={({ item }) => (
-          <TouchableOpacity
-            style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}
-            onPress={() => router.push(`/orcamento/${item.id}`)}
-          >
-            <View style={styles.cardRow}>
-              <View style={styles.cardMain}>
-                <Text style={[styles.cardTitle, { color: theme.foreground }]} numberOfLines={1}>
-                  {item.clientName}
-                </Text>
-                <Text style={[styles.cardSub, { color: theme.mutedForeground }]}>
-                  {fmtDate(item.createdAt)} · {item.items.length} {item.items.length === 1 ? 'item' : 'itens'}
-                </Text>
-              </View>
-              <View style={styles.cardRight}>
-                <View style={[styles.badge, { backgroundColor: STATUS_COLORS[item.status as QuoteStatus] + '22' }]}>
-                  <Text style={[styles.badgeText, { color: STATUS_COLORS[item.status as QuoteStatus] }]}>
-                    {STATUS_LABELS[item.status as QuoteStatus]}
+          <View style={[styles.card, { backgroundColor: theme.card, borderColor: theme.border }]}>
+            <TouchableOpacity
+              style={styles.cardContent}
+              onPress={() => router.push(`/orcamento/${item.id}`)}
+              accessibilityRole="button"
+              accessibilityLabel={`Abrir orçamento de ${item.clientName}`}
+            >
+              <View style={styles.cardRow}>
+                <View style={styles.cardMain}>
+                  <Text style={[styles.cardTitle, { color: theme.foreground }]} numberOfLines={1}>
+                    {item.clientName}
+                  </Text>
+                  <Text style={[styles.cardSub, { color: theme.mutedForeground }]}>
+                    {fmtDate(item.createdAt)} · {item.items.length} {item.items.length === 1 ? 'item' : 'itens'}
                   </Text>
                 </View>
-                <Text style={[styles.cardTotal, { color: theme.foreground }]}>{fmt(item.total)}</Text>
+                <View style={styles.cardRight}>
+                  <View style={[styles.badge, { backgroundColor: STATUS_COLORS[item.status as QuoteStatus] + '22' }]}>
+                    <Text style={[styles.badgeText, { color: STATUS_COLORS[item.status as QuoteStatus] }]}>
+                      {STATUS_LABELS[item.status as QuoteStatus]}
+                    </Text>
+                  </View>
+                  <Text style={[styles.cardTotal, { color: theme.foreground }]}>{fmt(item.total)}</Text>
+                </View>
               </View>
+            </TouchableOpacity>
+            <View style={[styles.cardActions, { borderTopColor: theme.border }]}>
+              <TouchableOpacity
+                style={styles.duplicateButton}
+                onPress={() => router.push(`/orcamento/novo?duplicar=${item.id}`)}
+                accessibilityRole="button"
+                accessibilityLabel={`Duplicar orçamento de ${item.clientName}`}
+              >
+                <Ionicons name="copy-outline" size={16} color={theme.primary} />
+                <Text style={[styles.duplicateButtonText, { color: theme.primary }]}>Duplicar orçamento</Text>
+              </TouchableOpacity>
             </View>
-          </TouchableOpacity>
+          </View>
         )}
         ListEmptyComponent={() => (
           <View style={styles.empty}>
@@ -183,9 +198,10 @@ const styles = StyleSheet.create({
   card: {
     borderRadius: 10,
     borderWidth: 1,
-    padding: 14,
     marginBottom: 8,
+    overflow: 'hidden',
   },
+  cardContent: { padding: 14 },
   cardRow: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   cardMain: { flex: 1 },
   cardRight: { alignItems: 'flex-end', gap: 4 },
@@ -194,6 +210,13 @@ const styles = StyleSheet.create({
   cardTotal: { fontSize: 14, fontFamily: 'PlusJakartaSans_700Bold' },
   badge: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 },
   badgeText: { fontSize: 11, fontFamily: 'PlusJakartaSans_600SemiBold' },
+  cardActions: {
+    borderTopWidth: 1,
+    paddingHorizontal: 14,
+    paddingVertical: 9,
+  },
+  duplicateButton: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  duplicateButtonText: { fontSize: 12, fontFamily: 'PlusJakartaSans_600SemiBold' },
   empty: { alignItems: 'center', paddingVertical: 60, gap: 12 },
   emptyText: { fontSize: 14, fontFamily: 'PlusJakartaSans_400Regular' },
   fab: {
