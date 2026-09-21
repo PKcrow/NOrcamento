@@ -12,7 +12,7 @@ import { formatCurrency, formatDate, formatDateTime, quoteStatusMap } from "@/li
 import { normalizeStoredObjectUrl } from "@/lib/objectUrl";
 import { downloadPdfFile, generateQuotePdf } from "@/lib/documentPdf";
 import { useToast } from "@/hooks/use-toast";
-import { ArrowLeft, Printer, Download, Edit2, Trash2, Send, CheckCircle, XCircle, Loader2, ClipboardList, Share2, Ban } from "lucide-react";
+import { ArrowLeft, Printer, Download, Edit2, Trash2, Send, CheckCircle, XCircle, Loader2, ClipboardList, Share2, Ban, Copy } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import type { QuoteStatus } from "@workspace/api-client-react";
@@ -347,6 +347,11 @@ export function QuoteDetail() {
               <Edit2 className="w-4 h-4" /> Editar
             </Button>
           </Link>
+          <Link href={`/orcamentos/novo?duplicar=${quote.id}`}>
+            <Button variant="outline" className="gap-2">
+              <Copy className="w-4 h-4" /> Duplicar orçamento
+            </Button>
+          </Link>
           
           <Button variant="ghost" size="icon" className="text-gray-400 hover:text-destructive" onClick={handleDelete}>
             <Trash2 className="w-5 h-5" />
@@ -355,7 +360,7 @@ export function QuoteDetail() {
       </div>
 
       {/* Printable Document Layout */}
-      <Card className="quote-detail-document shadow-lg border-gray-200 overflow-hidden print:shadow-none print:border-none print:w-full print:overflow-visible">
+      <Card className="quote-brand quote-detail-document shadow-lg border-gray-200 overflow-hidden print:shadow-none print:border-none print:w-full print:overflow-visible">
         {/* Header Strip */}
         <div className="h-4 w-full bg-primary print:bg-black !bg-opacity-100" style={{ backgroundColor: 'var(--primary)' }}></div>
         
