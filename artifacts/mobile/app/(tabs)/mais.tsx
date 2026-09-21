@@ -33,6 +33,12 @@ type SettingsRow = {
 
 const SECTIONS: { title: string; rows: SettingsRow[] }[] = [
   {
+    title: 'CENTRAL',
+    rows: [
+      { icon: 'notifications-outline', label: 'Notificações', href: '/(tabs)/notificacoes' },
+    ],
+  },
+  {
     title: 'MINHA EQUIPE',
     rows: [
       { icon: 'people', label: 'Gerenciar equipe', href: '/equipes' },
