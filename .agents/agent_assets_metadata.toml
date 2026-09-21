@@ -1,0 +1,72 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "R5hk4NUUjr9wp1bFrPRL9"
+uri = "file://artifacts/mobile/gestao-autonomos-1.0.16-build16.aab"
+type = "unspecified"
+title = "Gestão de Autônomos — AAB 1.0.16 (build 16)"
+description = "Android App Bundle de produção para envio manual à Google Play. Build EAS 102b5963-0a4f-4c3f-861d-d2a375560fe2."
+logical_id = "79dc8ab6-190a-4e76-9360-46edca7d4ac9"
+content_hash = "sha256:f796ac5a8f5c8b403e59ba1983d2ef236b9adf6caba22918445728ae53e6c7f1"
+size = 76145143
+mtime_ms = 1789509519124
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:74407226-a145-4b90-9af8-368504a1cad5/79dc8ab6-190a-4e76-9360-46edca7d4ac9/9911a21f-207c-43eb-ba86-c91a19754609"
+storage_version_token = "1789509520977135"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "0C3-xwUY8NpKPo0uvdwl_"
+uri = "file://artifacts/mobile/gestao-autonomos-1.0.17-build17.aab"
+type = "unspecified"
+title = "Gestão de Autônomos — AAB 1.0.17 (build 17)"
+description = "Android App Bundle de produção com correção da tela branca na inicialização. Build EAS d20803be-7a51-4a6e-9d7c-b0134d69a644."
+logical_id = "8c39fadd-7fad-48f6-ad98-edb251166c6c"
+content_hash = "sha256:89be3a5e793cc48480fa5bac48a6fbae33d38854cb03461ea012b44ab7ad769f"
+size = 76145855
+mtime_ms = 1789513770715
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:74407226-a145-4b90-9af8-368504a1cad5/8c39fadd-7fad-48f6-ad98-edb251166c6c/1ffe9fb2-efcc-40b2-b3f3-70451f2666b9"
+storage_version_token = "1789513772125054"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "Os9X15zh5DT2_ek4s1Pmj"
+uri = "file://artifacts/mobile/gestao-autonomos-1.0.18-build18.aab"
+type = "unspecified"
+title = "Gestão de Autônomos — AAB 1.0.18 (build 18)"
+description = "Android App Bundle de produção com captura de erros antes do bootstrap de fontes e Clerk. Build EAS f68771bc-0abc-481e-884f-ee9a6586e936."
+logical_id = "a3f65fda-2de2-4b4e-8980-af705c3cc1f0"
+content_hash = "sha256:5df3539f34d359dbbd5b0fdca40d3cffbe2690899c94a22fa86e177b66dc0513"
+size = 76146011
+mtime_ms = 1789515437263
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:74407226-a145-4b90-9af8-368504a1cad5/a3f65fda-2de2-4b4e-8980-af705c3cc1f0/0c8643ef-29cd-40de-9f00-3e33f083dc8a"
+storage_version_token = "1789515438848434"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "GiYgn9uiQ4ipu7l32GUqm"
+uri = "file://artifacts/mobile/gestao-autonomos-1.0.19-build19.aab"
+type = "unspecified"
+title = "Gestão de Autônomos — AAB 1.0.19 (build 19)"
+description = "AAB Android gerado pelo build production usando o código sincronizado no GitHub. Pronto para upload/teste no Google Play."
+logical_id = "4669c7e9-2de6-4935-8c63-b016d1c76c21"
+content_hash = "sha256:5e288522c411698b4fee941f6b05ad76a59e62519496b78acfbd989cdb50bde1"
+size = 76145823
+mtime_ms = 1789574814713
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:74407226-a145-4b90-9af8-368504a1cad5/4669c7e9-2de6-4935-8c63-b016d1c76c21/ae9e7eba-9039-4828-8523-1277d8811355"
+storage_version_token = "1789574816679328"
+content_type = "application/octet-stream"
+
+[[outputs]]
+id = "GEQuFZxGe0wv9mXKsAHWm"
+uri = "file://artifacts/mobile/gestao-autonomos-1.0.19-build19.zip"
+type = "unspecified"
+title = "Gestão de Autônomos — AAB 1.0.19 em ZIP"
+description = "Arquivo ZIP contendo o AAB Android da versão 1.0.19 (build 19), pronto para baixar e enviar ao Google Play."
+logical_id = "045e48e5-3bce-415d-965b-a9f21135a55f"
+content_hash = "sha256:1989521c2866d86a84db22830a9b23be4c6328e3da0ccf61e8cbbfb20090cdd9"
+size = 75235286
+mtime_ms = 1789574854645
+storage_uri = "gcs://replit-rams-assets-kirk/rams/assets/repl:74407226-a145-4b90-9af8-368504a1cad5/045e48e5-3bce-415d-965b-a9f21135a55f/af4793bd-5500-4931-9e78-132c4a97ff08"
+storage_version_token = "1789574859492899"
+content_type = "application/octet-stream"
