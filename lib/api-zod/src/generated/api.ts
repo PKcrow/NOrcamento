@@ -1398,11 +1398,13 @@ export const DeleteTaskPhotoResponse = zod.void()
 
 
 /**
- * @summary Get task reminders and recent quote responses as notifications
+ * @summary Get task reminders, pending payments, and recent quote responses as notifications
  */
 export const getNotificationsResponseOverdueTasksItemFeedbackRatingMax = 5;
 
 export const getNotificationsResponseDueSoonTasksItemFeedbackRatingMax = 5;
+
+export const getNotificationsResponsePendingPaymentTasksItemFeedbackRatingMax = 5;
 
 
 
@@ -1455,6 +1457,30 @@ export const GetNotificationsResponse = zod.object({
   "feedbackRating": zod.number().min(1).max(getNotificationsResponseDueSoonTasksItemFeedbackRatingMax).nullable(),
   "feedbackComment": zod.string().nullable()
 })),
+  "pendingPaymentTasks": zod.array(zod.object({
+  "id": zod.number(),
+  "title": zod.string(),
+  "description": zod.string().nullable(),
+  "dueAt": zod.coerce.date(),
+  "endAt": zod.coerce.date().nullable().describe('Data prevista de término do serviço.'),
+  "status": zod.enum(['scheduled', 'in_progress', 'completed', 'paid']),
+  "clientId": zod.number().nullable(),
+  "quoteId": zod.number().nullable().describe('Quote that originated this task, when it was created from an approved quote.'),
+  "clientName": zod.string().nullable(),
+  "paidAt": zod.coerce.date().nullable(),
+  "paidAmount": zod.number().nullable(),
+  "createdAt": zod.coerce.date(),
+  "photos": zod.array(zod.object({
+  "id": zod.number(),
+  "taskId": zod.number(),
+  "url": zod.string(),
+  "createdAt": zod.coerce.date()
+})),
+  "feedbackToken": zod.string().nullable().describe('Active public feedback token, if one has been created.'),
+  "feedbackSubmittedAt": zod.coerce.date().nullable(),
+  "feedbackRating": zod.number().min(1).max(getNotificationsResponsePendingPaymentTasksItemFeedbackRatingMax).nullable(),
+  "feedbackComment": zod.string().nullable()
+})).describe('Completed tasks that have not been paid yet.'),
   "quoteResponses": zod.array(zod.object({
   "id": zod.number().describe('Quote identifier.'),
   "status": zod.enum(['approved', 'rejected']),
