@@ -51,3 +51,8 @@ Thumbs.db
 # Playwright E2E diagnostics
 artifacts/mobile/e2e/test-results/
 artifacts/mobile/e2e/playwright-report/
+
+# Generated mobile release artifacts
+*.aab
+*.apk
+*.zip
