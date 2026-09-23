@@ -19,3 +19,14 @@ enough, or spread `...task`), so the omission isn't caught until runtime — Zod
 server routes for every place that constructs that entity (not just the "main" CRUD route for it)
 and backfill the new field there too. In this project that meant `tasks.ts`, `notifications.ts`,
 and `dashboard.ts` all needed their own `photos: [...]` attachment logic.
+
+The same failure applies to nested objects: a public response can 500 when its route returns a
+smaller hand-picked subset of a nested object than the generated schema requires. Either return
+every required nested field or define a deliberately smaller public schema.
+
+**Why:** `zod.object()` rejects missing required keys at runtime even when the UI only reads a
+small subset, so a public page can look like a broken link while the database query itself worked.
+
+**How to apply:** when an endpoint uses a generated response parser, compare every hand-built
+nested object against the generated schema; do not assume omitted fields are harmless because the
+frontend does not render them.
