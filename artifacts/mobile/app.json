@@ -39,11 +39,11 @@
         "expo-build-properties",
         {
           "android": {
-            "enableProguardInReleaseBuilds": true,
-            "enableShrinkResourcesInReleaseBuilds": true
+            "enableProguardInReleaseBuilds": true
           }
         }
       ],
+      "./plugins/with-android-minify",
       "expo-web-browser",
       [
         "expo-notifications",
