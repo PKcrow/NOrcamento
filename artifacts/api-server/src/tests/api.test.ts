@@ -531,6 +531,41 @@ describe("tasks: status flow and payments", () => {
     expect(repaid.status).toBe(200);
   });
 
+  it("creates, opens, and submits a public feedback link", async () => {
+    as(OWNER_ID);
+    const created = await request(app).post(`/api/tasks/${taskId}/feedback-link`);
+    expect(created.status).toBe(200);
+    expect(created.body.feedbackToken).toMatch(/^[a-f0-9]{48}$/);
+
+    as(null);
+    const publicView = await request(app).get(
+      `/api/public/feedback/${created.body.feedbackToken}`,
+    );
+    expect(publicView.status).toBe(200);
+    expect(publicView.body.task.id).toBe(taskId);
+    expect(publicView.body.company).toMatchObject({
+      id: teamAId,
+      name: "Equipe Teste A",
+      showPhoneOnQuotes: true,
+      showEmailOnQuotes: true,
+    });
+
+    const submitted = await request(app)
+      .post(`/api/public/feedback/${created.body.feedbackToken}`)
+      .send({ rating: 5, comment: "Ótimo serviço" });
+    expect(submitted.status).toBe(200);
+    expect(submitted.body).toMatchObject({
+      taskId,
+      rating: 5,
+      comment: "Ótimo serviço",
+    });
+
+    const reopened = await request(app).get(
+      `/api/public/feedback/${created.body.feedbackToken}`,
+    );
+    expect(reopened.status).toBe(404);
+  });
+
   it("does not show the task to another team", async () => {
     as(OUTSIDER_ID);
     const res = await request(app).get(`/api/tasks/${taskId}`).send();

@@ -9,9 +9,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { formatCurrency, formatDate, quoteStatusMap, taskStatusMap } from "@/lib/format";
 import { useToast } from "@/hooks/use-toast";
-import { Phone, Mail, User, FileText, CheckSquare, Edit2, Trash2, ArrowLeft, Plus } from "lucide-react";
+import { Phone, Mail, User, FileText, CheckSquare, Edit2, Trash2, ArrowLeft, Plus, MessageCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { useState } from "react";
+
+function normalizeWhatsAppPhone(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  if (digits.startsWith("55") || digits.length > 11) return digits;
+  return `55${digits}`;
+}
 
 export function ClientDetail() {
   const { id } = useParams<{ id: string }>();
@@ -97,7 +103,23 @@ export function ClientDetail() {
             {client.phone && (
               <div className="flex items-center gap-3 text-gray-700">
                 <div className="bg-gray-100 p-2 rounded-full text-gray-500"><Phone className="w-4 h-4" /></div>
-                <span>{client.phone}</span>
+                <span className="flex-1">{client.phone}</span>
+                <Button
+                  asChild
+                  variant="outline"
+                  size="sm"
+                  className="shrink-0 gap-1.5 text-green-700 border-green-200 hover:bg-green-50"
+                >
+                  <a
+                    href={`https://web.whatsapp.com/send?phone=${normalizeWhatsAppPhone(client.phone)}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    aria-label={`Abrir WhatsApp Web de ${client.name}`}
+                  >
+                    <MessageCircle className="h-4 w-4" />
+                    WhatsApp Web
+                  </a>
+                </Button>
               </div>
             )}
             {client.email && (

@@ -8,6 +8,7 @@ import {
   ActivityIndicator,
   Linking,
   Alert,
+  Platform,
 } from 'react-native';
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -40,6 +41,12 @@ const TASK_STATUS_LABELS: Record<string, string> = {
   scheduled: 'Agendada', in_progress: 'Em andamento', completed: 'Concluída', paid: 'Paga',
 };
 
+function normalizeWhatsAppPhone(phone: string): string {
+  const digits = phone.replace(/\D/g, '');
+  if (digits.startsWith('55') || digits.length > 11) return digits;
+  return `55${digits}`;
+}
+
 export default function ClienteDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const clientId = Number(id);
@@ -55,6 +62,22 @@ export default function ClienteDetailScreen() {
   const { mutate: deleteClient, isPending: isDeleting } = useDeleteClient();
 
   const clientTasks = allTasks?.filter(t => t.clientId === clientId) ?? [];
+
+  const handleWhatsApp = async () => {
+    if (!client?.phone) return;
+    const phone = normalizeWhatsAppPhone(client.phone);
+    if (!phone) return;
+
+    try {
+      await Linking.openURL(`whatsapp://send?phone=${phone}`);
+    } catch {
+      try {
+        await Linking.openURL(`https://wa.me/${phone}`);
+      } catch {
+        Alert.alert('WhatsApp indisponível', 'Não foi possível abrir uma conversa com este contato.');
+      }
+    }
+  };
 
   const handleDelete = () => {
     if (!client || isDeleting) return;
@@ -149,6 +172,17 @@ export default function ClienteDetailScreen() {
             >
               <Ionicons name="call-outline" size={18} color={theme.primary} />
               <Text style={[styles.contactBtnText, { color: theme.foreground }]}>{client.phone}</Text>
+            </TouchableOpacity>
+          )}
+          {Platform.OS === 'android' && client.phone && (
+            <TouchableOpacity
+              style={[styles.contactBtn, { borderColor: theme.primary }]}
+              onPress={handleWhatsApp}
+              accessibilityRole="button"
+              accessibilityLabel={`Abrir WhatsApp de ${client.name}`}
+            >
+              <Ionicons name="chatbubble-ellipses-outline" size={18} color={theme.primary} />
+              <Text style={[styles.contactBtnText, { color: theme.primary }]}>WhatsApp</Text>
             </TouchableOpacity>
           )}
           {client.email && (
