@@ -315,7 +315,12 @@ export default function TarefaDetailScreen() {
       { id: taskId },
       {
         onSuccess: async (data) => {
-          const link = `https://${process.env.EXPO_PUBLIC_DOMAIN}/feedback/${data.feedbackToken}`;
+          const webDomain = process.env.EXPO_PUBLIC_WEB_DOMAIN ?? process.env.EXPO_PUBLIC_DOMAIN;
+          if (!webDomain) {
+            Alert.alert('Erro', 'O domínio público do web não está configurado.');
+            return;
+          }
+          const link = `https://${webDomain}/feedback/${data.feedbackToken}`;
           try {
             await Share.share({
               message: `Olá! Quando puder, avalie o serviço realizado:\n${link}`,
