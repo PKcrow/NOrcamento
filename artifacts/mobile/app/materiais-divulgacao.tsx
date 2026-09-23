@@ -30,13 +30,13 @@ type PreviewKind = 'horizontal' | 'vertical';
 type SelectedPhoto = TaskPhoto & { caption: string };
 
 const MATERIAL_PALETTE = {
-  ink: '#111827',
-  accent: '#374151',
-  accentSoft: '#f3f4f6',
-  surface: '#f8f8f8',
-  border: '#d1d5db',
-  muted: '#6b7280',
-  white: '#ffffff',
+  ink: '#111111',
+  accent: '#2f2f2f',
+  accentSoft: '#e5e5e5',
+  surface: '#eeeeee',
+  border: '#c6c6c6',
+  muted: '#626262',
+  white: '#fafafa',
 };
 
 function getStorageUrl(value: string | null | undefined): string | null {
@@ -54,8 +54,7 @@ function splitItems(value: string): string[] {
   return value
     .split(/\n|•|,/)
     .map((item) => item.trim())
-    .filter(Boolean)
-    .slice(0, 4);
+    .filter(Boolean);
 }
 
 export default function CompanyMaterialsScreen() {
@@ -197,7 +196,7 @@ export default function CompanyMaterialsScreen() {
 
       <View style={[styles.hero, { backgroundColor: MATERIAL_PALETTE.ink }]}>
         <View style={[styles.heroOrb, { backgroundColor: MATERIAL_PALETTE.accent }]} />
-        <Text style={[styles.eyebrow, { color: '#b8d2c9' }]}>MATERIAIS DE DIVULGAÇÃO</Text>
+        <Text style={[styles.eyebrow, { color: '#d1d5db' }]}>MATERIAIS DE DIVULGAÇÃO</Text>
         <Text style={styles.heroTitle}>Apresente seu trabalho com clareza.</Text>
         <Text style={styles.heroDescription}>
           Crie um cartão direto ou uma apresentação completa, sempre com seus dados seguros e sem informações de clientes.
@@ -258,7 +257,7 @@ export default function CompanyMaterialsScreen() {
                   accessibilityLabel={selected ? 'Remover foto selecionada' : 'Selecionar foto de trabalho'}
                 >
                   <Image source={{ uri }} style={styles.photoImage} contentFit="cover" />
-                  <View style={[styles.photoCheck, { backgroundColor: selected ? theme.primary : '#202a2d99' }]}>
+                  <View style={[styles.photoCheck, { backgroundColor: selected ? theme.primary : '#111111cc' }]}>
                     <Ionicons name={selected ? 'checkmark' : 'add'} size={16} color="#fff" />
                   </View>
                 </TouchableOpacity>
@@ -401,7 +400,7 @@ function MaterialPreview({
   // ── HORIZONTAL: Cartão de visitas (company info only, no photos) ──
   if (horizontal) {
     return (
-      <View style={[matStyles.card, { width, height: width * 0.56, backgroundColor: '#ffffff', borderColor: borderSubtle }]}>
+      <View style={[matStyles.card, { width, height: width * 0.56, backgroundColor: MATERIAL_PALETTE.surface, borderColor: borderSubtle }]}>
         {/* Top accent line */}
         <View style={[matStyles.accentLine, { backgroundColor: accent }]} />
 
@@ -451,20 +450,20 @@ function MaterialPreview({
 
   // ── VERTICAL: Apresentação (company info FIRST, photos LAST) ──
   return (
-      <View style={[matStyles.presentation, { width, backgroundColor: MATERIAL_PALETTE.white, borderColor: borderSubtle }]}>
+      <View style={[matStyles.presentation, { width, backgroundColor: MATERIAL_PALETTE.surface, borderColor: borderSubtle }]}>
       {/* Header */}
         <View style={[matStyles.presHeader, { backgroundColor: heading }]}>
         {logoUrl ? (
           <Image source={{ uri: logoUrl }} style={matStyles.presLogo} contentFit="contain" />
         ) : (
             <View style={[matStyles.presLogoPlaceholder, { backgroundColor: accent }]}>
-            <Text style={matStyles.presLogoInitial}>{company.name.charAt(0).toUpperCase()}</Text>
+            <Text style={[matStyles.presLogoInitial, { color: MATERIAL_PALETTE.white }]}>{company.name.charAt(0).toUpperCase()}</Text>
           </View>
         )}
         <Text style={matStyles.presCompanyName}>{company.name}</Text>
       </View>
 
-      <View style={matStyles.presBody}>
+      <View style={[matStyles.presBody, { backgroundColor: MATERIAL_PALETTE.surface }]}>
         {/* 1. Headline */}
         <Text style={[matStyles.presHeadline, { color: heading }]}>
           {headline.trim() || 'Serviços com cuidado e clareza.'}
@@ -481,7 +480,7 @@ function MaterialPreview({
         {/* 3. Services */}
         <View style={[matStyles.presSection, { borderBottomColor: borderSubtle }]}>
           <Text style={[matStyles.presSectionLabel, { color: accent }]}>SERVIÇOS</Text>
-          {(serviceBullets.length ? serviceBullets : ['Atendimento sob medida', 'Execução cuidadosa']).slice(0, 4).map((bullet, index) => (
+          {(serviceBullets.length ? serviceBullets : ['Atendimento sob medida', 'Execução cuidadosa']).map((bullet, index) => (
             <View key={`${bullet}-${index}`} style={matStyles.presBulletRow}>
               <View style={[matStyles.presBulletDot, { backgroundColor: accent }]} />
               <Text style={[matStyles.presBulletText, { color: slate }]}>{bullet}</Text>
@@ -552,8 +551,8 @@ const styles = StyleSheet.create({
   hero: { borderRadius: 20, padding: 24, overflow: 'hidden' },
   heroOrb: { position: 'absolute', width: 170, height: 170, borderRadius: 85, right: -72, top: -88, opacity: 0.72 },
   eyebrow: { fontFamily: 'PlusJakartaSans_700Bold', fontSize: 10, letterSpacing: 1.4, marginBottom: 12 },
-  heroTitle: { color: '#f4f8f6', fontFamily: 'PlusJakartaSans_700Bold', fontSize: 25, lineHeight: 31, maxWidth: 310 },
-  heroDescription: { color: '#d8dfdc', fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13, lineHeight: 20, marginTop: 10 },
+  heroTitle: { color: '#f5f5f5', fontFamily: 'PlusJakartaSans_700Bold', fontSize: 25, lineHeight: 31, maxWidth: 310 },
+  heroDescription: { color: '#c7c7c7', fontFamily: 'PlusJakartaSans_400Regular', fontSize: 13, lineHeight: 20, marginTop: 10 },
   card: { borderRadius: 18, borderWidth: 1, padding: 17, gap: 15 },
   sectionHeading: { flexDirection: 'row', alignItems: 'center', gap: 10 },
   iconBubble: { width: 40, height: 40, borderRadius: 13, alignItems: 'center', justifyContent: 'center' },
@@ -674,7 +673,7 @@ const matStyles = StyleSheet.create({
     width: 52,
     height: 52,
     borderRadius: 12,
-    backgroundColor: '#ffffff',
+    backgroundColor: MATERIAL_PALETTE.white,
     padding: 4,
   },
   presLogoPlaceholder: {
