@@ -20,3 +20,4 @@
 - [Android headless notification cleanup](android-headless-notifications.md) — Expo cannot cancel local alerts remotely; use a stable task ID plus a headless data push and background task.
 - [Expo authenticated E2E isolation](expo-authenticated-e2e.md) — keep Clerk browser tests on a dedicated account/team and fixture only domain data, not authentication.
 - [Expo Playwright host compatibility](expo-playwright-host.md) — current Expo CLI accepts `localhost` for the web test server host, not `0.0.0.0`.
+- [EAS builds and generated LFS artifacts](eas-github-lfs-artifacts.md) — missing Git LFS objects for committed AAB/APK/ZIP files can fail EAS before the project is prepared.
