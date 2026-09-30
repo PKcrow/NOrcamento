@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { ClerkProvider, useAuth } from '@clerk/expo';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { KeyboardProvider } from 'react-native-keyboard-controller';
 import { SafeAreaProvider, useSafeAreaInsets } from 'react-native-safe-area-context';
 import {
   PlusJakartaSans_400Regular,
@@ -525,7 +526,9 @@ function RootLayoutContent() {
       <SafeAreaProvider>
         <QueryClientProvider client={queryClient}>
           <GestureHandlerRootView style={{ flex: 1 }}>
-            <RootLayoutNav />
+            <KeyboardProvider>
+              <RootLayoutNav />
+            </KeyboardProvider>
           </GestureHandlerRootView>
         </QueryClientProvider>
       </SafeAreaProvider>

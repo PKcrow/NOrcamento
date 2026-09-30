@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useAuth } from '@clerk/expo';
 import {
   View,
   Text,
@@ -74,6 +75,7 @@ export default function TarefaDetailScreen() {
   const queryClient = useQueryClient();
   const navigation = useNavigation();
   const router = useRouter();
+  const { getToken } = useAuth();
 
   const [showPayModal, setShowPayModal] = useState(false);
   const [payAmount, setPayAmount] = useState('');
@@ -339,9 +341,16 @@ export default function TarefaDetailScreen() {
     if (!task || sharingPdf) return;
     setSharingPdf(true);
     try {
-      await sharePdfDocument(`Ordem de serviço #${task.id}`, taskPdfHtml(task));
-    } catch {
-      Alert.alert('Erro', 'Não foi possível gerar ou compartilhar o PDF da O.S.');
+      const authToken = await getToken();
+      const html = await taskPdfHtml(task, authToken);
+      await sharePdfDocument(`Ordem de serviço #${task.id}`, html);
+    } catch (error) {
+      Alert.alert(
+        'Erro',
+        error instanceof Error
+          ? error.message
+          : 'Não foi possível gerar ou compartilhar o PDF da O.S.',
+      );
     } finally {
       setSharingPdf(false);
     }

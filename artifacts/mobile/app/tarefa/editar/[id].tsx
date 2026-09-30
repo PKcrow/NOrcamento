@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TextInput,
   TouchableOpacity,
   Alert,
@@ -15,33 +14,17 @@ import { useListTasks, useUpdateTask, useListClients } from '@workspace/api-clie
 import Colors from '@/constants/colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useQueryClient } from '@tanstack/react-query';
-
-function parseDisplayDate(str: string): Date | null {
-  const parts = str.split('/');
-  if (parts.length !== 3) return null;
-  const d = parseInt(parts[0]), m = parseInt(parts[1]) - 1, y = parseInt(parts[2]);
-  if (isNaN(d) || isNaN(m) || isNaN(y)) return null;
-  return new Date(y, m, d);
-}
-
-function toDisplayDate(d: Date | string | null | undefined): string {
-  if (!d) return '';
-  const date = new Date(d);
-  if (isNaN(date.getTime())) return '';
-  return date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
-}
+import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
+import {
+  DatePickerField,
+  isScheduleEndBeforeStart,
+  TimePickerField,
+} from '@/components/SchedulePickerFields';
 
 function toDisplayTime(d: Date | string | null | undefined): string {
   if (!d) return '';
   const date = new Date(d);
   return Number.isNaN(date.getTime()) ? '' : `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`;
-}
-
-function formatDateInput(raw: string): string {
-  const digits = raw.replace(/\D/g, '').slice(0, 8);
-  if (digits.length <= 2) return digits;
-  if (digits.length <= 4) return `${digits.slice(0, 2)}/${digits.slice(2)}`;
-  return `${digits.slice(0, 2)}/${digits.slice(2, 4)}/${digits.slice(4)}`;
 }
 
 export default function EditarTarefaScreen() {
@@ -60,21 +43,35 @@ export default function EditarTarefaScreen() {
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [dueDate, setDueDate] = useState('');
-  const [endDate, setEndDate] = useState('');
+  const [dueDate, setDueDate] = useState<Date | null>(null);
+  const [endDate, setEndDate] = useState<Date | null>(null);
   const [dueTime, setDueTime] = useState('');
   const [endTime, setEndTime] = useState('');
   const [selectedClientId, setSelectedClientId] = useState<number | undefined>();
   const [clientSearch, setClientSearch] = useState('');
   const [showClientPicker, setShowClientPicker] = useState(false);
+  const isEndBeforeStart = isScheduleEndBeforeStart(
+    dueDate,
+    dueTime,
+    endDate,
+    endTime,
+  );
 
   useEffect(() => {
     if (task) {
       setTitle(task.title ?? '');
       setDescription(task.description ?? '');
-      setDueDate(toDisplayDate(task.dueAt));
+      const taskStartDate = task.dueAt ? new Date(task.dueAt) : null;
+      const taskEndDate = task.endAt ? new Date(task.endAt) : taskStartDate;
+      setDueDate(
+        taskStartDate && !Number.isNaN(taskStartDate.getTime())
+          ? taskStartDate
+          : null,
+      );
       setDueTime(toDisplayTime(task.dueAt));
-      setEndDate(toDisplayDate(task.endAt) || toDisplayDate(task.dueAt));
+      setEndDate(
+        taskEndDate && !Number.isNaN(taskEndDate.getTime()) ? taskEndDate : null,
+      );
       setEndTime(toDisplayTime(task.endAt) || '17:00');
       setSelectedClientId(task.clientId ?? undefined);
     }
@@ -87,13 +84,27 @@ export default function EditarTarefaScreen() {
 
   const handleSave = () => {
     if (!title.trim()) { Alert.alert('Campo obrigatório', 'Informe o título.'); return; }
-    const dueAt = parseDisplayDate(dueDate);
-    const endAt = parseDisplayDate(endDate);
-    if (!dueAt || !endAt || !/^\d{2}:\d{2}$/.test(dueTime) || !/^\d{2}:\d{2}$/.test(endTime)) {
-      Alert.alert('Data ou horário inválido', 'Informe início e término em DD/MM/AAAA e HH:MM.'); return;
+    if (!dueDate || !endDate) {
+      Alert.alert('Campo obrigatório', 'Selecione as datas de início e término.');
+      return;
     }
-    const start = new Date(`${dueDate.split('/').reverse().join('-')}T${dueTime}:00`);
-    const end = new Date(`${endDate.split('/').reverse().join('-')}T${endTime}:00`);
+    const startTimeParts = dueTime.match(/^(\d{2}):(\d{2})$/);
+    const endTimeParts = endTime.match(/^(\d{2}):(\d{2})$/);
+    if (
+      !startTimeParts ||
+      !endTimeParts ||
+      Number(startTimeParts[1]) > 23 ||
+      Number(startTimeParts[2]) > 59 ||
+      Number(endTimeParts[1]) > 23 ||
+      Number(endTimeParts[2]) > 59
+    ) {
+      Alert.alert('Horário inválido', 'Selecione horários válidos para o serviço.');
+      return;
+    }
+    const start = new Date(dueDate);
+    start.setHours(Number(startTimeParts[1]), Number(startTimeParts[2]), 0, 0);
+    const end = new Date(endDate);
+    end.setHours(Number(endTimeParts[1]), Number(endTimeParts[2]), 0, 0);
     if (Number.isNaN(start.getTime()) || Number.isNaN(end.getTime()) || end <= start) {
       Alert.alert('Término inválido', 'O término deve ser posterior ao início.'); return;
     }
@@ -140,7 +151,7 @@ export default function EditarTarefaScreen() {
   );
 
   return (
-    <ScrollView
+    <KeyboardAwareScrollViewCompat
       style={[styles.container, { backgroundColor: theme.background }]}
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
@@ -206,55 +217,47 @@ export default function EditarTarefaScreen() {
       <View style={styles.dateRow}>
         <View style={{ flex: 1 }}>
           <Text style={[styles.label, { color: theme.mutedForeground }]}>Data de início *</Text>
-          <TextInput
-            style={[styles.input, { borderColor: theme.border, color: theme.foreground, backgroundColor: theme.card }]}
+          <DatePickerField
             value={dueDate}
-            onChangeText={v => setDueDate(formatDateInput(v))}
-            placeholder="DD/MM/AAAA"
-            placeholderTextColor={theme.mutedForeground}
-            keyboardType="number-pad"
-            maxLength={10}
+            onChange={setDueDate}
+            accessibilityLabel="Selecionar data de início"
           />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={[styles.label, { color: theme.mutedForeground }]}>Término *</Text>
-          <TextInput
-            style={[styles.input, { borderColor: theme.border, color: theme.foreground, backgroundColor: theme.card }]}
+          <DatePickerField
             value={endDate}
-            onChangeText={v => setEndDate(formatDateInput(v))}
-            placeholder="DD/MM/AAAA"
-            placeholderTextColor={theme.mutedForeground}
-            keyboardType="number-pad"
-            maxLength={10}
+            onChange={setEndDate}
+            accessibilityLabel="Selecionar data de término"
           />
         </View>
       </View>
       <View style={styles.dateRow}>
         <View style={{ flex: 1 }}>
           <Text style={[styles.label, { color: theme.mutedForeground }]}>Hora de início *</Text>
-          <TextInput
-            style={[styles.input, { borderColor: theme.border, color: theme.foreground, backgroundColor: theme.card }]}
+          <TimePickerField
             value={dueTime}
-            onChangeText={setDueTime}
-            placeholder="08:00"
-            placeholderTextColor={theme.mutedForeground}
-            keyboardType="number-pad"
-            maxLength={5}
+            onChange={setDueTime}
+            accessibilityLabel="Selecionar horário de início"
           />
         </View>
         <View style={{ flex: 1 }}>
           <Text style={[styles.label, { color: theme.mutedForeground }]}>Hora de término *</Text>
-          <TextInput
-            style={[styles.input, { borderColor: theme.border, color: theme.foreground, backgroundColor: theme.card }]}
+          <TimePickerField
             value={endTime}
-            onChangeText={setEndTime}
-            placeholder="17:00"
-            placeholderTextColor={theme.mutedForeground}
-            keyboardType="number-pad"
-            maxLength={5}
+            onChange={setEndTime}
+            accessibilityLabel="Selecionar horário de término"
           />
         </View>
       </View>
+      {isEndBeforeStart && (
+        <Text
+          accessibilityRole="alert"
+          style={[styles.scheduleError, { color: theme.destructive }]}
+        >
+          O término não pode ser anterior ao início.
+        </Text>
+      )}
 
       <TouchableOpacity
         style={[styles.saveBtn, { backgroundColor: theme.primary }, isPending && { opacity: 0.6 }]}
@@ -265,7 +268,7 @@ export default function EditarTarefaScreen() {
           <Text style={styles.saveBtnText}>Salvar alterações</Text>
         )}
       </TouchableOpacity>
-    </ScrollView>
+    </KeyboardAwareScrollViewCompat>
   );
 }
 
@@ -293,6 +296,7 @@ const styles = StyleSheet.create({
   dropdownItem: { padding: 12 },
   dropdownItemText: { fontSize: 14, fontFamily: 'PlusJakartaSans_400Regular' },
   dateRow: { flexDirection: 'row', gap: 12, marginBottom: 16 },
+  scheduleError: { fontSize: 12, lineHeight: 18, fontFamily: 'PlusJakartaSans_600SemiBold', marginTop: -8, marginBottom: 12 },
   saveBtn: { height: 52, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
   saveBtnText: { fontSize: 16, fontFamily: 'PlusJakartaSans_600SemiBold', color: '#fff' },
 });

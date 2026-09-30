@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
   TextInput,
   Alert,
@@ -20,6 +19,8 @@ import {
 import Colors from '@/constants/colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useQueryClient } from '@tanstack/react-query';
+import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
+import { DatePickerField, TimePickerField } from '@/components/SchedulePickerFields';
 
 export default function NovaTarefaScreen() {
   const router = useRouter();
@@ -39,9 +40,13 @@ export default function NovaTarefaScreen() {
   const [newClientName, setNewClientName] = useState('');
   const [newClientPhone, setNewClientPhone] = useState('');
   const [newClientEmail, setNewClientEmail] = useState('');
-  const [dueAt, setDueAt] = useState('');
-  const [startTime, setStartTime] = useState('08:00');
-  const [endTime, setEndTime] = useState('17:00');
+  const [dueAt, setDueAt] = useState<Date | null>(null);
+  const [startTime, setStartTime] = useState('00:00');
+  const [endTime, setEndTime] = useState('00:00');
+  const isEndBeforeStart =
+    /^\d{2}:\d{2}$/.test(startTime) &&
+    /^\d{2}:\d{2}$/.test(endTime) &&
+    endTime < startTime;
 
   const { data: clients } = useListClients({ search: clientSearch || undefined });
   const { mutate: createTask, isPending } = useCreateTask();
@@ -86,17 +91,20 @@ export default function NovaTarefaScreen() {
       Alert.alert('Campo obrigatório', 'Informe o título da ordem de serviço.');
       return;
     }
-    if (!dueAt.trim()) {
+    if (!dueAt) {
       Alert.alert('Campo obrigatório', 'Informe a data de início (DD/MM/AAAA).');
       return;
     }
-    if (!/^\d{2}\/\d{2}\/\d{4}$/.test(dueAt) || !/^\d{2}:\d{2}$/.test(startTime) || !/^\d{2}:\d{2}$/.test(endTime)) {
-      Alert.alert('Data ou horário inválido', 'Use DD/MM/AAAA e horários no formato HH:MM.');
+    if (!/^\d{2}:\d{2}$/.test(startTime) || !/^\d{2}:\d{2}$/.test(endTime)) {
+      Alert.alert('Horário inválido', 'Selecione horários válidos para o serviço.');
       return;
     }
-    const [day, month, year] = dueAt.split('/');
-    const parsedDate = new Date(`${year}-${month}-${day}T${startTime}:00`);
-    const parsedEnd = new Date(`${year}-${month}-${day}T${endTime}:00`);
+    const [startHour, startMinute] = startTime.split(':').map(Number);
+    const [endHour, endMinute] = endTime.split(':').map(Number);
+    const parsedDate = new Date(dueAt);
+    parsedDate.setHours(startHour, startMinute, 0, 0);
+    const parsedEnd = new Date(dueAt);
+    parsedEnd.setHours(endHour, endMinute, 0, 0);
     if (isNaN(parsedDate.getTime()) || isNaN(parsedEnd.getTime()) || parsedEnd <= parsedDate) {
       Alert.alert('Horário inválido', 'O término deve ser posterior ao início.');
       return;
@@ -124,7 +132,7 @@ export default function NovaTarefaScreen() {
   };
 
   return (
-    <ScrollView
+    <KeyboardAwareScrollViewCompat
       style={[styles.container, { backgroundColor: theme.background }]}
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
@@ -273,49 +281,45 @@ export default function NovaTarefaScreen() {
       {/* Date */}
       <View style={styles.section}>
         <Text style={[styles.label, { color: theme.foreground }]}>Data de início *</Text>
-        <View style={[styles.inputRow, { borderColor: theme.border, backgroundColor: theme.card }]}>
-          <Ionicons name="calendar-outline" size={18} color={theme.mutedForeground} style={{ marginLeft: 12 }} />
-          <TextInput
-            style={[styles.inlineInput, { color: theme.foreground }]}
-            placeholder="DD/MM/AAAA"
-            placeholderTextColor={theme.mutedForeground}
-            value={dueAt}
-            onChangeText={v => {
-              const cleaned = v.replace(/\D/g, '');
-              let formatted = cleaned;
-              if (cleaned.length > 2) formatted = `${cleaned.slice(0, 2)}/${cleaned.slice(2)}`;
-              if (cleaned.length > 4) formatted = `${cleaned.slice(0, 2)}/${cleaned.slice(2, 4)}/${cleaned.slice(4, 8)}`;
-              setDueAt(formatted);
-            }}
-            keyboardType="numeric"
-            maxLength={10}
-          />
-        </View>
+        <DatePickerField
+          value={dueAt}
+          onChange={setDueAt}
+          accessibilityLabel="Selecionar data de início"
+        />
       </View>
 
       <View style={styles.section}>
         <Text style={[styles.label, { color: theme.foreground }]}>Horário *</Text>
         <View style={styles.timeRow}>
-          <TextInput
-            style={[styles.timeInput, { borderColor: theme.border, color: theme.foreground, backgroundColor: theme.card }]}
-            placeholder="Início (08:00)"
-            placeholderTextColor={theme.mutedForeground}
-            value={startTime}
-            onChangeText={setStartTime}
-            keyboardType="numeric"
-            maxLength={5}
-          />
-          <TextInput
-            style={[styles.timeInput, { borderColor: theme.border, color: theme.foreground, backgroundColor: theme.card }]}
-            placeholder="Término (17:00)"
-            placeholderTextColor={theme.mutedForeground}
-            value={endTime}
-            onChangeText={setEndTime}
-            keyboardType="numeric"
-            maxLength={5}
-          />
+          <View style={styles.timeField}>
+            <Text style={[styles.timeLabel, { color: theme.mutedForeground }]}>Início</Text>
+            <TimePickerField
+              value={startTime}
+              onChange={setStartTime}
+              accessibilityLabel="Selecionar horário de início"
+            />
+          </View>
+          <View style={styles.timeField}>
+            <Text style={[styles.timeLabel, { color: theme.mutedForeground }]}>Término</Text>
+            <TimePickerField
+              value={endTime}
+              onChange={setEndTime}
+              accessibilityLabel="Selecionar horário de término"
+            />
+          </View>
         </View>
-        <Text style={[styles.scheduleHint, { color: theme.mutedForeground }]}>Atendimentos no mesmo dia são permitidos quando os horários não se sobrepõem.</Text>
+        {isEndBeforeStart ? (
+          <Text
+            accessibilityRole="alert"
+            style={[styles.scheduleError, { color: theme.destructive }]}
+          >
+            O término não pode ser anterior ao início.
+          </Text>
+        ) : (
+          <Text style={[styles.scheduleHint, { color: theme.mutedForeground }]}>
+            Atendimentos no mesmo dia são permitidos quando os horários não se sobrepõem.
+          </Text>
+        )}
       </View>
 
       {/* Submit */}
@@ -330,7 +334,7 @@ export default function NovaTarefaScreen() {
           <Text style={styles.submitBtnText}>Criar ordem de serviço</Text>
         )}
       </TouchableOpacity>
-    </ScrollView>
+    </KeyboardAwareScrollViewCompat>
   );
 }
 
@@ -437,23 +441,11 @@ const styles = StyleSheet.create({
     fontFamily: 'PlusJakartaSans_600SemiBold',
   },
   dropdownItemText: { fontSize: 14, fontFamily: 'PlusJakartaSans_400Regular' },
-  inputRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderRadius: 8,
-    height: 48,
-  },
-  inlineInput: {
-    flex: 1,
-    height: '100%',
-    paddingHorizontal: 12,
-    fontSize: 15,
-    fontFamily: 'PlusJakartaSans_400Regular',
-  },
   timeRow: { flexDirection: 'row', gap: 10 },
-  timeInput: { flex: 1, height: 48, borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, fontSize: 15, fontFamily: 'PlusJakartaSans_400Regular' },
+  timeField: { flex: 1, gap: 6 },
+  timeLabel: { fontSize: 12, fontFamily: 'PlusJakartaSans_600SemiBold' },
   scheduleHint: { marginTop: 8, fontSize: 12, lineHeight: 18, fontFamily: 'PlusJakartaSans_400Regular' },
+  scheduleError: { marginTop: 8, fontSize: 12, lineHeight: 18, fontFamily: 'PlusJakartaSans_600SemiBold' },
   submitBtn: {
     height: 52,
     borderRadius: 10,

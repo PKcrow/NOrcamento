@@ -4,6 +4,8 @@ import * as Sharing from 'expo-sharing';
 import * as FileSystem from 'expo-file-system/legacy';
 import type { Company, Quote, Task } from '@workspace/api-client-react';
 
+const PDF_ACCENT = '#f97316';
+
 function escapeHtml(value: string | null | undefined): string {
   return (value ?? '')
     .replace(/&/g, '&amp;')
@@ -22,6 +24,76 @@ function formatDate(value: string | null | undefined): string {
   return new Date(value).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
+export function getCompanyLogoUrl(value: string | null | undefined): string | null {
+  if (!value) return null;
+  const domain = process.env.EXPO_PUBLIC_DOMAIN;
+
+  if (/^https?:\/\//i.test(value)) {
+    return value.replace('/api/objects/', '/api/storage/objects/');
+  }
+  if (value.startsWith('/objects/')) {
+    return domain ? `https://${domain}/api/storage${value}` : null;
+  }
+  if (value.startsWith('/api/objects/')) {
+    return domain
+      ? `https://${domain}${value.replace('/api/objects/', '/api/storage/objects/')}`
+      : null;
+  }
+  if (value.startsWith('/')) return domain ? `https://${domain}${value}` : null;
+  return null;
+}
+
+function encodeBase64(bytes: Uint8Array): string {
+  const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+  let result = '';
+
+  for (let index = 0; index < bytes.length; index += 3) {
+    const first = bytes[index];
+    const second = bytes[index + 1];
+    const third = bytes[index + 2];
+    result += alphabet[first >> 2];
+    result += alphabet[((first & 3) << 4) | (second === undefined ? 0 : second >> 4)];
+    result += second === undefined
+      ? '=='
+      : `${alphabet[((second & 15) << 2) | (third === undefined ? 0 : third >> 6)]}${third === undefined ? '=' : alphabet[third & 63]}`;
+  }
+
+  return result;
+}
+
+async function getImageDataUri(
+  imageUrl: string | null | undefined,
+  authToken: string | null,
+): Promise<string | null> {
+  const url = getCompanyLogoUrl(imageUrl);
+  if (!url) return null;
+
+  try {
+    const headers: Record<string, string> = {};
+    const domain = process.env.EXPO_PUBLIC_DOMAIN;
+    if (authToken && domain && new URL(url).host === domain) {
+      headers.Authorization = `Bearer ${authToken}`;
+    }
+    const response = await fetch(url, { headers });
+    if (!response.ok) return null;
+
+    const contentType = response.headers.get('content-type')?.split(';')[0] ?? 'image/png';
+    if (!contentType.startsWith('image/')) return null;
+    const bytes = new Uint8Array(await response.arrayBuffer());
+    if (bytes.length === 0) return null;
+    return `data:${contentType};base64,${encodeBase64(bytes)}`;
+  } catch {
+    return null;
+  }
+}
+
+export function getCompanyLogoDataUri(
+  logoUrl: string | null | undefined,
+  authToken: string | null,
+): Promise<string | null> {
+  return getImageDataUri(logoUrl, authToken);
+}
+
 function baseHtml(title: string, body: string): string {
   return `<!doctype html>
     <html lang="pt-BR">
@@ -31,16 +103,23 @@ function baseHtml(title: string, body: string): string {
         <style>
           @page { margin: 28px; }
           body { font-family: Arial, sans-serif; color: #172033; font-size: 12px; line-height: 1.5; }
-          h1 { color: #374151; font-size: 23px; margin: 0 0 4px; }
-          h2 { font-size: 14px; color: #475569; margin: 22px 0 8px; text-transform: uppercase; letter-spacing: .08em; }
+          h1 { color: ${PDF_ACCENT}; font-size: 23px; margin: 0 0 4px; }
+          h2 { font-size: 14px; color: ${PDF_ACCENT}; margin: 22px 0 8px; text-transform: uppercase; letter-spacing: .08em; }
           .muted { color: #64748b; }
-          .header { border-bottom: 2px solid #374151; padding-bottom: 15px; margin-bottom: 20px; }
+          .header { border-bottom: 2px solid ${PDF_ACCENT}; padding-bottom: 15px; margin-bottom: 20px; }
+          .brand { display: flex; align-items: center; gap: 14px; }
+          .brand img { width: 68px; height: 68px; object-fit: contain; }
           .meta { display: flex; justify-content: space-between; gap: 20px; }
           .card { border: 1px solid #dbe3ec; border-radius: 8px; padding: 12px; margin-top: 8px; }
           table { width: 100%; border-collapse: collapse; margin-top: 8px; }
           th, td { border-bottom: 1px solid #e2e8f0; padding: 8px 4px; text-align: left; }
+          th { background: ${PDF_ACCENT}; color: #ffffff; }
           th:last-child, td:last-child { text-align: right; }
-          .total { font-size: 18px; font-weight: bold; color: #374151; text-align: right; margin-top: 14px; }
+          .total { font-size: 18px; font-weight: bold; color: ${PDF_ACCENT}; text-align: right; margin-top: 14px; }
+          .task-photos { display: flex; flex-wrap: wrap; gap: 12px; }
+          .task-photo { break-inside: avoid; margin: 0 0 8px; width: calc(50% - 6px); }
+          .task-photo img { border: 1px solid #dbe3ec; border-radius: 8px; display: block; height: 230px; object-fit: contain; width: 100%; }
+          .task-photo figcaption { color: #64748b; font-size: 10px; margin-top: 4px; }
           .footer { color: #94a3b8; font-size: 10px; margin-top: 28px; }
         </style>
       </head>
@@ -84,7 +163,12 @@ export function quotePdfHtml(quote: Quote, company?: Company): string {
 
   return baseHtml(`Orçamento #${quote.id}`, `
     <div class="header">
-      <h1>${escapeHtml(company?.name ?? 'Orçamento')}</h1>
+      <div class="brand">
+        ${company?.logoUrl ? `<img src="${escapeHtml(company.logoUrl)}" alt="Logo da empresa" />` : ''}
+        <div>
+          <h1>${escapeHtml(company?.name ?? 'Orçamento')}</h1>
+        </div>
+      </div>
       ${companyDetails ? `<div class="muted">${companyDetails}</div>` : ''}
       <div class="meta">
         <span class="muted">Cliente: <strong>${escapeHtml(quote.clientName)}</strong></span>
@@ -105,9 +189,23 @@ export function quotePdfHtml(quote: Quote, company?: Company): string {
   `);
 }
 
-export function taskPdfHtml(task: Task): string {
-  const photos = task.photos.length
-    ? `<p class="muted">${task.photos.length} foto(s) anexada(s) à ordem de serviço.</p>`
+export async function taskPdfHtml(
+  task: Task,
+  authToken: string | null,
+): Promise<string> {
+  const photoMarkup = await Promise.all(
+    task.photos.map(async (photo, index) => {
+      const imageDataUri = await getImageDataUri(photo.url, authToken);
+      if (!imageDataUri) {
+        throw new Error(
+          `Não foi possível carregar a foto ${index + 1} para incluir na O.S.`,
+        );
+      }
+      return `<figure class="task-photo"><img src="${imageDataUri}" alt="Foto ${index + 1} do serviço" /><figcaption>Foto ${index + 1}</figcaption></figure>`;
+    }),
+  );
+  const photos = photoMarkup.length
+    ? `<h2>Fotos do serviço (${photoMarkup.length})</h2><div class="task-photos">${photoMarkup.join('')}</div>`
     : '';
   return baseHtml(`Ordem de serviço #${task.id}`, `
     <div class="header">

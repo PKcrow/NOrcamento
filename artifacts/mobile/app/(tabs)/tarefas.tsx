@@ -285,7 +285,12 @@ export default function TarefasScreen() {
         (task.clientName?.toLowerCase().includes(term) ?? false) ||
         (task.description?.toLowerCase().includes(term) ?? false)
       );
-    });
+    }).sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime() ||
+        new Date(b.dueAt).getTime() - new Date(a.dueAt).getTime() ||
+        b.id - a.id,
+    );
 
   return (
     <View style={[styles.container, { backgroundColor: theme.background }]}>

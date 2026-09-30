@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useAuth } from '@clerk/expo';
 import {
   View,
   Text,
@@ -10,7 +11,6 @@ import {
   ActivityIndicator,
   RefreshControl,
   Modal,
-  TextInput,
 } from 'react-native';
 import { useLocalSearchParams, useNavigation, useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
@@ -26,7 +26,16 @@ import {
 import Colors from '@/constants/colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useQueryClient } from '@tanstack/react-query';
-import { quotePdfHtml, sharePdfDocument } from '@/lib/nativePdf';
+import {
+  getCompanyLogoDataUri,
+  quotePdfHtml,
+  sharePdfDocument,
+} from '@/lib/nativePdf';
+import {
+  DatePickerField,
+  isScheduleEndBeforeStart,
+  TimePickerField,
+} from '@/components/SchedulePickerFields';
 
 type QuoteStatus = 'draft' | 'sent' | 'approved' | 'rejected';
 
@@ -65,16 +74,23 @@ export default function OrcamentoDetailScreen() {
 
   const { data: quote, isLoading, refetch, isRefetching } = useGetQuote(quoteId);
   const { data: company } = useGetCompany();
+  const { getToken } = useAuth();
   const { mutate: shareQuote } = useShareQuote();
   const { mutate: updateQuote, isPending: isUpdating } = useUpdateQuote();
   const { mutate: revokeLink, isPending: isRevoking } = useRevokeQuotePublicLink();
   const { mutate: convertQuoteToTask, isPending: isConverting } = useConvertQuoteToTask();
   const { mutate: deleteQuote, isPending: isDeleting } = useDeleteQuote();
   const [isScheduleOpen, setIsScheduleOpen] = useState(false);
-  const [scheduledDate, setScheduledDate] = useState('');
-  const [scheduledTime, setScheduledTime] = useState('08:00');
-  const [endDate, setEndDate] = useState('');
-  const [endTime, setEndTime] = useState('18:00');
+  const [scheduledDate, setScheduledDate] = useState<Date | null>(null);
+  const [scheduledTime, setScheduledTime] = useState('00:00');
+  const [endDate, setEndDate] = useState<Date | null>(null);
+  const [endTime, setEndTime] = useState('00:00');
+  const isEndBeforeStart = isScheduleEndBeforeStart(
+    scheduledDate,
+    scheduledTime,
+    endDate,
+    endTime,
+  );
 
   // Edit button in header
   useEffect(() => {
@@ -131,7 +147,15 @@ export default function OrcamentoDetailScreen() {
     if (!quote || sharingPdf) return;
     setSharingPdf(true);
     try {
-      await sharePdfDocument(`Orçamento #${quote.id}`, quotePdfHtml(quote, company));
+      const token = await getToken();
+      const logoDataUri = await getCompanyLogoDataUri(company?.logoUrl, token);
+      const companyWithEmbeddedLogo = company
+        ? { ...company, logoUrl: logoDataUri }
+        : undefined;
+      await sharePdfDocument(
+        `Orçamento #${quote.id}`,
+        quotePdfHtml(quote, companyWithEmbeddedLogo),
+      );
     } catch {
       Alert.alert('Erro', 'Não foi possível gerar ou compartilhar o PDF do orçamento.');
     } finally {
@@ -189,45 +213,53 @@ export default function OrcamentoDetailScreen() {
       router.push(`/tarefa/${quote.convertedTaskId}`);
       return;
     }
-    const now = new Date();
-    setScheduledDate(now.toLocaleDateString('pt-BR'));
-    setScheduledTime(`${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`);
-    setEndDate(now.toLocaleDateString('pt-BR'));
-    setEndTime('18:00');
+    const start = new Date();
+    start.setHours(0, 0, 0, 0);
+    const end = new Date(start);
+    setScheduledDate(start);
+    setScheduledTime('00:00');
+    setEndDate(end);
+    setEndTime('00:00');
     setIsScheduleOpen(true);
   };
 
   const handleScheduleService = () => {
     if (!quote) return;
-    const [day, month, year] = scheduledDate.split('/');
-    const [hours, minutes] = scheduledTime.split(':').map(Number);
-    const dueAt = new Date(`${year}-${month}-${day}T${scheduledTime}:00`);
+    if (!scheduledDate || !endDate) {
+      Alert.alert('Campo obrigatório', 'Selecione as datas de início e término.');
+      return;
+    }
+    const startTimeParts = scheduledTime.match(/^(\d{2}):(\d{2})$/);
     if (
-      !/^\d{2}\/\d{2}\/\d{4}$/.test(scheduledDate) ||
-      !/^\d{2}:\d{2}$/.test(scheduledTime) ||
-      Number.isNaN(dueAt.getTime()) ||
-      dueAt.getFullYear() !== Number(year) ||
-      dueAt.getMonth() + 1 !== Number(month) ||
-      dueAt.getDate() !== Number(day) ||
-      hours > 23 ||
-      minutes > 59
+      !startTimeParts ||
+      Number(startTimeParts[1]) > 23 ||
+      Number(startTimeParts[2]) > 59
     ) {
-      Alert.alert('Data inválida', 'Informe a data no formato DD/MM/AAAA e um horário válido.');
+      Alert.alert('Horário inválido', 'Selecione um horário de início válido.');
+      return;
+    }
+    const dueAt = new Date(scheduledDate);
+    dueAt.setHours(Number(startTimeParts[1]), Number(startTimeParts[2]), 0, 0);
+    if (
+      Number.isNaN(dueAt.getTime())
+    ) {
+      Alert.alert('Data inválida', 'Selecione uma data e um horário válidos.');
       return;
     }
 
-    const [endDay, endMonth, endYear] = endDate.split('/');
-    const [endHours, endMinutes] = endTime.split(':').map(Number);
-    const end = new Date(`${endYear}-${endMonth}-${endDay}T${endTime}:00`);
+    const endTimeParts = endTime.match(/^(\d{2}):(\d{2})$/);
     if (
-      !/^\d{2}\/\d{2}\/\d{4}$/.test(endDate) ||
-      !/^\d{2}:\d{2}$/.test(endTime) ||
+      !endTimeParts ||
+      Number(endTimeParts[1]) > 23 ||
+      Number(endTimeParts[2]) > 59
+    ) {
+      Alert.alert('Horário inválido', 'Selecione um horário de término válido.');
+      return;
+    }
+    const end = new Date(endDate);
+    end.setHours(Number(endTimeParts[1]), Number(endTimeParts[2]), 0, 0);
+    if (
       Number.isNaN(end.getTime()) ||
-      end.getFullYear() !== Number(endYear) ||
-      end.getMonth() + 1 !== Number(endMonth) ||
-      end.getDate() !== Number(endDay) ||
-      endHours > 23 ||
-      endMinutes > 59 ||
       end.getTime() <= dueAt.getTime()
     ) {
       Alert.alert('Término inválido', 'Informe uma data e horário posteriores ao início.');
@@ -533,51 +565,52 @@ export default function OrcamentoDetailScreen() {
 
             <Text style={[styles.inputLabel, { color: theme.foreground }]}>Início *</Text>
             <View style={styles.dateTimeRow}>
-              <TextInput
-                style={[styles.scheduleInput, styles.dateInput, { borderColor: theme.border, color: theme.foreground, backgroundColor: theme.background }]}
-                placeholder="DD/MM/AAAA"
-                placeholderTextColor={theme.mutedForeground}
-                keyboardType="numeric"
-                maxLength={10}
-                value={scheduledDate}
-                onChangeText={(value) => setScheduledDate(value.replace(/\D/g, '').replace(/(\d{2})(\d)/, '$1/$2').replace(/(\d{2}\/\d{2})(\d)/, '$1/$2'))}
-              />
-              <TextInput
-                style={[styles.scheduleInput, styles.timeInput, { borderColor: theme.border, color: theme.foreground, backgroundColor: theme.background }]}
-                placeholder="08:00"
-                placeholderTextColor={theme.mutedForeground}
-                keyboardType="numeric"
-                maxLength={5}
-                value={scheduledTime}
-                onChangeText={setScheduledTime}
-              />
+              <View style={styles.dateInput}>
+                <DatePickerField
+                  value={scheduledDate}
+                  onChange={setScheduledDate}
+                  accessibilityLabel="Selecionar data de início"
+                />
+              </View>
+              <View style={styles.timeInput}>
+                <TimePickerField
+                  value={scheduledTime}
+                  onChange={setScheduledTime}
+                  accessibilityLabel="Selecionar horário de início"
+                />
+              </View>
             </View>
 
-             <Text style={[styles.inputLabel, { color: theme.foreground }]}>Término *</Text>
+            <Text style={[styles.inputLabel, { color: theme.foreground }]}>Término *</Text>
             <View style={styles.dateTimeRow}>
-              <TextInput
-                style={[styles.scheduleInput, styles.dateInput, { borderColor: theme.border, color: theme.foreground, backgroundColor: theme.background }]}
-                placeholder="DD/MM/AAAA"
-                placeholderTextColor={theme.mutedForeground}
-                keyboardType="numeric"
-                maxLength={10}
-                value={endDate}
-                onChangeText={(value) => setEndDate(value.replace(/\D/g, '').replace(/(\d{2})(\d)/, '$1/$2').replace(/(\d{2}\/\d{2})(\d)/, '$1/$2'))}
-              />
-              <TextInput
-                style={[styles.scheduleInput, styles.timeInput, { borderColor: theme.border, color: theme.foreground, backgroundColor: theme.background }]}
-                placeholder="18:00"
-                placeholderTextColor={theme.mutedForeground}
-                keyboardType="numeric"
-                maxLength={5}
-                value={endTime}
-                onChangeText={setEndTime}
-              />
+              <View style={styles.dateInput}>
+                <DatePickerField
+                  value={endDate}
+                  onChange={setEndDate}
+                  accessibilityLabel="Selecionar data de término"
+                />
+              </View>
+              <View style={styles.timeInput}>
+                <TimePickerField
+                  value={endTime}
+                  onChange={setEndTime}
+                  accessibilityLabel="Selecionar horário de término"
+                />
+              </View>
             </View>
 
-            <Text style={[styles.modalHint, { color: theme.mutedForeground }]}>
-               Você pode agendar outro serviço no mesmo dia desde que os horários não se sobreponham.
-            </Text>
+            {isEndBeforeStart ? (
+              <Text
+                accessibilityRole="alert"
+                style={[styles.modalError, { color: theme.destructive }]}
+              >
+                O término não pode ser anterior ao início.
+              </Text>
+            ) : (
+              <Text style={[styles.modalHint, { color: theme.mutedForeground }]}>
+                Você pode agendar outro serviço no mesmo dia desde que os horários não se sobreponham.
+              </Text>
+            )}
             <View style={styles.modalActions}>
               <TouchableOpacity
                 style={[styles.modalCancel, { borderColor: theme.border }]}
@@ -711,10 +744,10 @@ const styles = StyleSheet.create({
   modalSubtitle: { fontSize: 13, fontFamily: 'PlusJakartaSans_400Regular', marginTop: 3 },
   inputLabel: { fontSize: 13, fontFamily: 'PlusJakartaSans_600SemiBold', marginTop: 4 },
   dateTimeRow: { flexDirection: 'row', gap: 8 },
-  scheduleInput: { height: 46, borderWidth: 1, borderRadius: 8, paddingHorizontal: 12, fontSize: 15, fontFamily: 'PlusJakartaSans_400Regular' },
   dateInput: { flex: 1 },
-  timeInput: { width: 86 },
+  timeInput: { width: 128 },
   modalHint: { fontSize: 12, fontFamily: 'PlusJakartaSans_400Regular', lineHeight: 18, marginTop: 2 },
+  modalError: { fontSize: 12, fontFamily: 'PlusJakartaSans_600SemiBold', lineHeight: 18, marginTop: 2 },
   modalActions: { flexDirection: 'row', gap: 10, marginTop: 8 },
   modalCancel: { flex: 1, height: 48, borderWidth: 1, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
   modalCancelText: { fontSize: 14, fontFamily: 'PlusJakartaSans_600SemiBold' },
