@@ -3,7 +3,6 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
   TouchableOpacity,
   TextInput,
   Alert,
@@ -17,12 +16,15 @@ import {
   useListProducts,
   useListServiceTemplates,
   useCreateQuote,
+  useCreateClient,
   useGetQuote,
   getGetQuoteQueryKey,
+  getListClientsQueryKey,
 } from '@workspace/api-client-react';
 import Colors from '@/constants/colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useQueryClient } from '@tanstack/react-query';
+import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 
 type Item = {
   productId: number | null;
@@ -53,6 +55,11 @@ export default function NovoOrcamentoScreen() {
   );
   const [showClientPicker, setShowClientPicker] = useState(false);
   const [clientSearch, setClientSearch] = useState('');
+  const [showNewClientForm, setShowNewClientForm] = useState(false);
+  const [newClientName, setNewClientName] = useState('');
+  const [newClientPhone, setNewClientPhone] = useState('');
+  const [newClientEmail, setNewClientEmail] = useState('');
+  const [createdClient, setCreatedClient] = useState<{ id: number; name: string } | null>(null);
   const [showTemplatePicker, setShowTemplatePicker] = useState(false);
   const [selectedTemplateId, setSelectedTemplateId] = useState<number | null>(null);
   const [notes, setNotes] = useState('');
@@ -71,6 +78,7 @@ export default function NovoOrcamentoScreen() {
   } = useListProducts();
   const { data: serviceTemplates } = useListServiceTemplates();
   const { mutate: createQuote, isPending } = useCreateQuote();
+  const { mutate: createClient, isPending: isCreatingClient } = useCreateClient();
   const { data: duplicateQuote, isLoading: isLoadingDuplicate } = useGetQuote(duplicateQuoteId ?? 0, {
     query: {
       enabled: duplicateQuoteId !== undefined,
@@ -79,7 +87,39 @@ export default function NovoOrcamentoScreen() {
   });
   const [openProductIndex, setOpenProductIndex] = useState<number | null>(null);
 
-  const selectedClient = clients?.find(c => c.id === selectedClientId);
+  const selectedClient =
+    clients?.find(c => c.id === selectedClientId) ??
+    (createdClient?.id === selectedClientId ? createdClient : undefined);
+
+  const handleCreateClient = () => {
+    if (!newClientName.trim()) {
+      Alert.alert('Campo obrigatório', 'Informe o nome do cliente.');
+      return;
+    }
+    createClient(
+      {
+        data: {
+          name: newClientName.trim(),
+          phone: newClientPhone.trim() || undefined,
+          email: newClientEmail.trim() || undefined,
+        },
+      },
+      {
+        onSuccess: (client) => {
+          queryClient.invalidateQueries({ queryKey: getListClientsQueryKey() });
+          setCreatedClient({ id: client.id, name: client.name });
+          setSelectedClientId(client.id);
+          setShowNewClientForm(false);
+          setShowClientPicker(false);
+          setClientSearch('');
+          setNewClientName('');
+          setNewClientPhone('');
+          setNewClientEmail('');
+        },
+        onError: () => Alert.alert('Erro', 'Não foi possível cadastrar o cliente.'),
+      },
+    );
+  };
 
   useEffect(() => {
     if (!duplicateQuote) return;
@@ -205,7 +245,7 @@ export default function NovoOrcamentoScreen() {
   }
 
   return (
-    <ScrollView
+    <KeyboardAwareScrollViewCompat
       style={[styles.container, { backgroundColor: theme.background }]}
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
@@ -255,6 +295,65 @@ export default function NovoOrcamentoScreen() {
               <Text style={[styles.dropdownEmpty, { color: theme.mutedForeground }]}>
                 Nenhum cliente encontrado.
               </Text>
+            )}
+            <TouchableOpacity
+              style={[styles.newClientButton, { borderTopColor: theme.border }]}
+              onPress={() => setShowNewClientForm((value) => !value)}
+            >
+              <Ionicons name="add-circle-outline" size={18} color={theme.primary} />
+              <Text style={[styles.newClientButtonText, { color: theme.primary }]}>Novo cliente</Text>
+              <Ionicons
+                name={showNewClientForm ? 'chevron-up' : 'chevron-down'}
+                size={16}
+                color={theme.primary}
+              />
+            </TouchableOpacity>
+            {showNewClientForm && (
+              <View style={[styles.newClientForm, { backgroundColor: theme.background }]}>
+                <TextInput
+                  style={[styles.newClientInput, { borderColor: theme.border, color: theme.foreground, backgroundColor: theme.card }]}
+                  placeholder="Nome do cliente *"
+                  placeholderTextColor={theme.mutedForeground}
+                  value={newClientName}
+                  onChangeText={setNewClientName}
+                  autoFocus
+                />
+                <TextInput
+                  style={[styles.newClientInput, { borderColor: theme.border, color: theme.foreground, backgroundColor: theme.card }]}
+                  placeholder="Telefone (opcional)"
+                  placeholderTextColor={theme.mutedForeground}
+                  value={newClientPhone}
+                  onChangeText={setNewClientPhone}
+                  keyboardType="phone-pad"
+                />
+                <TextInput
+                  style={[styles.newClientInput, { borderColor: theme.border, color: theme.foreground, backgroundColor: theme.card }]}
+                  placeholder="E-mail (opcional)"
+                  placeholderTextColor={theme.mutedForeground}
+                  value={newClientEmail}
+                  onChangeText={setNewClientEmail}
+                  keyboardType="email-address"
+                  autoCapitalize="none"
+                />
+                <View style={styles.newClientActions}>
+                  <TouchableOpacity
+                    style={[styles.newClientCancel, { borderColor: theme.border }]}
+                    onPress={() => setShowNewClientForm(false)}
+                    disabled={isCreatingClient}
+                  >
+                    <Text style={[styles.newClientCancelText, { color: theme.foreground }]}>Cancelar</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={[styles.newClientSave, { backgroundColor: theme.primary }, isCreatingClient && { opacity: 0.6 }]}
+                    onPress={handleCreateClient}
+                    disabled={isCreatingClient}
+                  >
+                    {isCreatingClient ? <ActivityIndicator color="#fff" size="small" /> : (
+                      <Text style={styles.newClientSaveText}>Salvar</Text>
+                    )}
+                  </TouchableOpacity>
+                </View>
+              </View>
             )}
           </View>
         )}
@@ -532,7 +631,7 @@ export default function NovoOrcamentoScreen() {
           <Text style={styles.submitBtnText}>Criar orçamento</Text>
         )}
       </TouchableOpacity>
-    </ScrollView>
+    </KeyboardAwareScrollViewCompat>
   );
 }
 
@@ -575,6 +674,27 @@ const styles = StyleSheet.create({
   },
   dropdownItemText: { fontSize: 14, fontFamily: 'PlusJakartaSans_400Regular' },
   dropdownEmpty: { padding: 12, fontSize: 13, fontFamily: 'PlusJakartaSans_400Regular' },
+  newClientButton: {
+    flexDirection: 'row', alignItems: 'center', gap: 8,
+    paddingHorizontal: 12, paddingVertical: 12, borderTopWidth: 1,
+  },
+  newClientButtonText: { flex: 1, fontSize: 14, fontFamily: 'PlusJakartaSans_600SemiBold' },
+  newClientForm: { padding: 12, gap: 10 },
+  newClientInput: {
+    height: 44, borderWidth: 1, borderRadius: 8, paddingHorizontal: 10,
+    fontSize: 14, fontFamily: 'PlusJakartaSans_400Regular',
+  },
+  newClientActions: { flexDirection: 'row', justifyContent: 'flex-end', gap: 8 },
+  newClientCancel: {
+    minHeight: 40, borderWidth: 1, borderRadius: 8, paddingHorizontal: 14,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  newClientCancelText: { fontSize: 13, fontFamily: 'PlusJakartaSans_500Medium' },
+  newClientSave: {
+    minWidth: 84, minHeight: 40, borderRadius: 8, paddingHorizontal: 14,
+    alignItems: 'center', justifyContent: 'center',
+  },
+  newClientSaveText: { fontSize: 13, fontFamily: 'PlusJakartaSans_600SemiBold', color: '#fff' },
   templateHint: { fontSize: 12, lineHeight: 17, fontFamily: 'PlusJakartaSans_400Regular', marginTop: 6 },
   templateChoiceCopy: { flex: 1 },
   templateChoiceMeta: { fontSize: 11, fontFamily: 'PlusJakartaSans_400Regular', marginTop: 2 },
