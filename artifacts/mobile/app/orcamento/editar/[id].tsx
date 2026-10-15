@@ -3,7 +3,7 @@ import {
   View,
   Text,
   StyleSheet,
-  ScrollView,
+  Switch,
   TextInput,
   TouchableOpacity,
   Alert,
@@ -20,6 +20,7 @@ import {
 import Colors from '@/constants/colors';
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { useQueryClient } from '@tanstack/react-query';
+import { KeyboardAwareScrollViewCompat } from '@/components/KeyboardAwareScrollViewCompat';
 
 type Item = {
   id?: number;
@@ -54,6 +55,8 @@ export default function EditarOrcamentoScreen() {
   ]);
   const [laborCost, setLaborCost] = useState('');
   const [notes, setNotes] = useState('');
+  const [serviceScopeEnabled, setServiceScopeEnabled] = useState(false);
+  const [serviceDescription, setServiceDescription] = useState('');
   const [openProductIndex, setOpenProductIndex] = useState<number | null>(null);
 
   useEffect(() => {
@@ -72,6 +75,8 @@ export default function EditarOrcamentoScreen() {
       );
       setLaborCost(quote.laborCost > 0 ? String(quote.laborCost) : '');
       setNotes(quote.notes ?? '');
+      setServiceScopeEnabled(quote.serviceScopeEnabled);
+      setServiceDescription(quote.serviceDescription ?? '');
     }
   }, [quote]);
 
@@ -124,6 +129,8 @@ export default function EditarOrcamentoScreen() {
           clientId: selectedClientId ?? undefined,
           notes: notes.trim() || null,
           laborCost: labor,
+          serviceScopeEnabled,
+          serviceDescription: serviceScopeEnabled ? serviceDescription.trim() || null : null,
           items: validItems.map(i => ({
             productId: i.productId,
             description: i.description.trim(),
@@ -151,7 +158,7 @@ export default function EditarOrcamentoScreen() {
   }
 
   return (
-    <ScrollView
+    <KeyboardAwareScrollViewCompat
       style={[styles.container, { backgroundColor: theme.background }]}
       contentContainerStyle={styles.content}
       keyboardShouldPersistTaps="handled"
@@ -196,6 +203,38 @@ export default function EditarOrcamentoScreen() {
           </View>
         )}
       </View>
+
+      {/* Service scope */}
+      <View style={[styles.scopeBox, { borderColor: theme.border, backgroundColor: theme.card }]}>
+        <View style={styles.scopeCopy}>
+          <Text style={[styles.label, { color: theme.foreground, marginBottom: 2 }]}>Escopo do serviço</Text>
+          <Text style={[styles.scopeHint, { color: theme.mutedForeground }]}>
+            Descreva o que será realizado e o que está incluído.
+          </Text>
+        </View>
+        <Switch
+          value={serviceScopeEnabled}
+          onValueChange={(enabled) => {
+            setServiceScopeEnabled(enabled);
+            if (!enabled) setServiceDescription('');
+          }}
+          trackColor={{ false: theme.border, true: theme.primary + '88' }}
+          thumbColor={serviceScopeEnabled ? theme.primary : '#f4f4f5'}
+        />
+      </View>
+      {serviceScopeEnabled && (
+        <View style={styles.section}>
+          <TextInput
+            style={[styles.textarea, { borderColor: theme.border, color: theme.foreground, backgroundColor: theme.card }]}
+            placeholder="Descreva o serviço que será realizado..."
+            placeholderTextColor={theme.mutedForeground}
+            value={serviceDescription}
+            onChangeText={setServiceDescription}
+            multiline
+            numberOfLines={4}
+          />
+        </View>
+      )}
 
       {/* Items */}
       <View style={styles.section}>
@@ -365,7 +404,7 @@ export default function EditarOrcamentoScreen() {
           <Text style={styles.saveBtnText}>Salvar alterações</Text>
         )}
       </TouchableOpacity>
-    </ScrollView>
+    </KeyboardAwareScrollViewCompat>
   );
 }
 
@@ -389,6 +428,12 @@ const styles = StyleSheet.create({
   dropdownItem: { padding: 12 },
   dropdownItemText: { fontSize: 14, fontFamily: 'PlusJakartaSans_400Regular' },
   dropdownEmpty: { padding: 12, fontSize: 13, fontFamily: 'PlusJakartaSans_400Regular' },
+  scopeBox: {
+    flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
+    borderWidth: 1, borderRadius: 10, padding: 13, marginBottom: 12,
+  },
+  scopeCopy: { flex: 1, paddingRight: 12 },
+  scopeHint: { fontSize: 12, lineHeight: 17, fontFamily: 'PlusJakartaSans_400Regular' },
   catalogLabel: { fontSize: 11, fontFamily: 'PlusJakartaSans_500Medium', marginBottom: 4 },
   productPicker: {
     flexDirection: 'row', alignItems: 'center', gap: 8,
