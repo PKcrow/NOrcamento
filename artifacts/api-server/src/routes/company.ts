@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { Readable } from "node:stream";
 import { and, asc, eq } from "drizzle-orm";
 import {
   db,
@@ -16,7 +17,14 @@ import {
   UpdateCompanyResponse,
 } from "@workspace/api-zod";
 import { requireAuth, requireTeam, requireTeamOwner } from "../middlewares/auth";
-import { ObjectStorageService } from "../lib/objectStorage";
+import {
+  ObjectNotFoundError,
+  ObjectStorageService,
+} from "../lib/objectStorage";
+import {
+  downloadPrivateCompanyLogo,
+  getPrivateCompanyLogoObjectPath,
+} from "../lib/companyLogo";
 
 const router: IRouter = Router();
 const objectStorage = new ObjectStorageService();
@@ -25,7 +33,10 @@ function toCompany(team: typeof teamsTable.$inferSelect) {
   return {
     id: team.id,
     name: team.name,
-    logoUrl: team.logoUrl,
+    logoUrl:
+      team.logoUrl && getPrivateCompanyLogoObjectPath(team.logoUrl)
+        ? "/api/company/logo"
+        : team.logoUrl,
     phone: team.phone,
     email: team.email,
     address: team.address,
@@ -65,6 +76,41 @@ router.get("/company", requireAuth, requireTeam, async (req, res) => {
     return;
   }
   res.json(GetCompanyResponse.parse(toCompany(team)));
+});
+
+router.get("/company/logo", requireAuth, requireTeam, async (req, res) => {
+  const teamId = req.localUser!.teamId!;
+  const [team] = await db
+    .select({ logoUrl: teamsTable.logoUrl })
+    .from(teamsTable)
+    .where(eq(teamsTable.id, teamId));
+  if (!team?.logoUrl || !getPrivateCompanyLogoObjectPath(team.logoUrl)) {
+    res.status(404).json({ error: "Logo não encontrada" });
+    return;
+  }
+
+  try {
+    const response = await downloadPrivateCompanyLogo(team.logoUrl);
+    if (!response) {
+      res.status(404).json({ error: "Logo não encontrada" });
+      return;
+    }
+    res.status(response.status);
+    response.headers.forEach((value, key) => res.setHeader(key, value));
+    res.setHeader("Cache-Control", "private, no-store");
+    if (response.body) {
+      Readable.fromWeb(response.body as ReadableStream<Uint8Array>).pipe(res);
+    } else {
+      res.end();
+    }
+  } catch (error) {
+    if (error instanceof ObjectNotFoundError) {
+      res.status(404).json({ error: "Logo não encontrada" });
+      return;
+    }
+    req.log.error({ err: error }, "Error serving company logo");
+    res.status(500).json({ error: "Não foi possível carregar a logo" });
+  }
 });
 
 router.patch("/company", requireAuth, requireTeam, async (req, res) => {
@@ -195,8 +241,7 @@ router.delete(
     // Remove the file from object storage
     try {
       if (document.objectPath) {
-        const file = await objectStorage.getObjectEntityFile(document.objectPath);
-        await file.delete();
+        await objectStorage.deleteObjectEntity(document.objectPath);
       }
     } catch {
       // Log but don't fail the request if storage delete fails
