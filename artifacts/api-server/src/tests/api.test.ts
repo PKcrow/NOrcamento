@@ -15,6 +15,7 @@ import {
 import { authState } from "./helpers";
 import app from "../app";
 import { sendTaskReminderPushNotification } from "../lib/expoPush";
+import { ObjectStorageService } from "../lib/objectStorage";
 
 const OWNER_ID = "test_owner_user";
 const MEMBER_ID = "test_member_user";
@@ -154,6 +155,77 @@ describe("team isolation", () => {
     expect(
       list.body.find((c: { id: number }) => c.id === clientAId),
     ).toBeUndefined();
+  });
+});
+
+describe("Supabase Storage routes", () => {
+  it("returns a signed upload URL only to authenticated team members", async () => {
+    const getUploadUrl = vi
+      .spyOn(ObjectStorageService.prototype, "getObjectEntityUploadURL")
+      .mockResolvedValue({
+        uploadURL: "https://project.supabase.co/storage/signed-upload",
+        objectPath: `/objects/${teamAId}/uploads/test-file`,
+      });
+
+    try {
+      as(OWNER_ID);
+      const response = await request(app)
+        .post("/api/storage/uploads/request-url")
+        .send({
+          name: "document.pdf",
+          size: 12,
+          contentType: "application/pdf",
+        });
+
+      expect(response.status).toBe(200);
+      expect(response.body.uploadURL).toBe(
+        "https://project.supabase.co/storage/signed-upload",
+      );
+      expect(response.body.objectPath).toBe(
+        `/objects/${teamAId}/uploads/test-file`,
+      );
+
+      as(null);
+      const unauthenticated = await request(app)
+        .post("/api/storage/uploads/request-url")
+        .send({
+          name: "document.pdf",
+          size: 12,
+          contentType: "application/pdf",
+        });
+      expect(unauthenticated.status).toBe(401);
+      expect(getUploadUrl).toHaveBeenCalledTimes(1);
+    } finally {
+      getUploadUrl.mockRestore();
+      as(OWNER_ID);
+    }
+  });
+
+  it("redirects private objects to a signed read URL", async () => {
+    const objectFile = { key: `${teamAId}/uploads/test-file` };
+    const storageLookup = vi
+      .spyOn(ObjectStorageService.prototype, "getObjectEntityFile")
+      .mockResolvedValue(objectFile);
+    const signedReadUrl = vi
+      .spyOn(ObjectStorageService.prototype, "getObjectEntitySignedReadURL")
+      .mockResolvedValue("https://project.supabase.co/signed/test-file");
+
+    try {
+      as(OWNER_ID);
+      const response = await request(app).get(
+        `/api/storage/objects/${teamAId}/uploads/test-file`,
+      );
+
+      expect(response.status).toBe(302);
+      expect(response.headers.location).toBe(
+        "https://project.supabase.co/signed/test-file",
+      );
+      expect(signedReadUrl).toHaveBeenCalledWith(objectFile, 3600);
+    } finally {
+      storageLookup.mockRestore();
+      signedReadUrl.mockRestore();
+      as(OWNER_ID);
+    }
   });
 });
 

@@ -1084,8 +1084,9 @@ paths:
       operationId: requestUploadUrl
       summary: Request a presigned URL for file upload
       description: |
-        Returns a presigned GCS URL for direct upload. The client sends JSON
-        metadata here, then uploads the file directly to the returned URL.
+        Returns a signed Supabase Storage URL for direct upload to the private
+        `arquivos` bucket. The client sends metadata here, then uploads the file
+        directly to the returned URL.
       requestBody:
         required: true
         content:
@@ -1116,10 +1117,11 @@ paths:
     get:
       tags: [Storage]
       operationId: getPublicObject
-      summary: Serve a public asset from PUBLIC_OBJECT_SEARCH_PATHS
+      summary: Serve a public asset from Supabase Storage
       description: |
         Unconditionally public — no authentication or ACL checks.
-        Searches PUBLIC_OBJECT_SEARCH_PATHS for the given file path.
+        Searches SUPABASE_STORAGE_PUBLIC_PREFIXES in the private `arquivos`
+        bucket and redirects to a short-lived signed read URL.
       parameters:
         - name: filePath
           in: path
@@ -1128,6 +1130,8 @@ paths:
             type: string
           description: Relative file path within the public search paths.
       responses:
+        "302":
+          description: Redirect to a short-lived signed Storage URL.
         "200":
           description: Object content streamed with correct Content-Type.
           content:
@@ -1152,18 +1156,21 @@ paths:
     get:
       tags: [Storage]
       operationId: getStorageObject
-      summary: Serve an object entity from PRIVATE_OBJECT_DIR
+      summary: Serve an authenticated object from Supabase Storage
       description: |
-        Serves object entities uploaded via presigned URLs. These can optionally
-        be protected with authentication or ACL checks based on the use case.
+        Serves private object entities to authenticated team members by
+        redirecting to a short-lived signed read URL. Older paths are
+        authorized through their database records.
       parameters:
         - name: objectPath
           in: path
           required: true
           schema:
             type: string
-          description: Object path within the private object dir (e.g. `uploads/some-uuid`).
+          description: Stored object path (e.g. `/objects/<team-id>/uploads/some-uuid`).
       responses:
+        "302":
+          description: Redirect to a short-lived signed Storage URL.
         "200":
           description: Object content streamed with correct Content-Type.
           content:

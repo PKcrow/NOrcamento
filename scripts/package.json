@@ -5,10 +5,15 @@
   "type": "module",
   "scripts": {
     "hello": "tsx ./src/hello.ts",
+    "migrate:object-storage": "tsx ./src/migrate-object-storage.ts",
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {
     "@types/node": "catalog:",
     "tsx": "catalog:"
+  },
+  "dependencies": {
+    "@google-cloud/storage": "^7.21.0",
+    "@supabase/supabase-js": "^2.119.2"
   }
 }

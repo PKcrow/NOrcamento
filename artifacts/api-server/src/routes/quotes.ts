@@ -1,5 +1,6 @@
 import { Router, type IRouter } from "express";
 import { randomBytes } from "node:crypto";
+import { Readable } from "node:stream";
 import { and, desc, eq, gt, inArray, isNull, or, sql } from "drizzle-orm";
 import {
   db,
@@ -40,6 +41,11 @@ import {
   requireTeamOwner,
 } from "../middlewares/auth";
 import { sendQuoteResponsePushNotification } from "../lib/expoPush";
+import { ObjectNotFoundError } from "../lib/objectStorage";
+import {
+  downloadPrivateCompanyLogo,
+  getPrivateCompanyLogoObjectPath,
+} from "../lib/companyLogo";
 import {
   findSchedulingConflict,
   getScheduleRangeError,
@@ -657,7 +663,7 @@ router.post(
   },
 );
 
-async function loadPublicQuoteRecord(quote: Quote) {
+async function loadPublicQuoteRecord(quote: Quote, token: string) {
   const [client] = await db
     .select()
     .from(clientsTable)
@@ -684,7 +690,10 @@ async function loadPublicQuoteRecord(quote: Quote) {
       ? {
           id: team.id,
           name: team.name,
-          logoUrl: team.logoUrl,
+          logoUrl:
+            team.logoUrl && getPrivateCompanyLogoObjectPath(team.logoUrl)
+              ? `/api/public/quotes/${token}/logo`
+              : team.logoUrl,
           phone: team.phone,
           email: team.email,
           address: team.address,
@@ -721,8 +730,53 @@ async function loadPublicQuote(token: string) {
     .from(quotesTable)
     .where(eq(quotesTable.publicToken, token));
   if (!quote || !isPublicLinkActive(quote)) return null;
-  return loadPublicQuoteRecord(quote);
+  return loadPublicQuoteRecord(quote, token);
 }
+
+// PUBLIC (no auth): serve only the company logo associated with an active quote link.
+router.get("/public/quotes/:token/logo", async (req, res) => {
+  const { token } = GetPublicQuoteParams.parse(req.params);
+  const [quote] = await db
+    .select()
+    .from(quotesTable)
+    .where(eq(quotesTable.publicToken, token));
+  if (!quote || !isPublicLinkActive(quote)) {
+    res.status(404).json({ error: "Orçamento não encontrado" });
+    return;
+  }
+
+  const [team] = await db
+    .select({ id: teamsTable.id, logoUrl: teamsTable.logoUrl })
+    .from(teamsTable)
+    .where(eq(teamsTable.id, quote.teamId));
+  if (!team?.logoUrl || !getPrivateCompanyLogoObjectPath(team.logoUrl)) {
+    res.status(404).json({ error: "Logo não encontrada" });
+    return;
+  }
+
+  try {
+    const response = await downloadPrivateCompanyLogo(team.logoUrl);
+    if (!response) {
+      res.status(404).json({ error: "Logo não encontrada" });
+      return;
+    }
+    res.status(response.status);
+    response.headers.forEach((value, key) => res.setHeader(key, value));
+    res.setHeader("Cache-Control", "private, no-store");
+    if (response.body) {
+      Readable.fromWeb(response.body as ReadableStream<Uint8Array>).pipe(res);
+    } else {
+      res.end();
+    }
+  } catch (error) {
+    if (error instanceof ObjectNotFoundError) {
+      res.status(404).json({ error: "Logo não encontrada" });
+      return;
+    }
+    req.log.error({ err: error }, "Error serving public quote logo");
+    res.status(500).json({ error: "Não foi possível carregar a logo" });
+  }
+});
 
 // PUBLIC (no auth): view a quote by its public token
 router.get("/public/quotes/:token", async (req, res) => {
@@ -801,7 +855,7 @@ router.post("/public/quotes/:token/respond", async (req, res) => {
   // The response was accepted while the link was active. Build its payload
   // from that accepted row so a concurrent revocation cannot turn this
   // successful response into a 500 during a second public-link lookup.
-  const result = await loadPublicQuoteRecord(updated);
+  const result = await loadPublicQuoteRecord(updated, token);
   // Delivery is deliberately detached from the public response: a push outage
   // must never make the customer retry or lose an accepted decision.
   void sendQuoteResponsePushNotification({
